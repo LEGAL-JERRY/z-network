@@ -1315,7 +1315,7 @@ footer {
 
 /* ── CONFIG — REPLACE THESE 2 LINES ─────────────────── */
 var ADMIN_WA          = '2348159694740';                       // ← your WhatsApp number (234XXXXXXXXXX)
-var PAYSTACK_PUBLIC_KEY = 'pk_live_ad4252161bf61d466256573cb5b5fd8a4d3bb07a' // ← your Paystack payment link
+var PAYSTACK_PUBLIC_KEY = 'sk_test_7a2db87131bd93ff106812d9393f6df96ce097d4' // ← your Paystack payment link
 
 /* Plan key → txt file mapping */
 var PLAN_KEYS = {
@@ -1381,22 +1381,42 @@ function updateProgress(id) {
 /* ── PLAN SELECTION ──────────────────────────────────── */
 function selectPlan(card) {
   if (card.classList.contains('plan-disabled')) return;
-  var cards = document.querySelectorAll('.plan-card');
-  for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
-  card.classList.add('selected');
   
+  // Clear selection classes and borders from all cards
+  var cards = document.querySelectorAll('.plan-card');
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].classList.remove('selected');
+    cards[i].style.borderColor = 'var(--border)';
+  }
+  
+  // Apply visual focus state to clicked card
+  card.classList.add('selected');
+  card.style.borderColor = 'var(--accent)';
+  
+  // Assign payload states
   S.plan = card.getAttribute('data-plan');
   S.plankey = card.getAttribute('data-plankey');
   S.amount = parseInt(card.getAttribute('data-amount'));
   S.validity = card.getAttribute('data-validity');
   
-  // Update UI references just in case
-  document.getElementById('summaryPlan').textContent = S.plan;
-  document.getElementById('summaryValidity').textContent = 'Valid for ' + S.validity;
-  document.getElementById('summaryAmount').textContent = '₦' + S.amount.toLocaleString();
-  
-  // Bypass checkout entry form and launch Paystack instantly
-  initiatePaymentFromPlan();
+  // Instantly invoke payment gateway logic block
+  var txReference = 'ZN-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000);
+  var handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: txReference + '@znetwork.internal',
+    amount: S.amount * 100,
+    currency: 'NGN',
+    metadata: { plan: S.plan, plankey: S.plankey, validity: S.validity },
+    callback: function(response) {
+      goTo('step-processing');
+      pollDatabaseLedger(response.reference);
+    },
+    onClose: function() {
+      card.classList.remove('selected');
+      card.style.borderColor = 'var(--border)';
+    }
+  });
+  handler.openIframe();
 }
 /* ── AUTOMATED PAYSTACK INITIATION ───────────────────── */
 function initiatePaymentFromPlan() {
