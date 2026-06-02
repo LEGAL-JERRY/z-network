@@ -1395,25 +1395,61 @@ function updateProgress(id) {
 }
 
 /* ── PLAN SELECTION ──────────────────────────────────── */
+/* ── PLAN SELECTION ──────────────────────────────────── */
 function selectPlan(card) {
   if (card.classList.contains('plan-disabled')) return;
   var cards = document.querySelectorAll('.plan-card');
   for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
   card.classList.add('selected');
-
-  S.plan     = card.getAttribute('data-plan');
-  S.plankey  = card.getAttribute('data-plankey');
-  S.amount   = parseInt(card.getAttribute('data-amount'));
+  
+  S.plan = card.getAttribute('data-plan');
+  S.plankey = card.getAttribute('data-plankey');
+  S.amount = parseInt(card.getAttribute('data-amount'));
   S.validity = card.getAttribute('data-validity');
-
-  document.getElementById('summaryPlan').textContent     = S.plan;
+  
+  // Update UI references just in case
+  document.getElementById('summaryPlan').textContent = S.plan;
   document.getElementById('summaryValidity').textContent = 'Valid for ' + S.validity;
-  document.getElementById('summaryAmount').textContent   = '₦' + S.amount.toLocaleString();
-  document.getElementById('planContinueBtn').disabled    = false;
-
-  if (navigator.vibrate) navigator.vibrate(25);
+  document.getElementById('summaryAmount').textContent = '₦' + S.amount.toLocaleString();
+  
+  // Bypass checkout entry form and launch Paystack instantly
+  initiatePaymentFromPlan();
 }
-
+/* ── AUTOMATED PAYSTACK INITIATION ───────────────────── */
+function initiatePaymentFromPlan() {
+  // Generate a random customer guest identity string for the Paystack API payload
+  var uniqueTxRef = 'guest_' + Date.now();
+  var mockEmail = uniqueTxRef + '@znetwork.com';
+  
+  // Navigate directly to processing view state 
+  goTo('step-processing');
+  
+  var handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: mockEmail,
+    amount: S.amount * 100,
+    currency: 'NGN',
+    metadata: {
+      guestId: uniqueTxRef,
+      plan: S.plan,
+      plankey: S.plankey,
+      validity: S.validity
+    },
+    callback: function(response) {
+      window.location.href = 'success.html?ref=' + response.reference + 
+        '&plan=' + encodeURIComponent(S.plan) + 
+        '&plankey=' + S.plankey + 
+        '&phone=GUEST' + 
+        '&amount=' + S.amount + 
+        '&validity=' + encodeURIComponent(S.validity);
+    },
+    onClose: function() {
+      // If payment modal closes prematurely, return safely back to plan layout
+      goTo('step-plans');
+    }
+  });
+  handler.openIframe();
+}
 /* ── PHONE INPUT ─────────────────────────────────────── */
 function handlePhone(input) {
   var digits = input.value.replace(/\D/g, '').slice(0, 11);
