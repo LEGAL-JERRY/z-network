@@ -319,6 +319,7 @@ footer{text-align:center;font-size:0.72rem;color:var(--muted);padding:12px 16px 
 <script>
 /* ── CONFIG ── */
 var ADMIN_WA = '2348159694740';
+var SUPABASE_FUNCTION_URL = 'https://yohndnmwvgcwadkytmix.supabase.co/functions/v1/paystack-gateway';
 
 /* State */
 var DATA = { ref:null, plan:null, plankey:null, phone:null, amount:null, validity:null, voucher:null };
@@ -329,44 +330,63 @@ function showError(t,m) { document.getElementById('loadingState').style.display=
 function showSuccess()  { document.getElementById('loadingState').style.display='none'; document.getElementById('successState').style.display='block'; }
 
 /* ── MAIN BOOT ── */
-(function init() {
+(async function init() {
+  // 1. Maintain Dark Mode preference
   if (localStorage.getItem('zn_theme') === 'dark') {
     document.body.classList.add('dark');
     var t = document.getElementById('darkToggle');
     if (t) t.classList.add('on');
   }
 
+  // 2. Parse URL Parameters passed from index.html / Paystack
   var p = new URLSearchParams(window.location.search);
-  DATA.ref      = p.get('ref')      || '';
+  DATA.ref      = p.get('ref')      || p.get('reference') || p.get('trxref') || '';
   DATA.plan     = p.get('plan')     || 'Unknown Plan';
   DATA.plankey  = p.get('plankey')  || 'daily';
   DATA.phone    = p.get('phone')    || '';
   DATA.amount   = p.get('amount')   || '0';
   DATA.validity = p.get('validity') || '—';
 
+  // 3. Failsafe link verification
   if (!DATA.ref) {
     showError('Invalid Link', 'No payment reference found. Please return to Z-Network and complete payment.');
     return;
   }
 
-  fetch('https://z-network-api.onrender.com/api/success?ref=' + DATA.ref)
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data.status !== 'success') {
-        showError('Payment Error', data.error || 'Could not retrieve voucher. Contact support with ref: ' + DATA.ref);
-        return;
-      }
-      DATA.voucher = data.voucher;
+  showLoading();
+
+  try {
+    // 4. Hit Supabase Edge Function instead of Render
+    var response = await fetch(SUPABASE_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reference: DATA.ref,
+        plankey: DATA.plankey,
+        phone: DATA.phone
+      })
+    });
+
+    var result = await response.json();
+
+    if (response.ok && result.voucher) {
+      // 5. Update UI states seamlessly with real database values
+      DATA.voucher = result.voucher;
+      
       document.getElementById('voucherCode').textContent  = DATA.voucher;
-      document.getElementById('chipPlan').textContent     = DATA.plan;
+      document.getElementById('chipPlan').textContent      = DATA.plan;
       document.getElementById('chipValidity').textContent = DATA.validity;
       document.getElementById('chipAmount').textContent   = '₦' + parseInt(DATA.amount).toLocaleString();
       document.getElementById('refDisplay').textContent   = DATA.ref;
+      
       showSuccess();
-    })
-    .catch(function(err) {
-      showError('Could Not Load Voucher', 'Network error: ' + err.message + '. Contact support with ref: ' + DATA.ref);
-    });
+    } else {
+      showError('Payment Verification Failed', result.message || 'Could not retrieve voucher. Contact support with ref: ' + DATA.ref);
+    }
+  } catch (error) {
+    console.error("Supabase connection link interrupted:", error);
+    showError('Network Error', 'Could not establish connection to verification server. Please retry or contact support.');
+  }
 })();
 
 /* ── COPY CODE ── */
@@ -375,7 +395,7 @@ function copyCode() {
   function onCopied() {
     document.getElementById('copyLabel').textContent = 'Copied!';
     document.getElementById('copySuccess').style.display = 'flex';
-    if (navigator.vibrate) navigator.vibrate([30,15,30]);
+    if (navigator.vibrate) navigator.vibrate([30, 15, 30]);
     setTimeout(function(){
       document.getElementById('copyLabel').textContent = 'Copy Code';
       document.getElementById('copySuccess').style.display = 'none';
@@ -391,7 +411,7 @@ function copyCode() {
   }
 }
 
-/* ── WHATSAPP ── */
+/* ── WHATSAPP UTILITIES ── */
 function sendToWhatsApp() {
   var intl = DATA.phone ? ('234' + DATA.phone.slice(1)) : ADMIN_WA;
   var msg  = '🌐 *Z-Network Voucher*\n\n'
