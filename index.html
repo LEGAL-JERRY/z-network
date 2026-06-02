@@ -1404,7 +1404,7 @@ function selectPlan(card) {
   var txReference = 'ZN-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000);
   var handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
-    email: txReference + '@znetwork.internal',
+    email: 'solomjerem020@gmail.com',
     amount: S.amount * 100,
     currency: 'NGN',
     metadata: { plan: S.plan, plankey: S.plankey, validity: S.validity },
@@ -1430,7 +1430,7 @@ function initiatePaymentFromPlan() {
   
   var handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
-    email: mockEmail,
+    email: 'solomJerem019@gmail.com,
     amount: S.amount * 100,
     currency: 'NGN',
     metadata: {
@@ -1496,7 +1496,7 @@ function initiatePayment() {
 
   var handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
-    email: S.phone + 'znetworkmarket@gmail.com',
+    email: 'znetworkmarket@gmail.com',
     amount: S.amount * 100,
     currency: 'NGN',
     metadata: {
