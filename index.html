@@ -1420,36 +1420,36 @@ function selectPlan(card) {
   handler.openIframe();
 }
 /* ── AUTOMATED PAYSTACK INITIATION ───────────────────── */
-function initiatePaymentFromPlan() {
-  // Generate a random customer guest identity string for the Paystack API payload
-  var uniqueTxRef = 'guest_' + Date.now();
-  var mockEmail = uniqueTxRef + '@znetwork.com';
-  
-  // Navigate directly to processing view state 
-  goTo('step-processing');
+function initiatePayment() {
+  var btn = document.getElementById('payBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div><span>Opening secure payment…</span>';
   
   var handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
-    email: mockEmail,
+    email: S.phone + '@znetwork.com', // Fixed structural email string
     amount: S.amount * 100,
     currency: 'NGN',
+    // ADD THIS LINE: Points Paystack directly back to your Vercel instance
+    callback_url: window.location.origin + '/success.html', 
     metadata: {
-      guestId: uniqueTxRef,
+      phone: S.phone,
       plan: S.plan,
       plankey: S.plankey,
       validity: S.validity
     },
     callback: function(response) {
+      // Inline redirect failsafe if browser session drops connection hook
       window.location.href = 'success.html?ref=' + response.reference + 
         '&plan=' + encodeURIComponent(S.plan) + 
         '&plankey=' + S.plankey + 
-        '&phone=GUEST' + 
+        '&phone=' + S.phone + 
         '&amount=' + S.amount + 
         '&validity=' + encodeURIComponent(S.validity);
     },
     onClose: function() {
-      // If payment modal closes prematurely, return safely back to plan layout
-      goTo('step-plans');
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path stroke-linecap="round" d="M2 10h20"/></svg>Pay Now';
     }
   });
   handler.openIframe();
