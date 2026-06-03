@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Z-Network – Voucher Ready</title>
 <style>
-/* ============================================================
-   TOKENS & CORE THEMING
-============================================================ */
+/* ════════ TOKENS ════════ */
 :root {
   --bg:        #f4f7fc;
   --card:      #ffffff;
@@ -19,288 +17,430 @@
   --accent:    #1A6FE8;
   --green:     #00C06A;
   --red:       #ef4444;
+  --glow:      rgba(26,111,232,0.13);
+  --gglow:     rgba(0,192,106,0.13);
   --shadow:    0 2px 14px rgba(26,111,232,0.09);
+  --shadowlg:  0 6px 32px rgba(26,111,232,0.13);
 }
 body.dark {
-  --bg:       #0b0b0b;
-  --card:     #121212;
-  --card2:    #181818;
-  --border:   #1f1f1f;
-  --text:     #e5e7eb;
-  --soft:     #9ca3af;
-  --muted:    #4b5563;
-  --accent:   #3b82f6;
-  --green:    #10b981;
+  --bg:       #0b0b0b; --card:    #141414; --card2:   #1c1c1c;
+  --border:   #2a2a2a; --text:    #efefef; --soft:    #9aa3b5;
+  --muted:    #515a6a; --accent:  #3B8EFF; --green:   #00C06A;
+  --glow:     rgba(59,142,255,0.15);
+  --shadow:   0 2px 16px rgba(0,0,0,0.5);
+  --shadowlg: 0 6px 32px rgba(0,0,0,0.65);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{font-size:16px;-webkit-text-size-adjust:100%;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ubuntu,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-font-smoothing:antialiased;transition:background 0.3s,color 0.3s;}
+button{cursor:pointer;border:none;outline:none;font-family:inherit;}
+ol{padding-left:18px;}
+
+.page-bg{
+  min-height:100dvh;background-color:var(--bg);
+  background-image:radial-gradient(rgba(26,111,232,0.07) 1px,transparent 1px);
+  background-size:22px 22px;transition:background 0.3s;
+}
+body.dark .page-bg{background-image:radial-gradient(rgba(255,255,255,0.03) 1px,transparent 1px);}
+
+/* ════════ TOPBAR ════════ */
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;background:var(--bg);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:background 0.3s,border-color 0.3s;
+}
+.logo{display:flex;align-items:center;gap:9px;}
+.logo-icon{
+  width:30px;height:30px;border-radius:9px;
+  background:linear-gradient(135deg,#1A6FE8,#1459BB);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.logo-text{font-weight:700;font-size:0.9rem;color:var(--text);letter-spacing:-0.01em;}
+
+/* Dark toggle */
+.toggle-track{width:44px;height:24px;background:var(--border);border-radius:99px;position:relative;cursor:pointer;transition:background 0.3s;flex-shrink:0;}
+.toggle-track.on{background:var(--accent);}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1);}
+.toggle-track.on .toggle-thumb{transform:translateX(20px);}
+
+/* ════════ CONTENT ════════ */
+.wrap{padding:80px 16px 48px;max-width:420px;margin:0 auto;}
+
+/* ════════ LOADING ════════ */
+.loading-state{text-align:center;padding-top:32px;display:block;}
+.loading-ring{
+  width:60px;height:60px;margin:0 auto 20px;position:relative;
+}
+.loading-ring-svg{animation:spin 1.4s linear infinite;position:absolute;inset:0;}
+.loading-ring-dot{
+  width:12px;height:12px;border-radius:50%;background:var(--accent);
+  position:absolute;inset:0;margin:auto;
+}
+.loading-title{font-size:1.3rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.loading-sub{font-size:0.875rem;color:var(--muted);line-height:1.6;}
+
+/* ════════ ERROR STATE ════════ */
+.error-state{text-align:center;padding-top:20px;display:none;}
+.error-icon{font-size:3rem;margin-bottom:12px;}
+.error-title{font-size:1.2rem;font-weight:700;color:var(--red);margin-bottom:8px;}
+.error-msg{font-size:0.875rem;color:var(--muted);line-height:1.6;margin-bottom:20px;}
+
+/* ════════ SUCCESS STATE ════════ */
+.success-state{display:none;}
+
+@keyframes ringPop{0%{transform:scale(0.5);opacity:0;}70%{transform:scale(1.08);}100%{transform:scale(1);opacity:1;}}
+@keyframes vPop{0%{opacity:0;transform:scale(0.82) translateY(8px);}70%{transform:scale(1.03);}100%{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
+
+.success-ring-wrap{display:flex;justify-content:center;margin-bottom:14px;animation:ringPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;}
+.success-ring{
+  width:76px;height:76px;border-radius:50%;
+  border:2px solid var(--green);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 6px rgba(0,192,106,0.1),0 0 28px rgba(0,192,106,0.15);
+  background:radial-gradient(circle,rgba(0,192,106,0.1),transparent 70%);
+}
+.success-header{text-align:center;margin-bottom:18px;animation:fadeUp 0.5s 0.1s ease both;}
+.success-header h2{font-size:1.5rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.success-header p{font-size:0.875rem;color:var(--muted);line-height:1.5;}
+
+/* Voucher box */
+.voucher-box{
+  background:var(--card);border:2px dashed var(--accent);border-radius:18px;
+  padding:22px 20px;text-align:center;
+  box-shadow:0 0 0 4px var(--glow),var(--shadowlg);
+  margin-bottom:14px;position:relative;overflow:hidden;
+  animation:vPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
+  transition:background 0.3s,border-color 0.3s;
+}
+.voucher-box::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--glow),transparent 55%);pointer-events:none;
+}
+.voucher-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:14px;}
+.voucher-code{
+  font-size:clamp(2rem,9vw,2.6rem);font-weight:800;color:var(--accent);
+  letter-spacing:0.22em;line-height:1;margin-bottom:16px;
+  font-variant-numeric:tabular-nums;
+}
+.copy-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:9px 20px;
+  font-size:0.875rem;font-weight:500;background:transparent;color:var(--soft);
+  border:1.5px solid var(--border);border-radius:10px;cursor:pointer;
+  transition:border-color 0.2s,color 0.2s,background 0.2s,transform 0.15s;
+}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--glow);}
+.copy-btn:active{transform:scale(0.95);}
+.copy-success{
+  display:none;align-items:center;justify-content:center;gap:5px;
+  margin-top:8px;font-size:0.8rem;font-weight:500;color:var(--green);
 }
 
-*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
+/* Plan chips */
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;animation:fadeUp 0.5s 0.3s ease both;}
+.chip{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 8px;text-align:center;transition:background 0.3s;}
+.chip-label{font-size:0.65rem;color:var(--muted);margin-bottom:3px;}
+.chip-value{font-size:0.8rem;font-weight:600;color:var(--text);}
+.chip-value.green{color:var(--green);}
+.chip-value.accent{color:var(--accent);}
 
-.wrapper {
-  width: 100%;
-  max-width: 420px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: var(--shadow);
-  text-align: center;
-}
+/* Connect guide */
+.guide{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow);animation:fadeUp 0.5s 0.38s ease both;transition:background 0.3s;}
+.guide h3{font-size:0.875rem;font-weight:600;color:var(--soft);margin-bottom:10px;}
+.guide ol{color:var(--muted);font-size:0.78rem;line-height:2;}
+.guide strong{color:var(--soft);}
 
-.status-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem auto;
-}
-.status-icon.loading { background: var(--card2); stroke: var(--accent); }
-.status-icon.success { background: rgba(0,192,106,0.1); stroke: var(--green); }
-.status-icon.error { background: rgba(239,68,68,0.1); stroke: var(--red); }
+/* Buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;font-size:1rem;font-weight:600;border-radius:14px;cursor:pointer;border:none;transition:filter 0.2s,transform 0.15s;}
+.btn:active{transform:scale(0.96);}
+.btn-wa{background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;box-shadow:0 4px 18px rgba(37,211,102,0.28);}
+.btn-wa:hover{filter:brightness(1.07);}
+.btn-outline{background:transparent;color:var(--soft);border:1.5px solid var(--border);}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:var(--glow);}
+.btn-gap{margin-top:8px;}
+.btn-red{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
 
-.voucher-box {
-  background: var(--card2);
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  position: relative;
+/* Ref info */
+.ref-info{
+  background:var(--card2);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;margin-bottom:14px;font-size:0.75rem;color:var(--muted);
+  display:flex;align-items:center;gap:8px;animation:fadeUp 0.5s 0.48s ease both;
 }
+.ref-info svg{flex-shrink:0;color:var(--green);}
 
-.voucher-code {
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  font-family: monospace;
-  color: var(--text);
-  margin-bottom: 0.5rem;
-}
-
-.action-btn {
-  width: 100%;
-  padding: 0.875rem;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  transition: opacity 0.2s;
-}
-.action-btn:hover { opacity: 0.9; }
-.btn-primary { background: var(--accent); color: white; }
-.btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
-
-.meta-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border);
-}
-.meta-row:last-of-type { border-bottom: none; }
-.meta-label { color: var(--soft); }
-.meta-value { font-weight: 600; }
-
-.hidden { display: none !important; }
-
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+footer{text-align:center;font-size:0.72rem;color:var(--muted);padding:12px 16px 20px;}
 </style>
 </head>
+
+<!-- Apply saved dark mode before paint -->
+<script>
+  if(localStorage.getItem('zn_theme')==='dark'){
+    document.addEventListener('DOMContentLoaded',function(){
+      document.body.classList.add('dark');
+      var t=document.getElementById('darkToggle');
+      if(t)t.classList.add('on');
+    });
+  }
+</script>
+
 <body>
+<div class="page-bg">
 
-<div class="wrapper">
-  <div id="panel-loading">
-    <div class="status-icon loading">
-      <div class="spinner"></div>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="17" height="17" viewBox="0 0 34 34" fill="none">
+        <path d="M7 8h20L8 26h19" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="27" cy="27" r="4" fill="#00C06A"/>
+      </svg>
     </div>
-    <h1 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem;">Verifying Ledger</h1>
-    <p style="color: var(--soft); font-size: 0.9rem; margin-bottom: 1.5rem;">Confirming transaction status with gateway infrastructure...</p>
+    <span class="logo-text">Z-Network</span>
   </div>
-
-  <div id="panel-success" class="hidden">
-    <div class="status-icon success">
-      <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-      </svg>
-    </div>
-    <h1 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem;">Payment Confirmed</h1>
-    <p style="color: var(--soft); font-size: 0.9rem;">Your access code is ready. Enter this code into the portal interface.</p>
-
-    <div class="voucher-box">
-      <div class="voucher-code" id="display-voucher">--------</div>
-      <div style="font-size: 0.75rem; color: var(--soft); text-transform: uppercase; letter-spacing: 0.05em;">Wi-Fi Access PIN</div>
-    </div>
-
-    <button class="action-btn btn-primary" onclick="copyVoucher()">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-      </svg>
-      <span id="copy-text">Copy PIN Code</span>
-    </button>
-
-    <button class="action-btn btn-secondary" onclick="sendToWhatsApp()">
-      Send Code to WhatsApp
-    </button>
-
-    <div style="margin-top: 1.5rem; text-align: left; background: var(--card2); border-radius: 10px; padding: 0.75rem 1rem;">
-      <div class="meta-row"><span class="meta-label">Selected Tier</span><span class="meta-value" id="meta-plan">-</span></div>
-      <div class="meta-row"><span class="meta-label">Allocation Validity</span><span class="meta-value" id="meta-validity">-</span></div>
-      <div class="meta-row"><span class="meta-label">Reference ID</span><span class="meta-value" id="meta-ref" style="font-family:monospace; font-size:0.8rem;">-</span></div>
-    </div>
-  </div>
-
-  <div id="panel-error" class="hidden">
-    <div class="status-icon error">
-      <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-      </svg>
-    </div>
-    <h1 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem;">Verification Error</h1>
-    <p style="color: var(--soft); font-size: 0.9rem; margin-bottom: 1.5rem;" id="error-message">The secure gateway could not validate this resource transaction reference status.</p>
-    
-    <button class="action-btn btn-primary" onclick="contactSupport()">Contact Network Support</button>
-    <button class="action-btn btn-secondary" onclick="window.location.href='index.html'">Return to Terminal Front</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <svg width="14" height="14" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <div class="toggle-track" id="darkToggle" onclick="toggleDark()"><div class="toggle-thumb"></div></div>
+    <svg width="14" height="14" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
   </div>
 </div>
 
+<div class="wrap">
+
+  <!-- ── LOADING STATE ── -->
+  <div class="loading-state" id="loadingState">
+    <div class="loading-ring">
+      <svg class="loading-ring-svg" viewBox="0 0 60 60" fill="none">
+        <circle cx="30" cy="30" r="26" stroke="var(--border)" stroke-width="4"/>
+        <path d="M30 4 A26 26 0 0 1 56 30" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div class="loading-ring-dot"></div>
+    </div>
+    <div class="loading-title">Preparing Your Voucher</div>
+    <div class="loading-sub">Verifying payment &amp; fetching your code…<br/>This takes just a second.</div>
+  </div>
+
+  <!-- ── ERROR STATE ── -->
+  <div class="error-state" id="errorState">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title" id="errorTitle">Something went wrong</div>
+    <div class="error-msg"  id="errorMsg">We couldn't load your voucher. Please contact support.</div>
+    <button class="btn btn-outline" onclick="contactSupport()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      WhatsApp Support
+    </button>
+  </div>
+
+  <!-- ── SUCCESS STATE ── -->
+  <div class="success-state" id="successState">
+
+    <div class="success-ring-wrap">
+      <div class="success-ring">
+        <svg width="36" height="36" fill="none" stroke="#00C06A" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="success-header">
+      <h2>Payment Successful 🎉</h2>
+      <p>Your voucher is ready. Copy the code below<br/>and use it to connect to Z-Network.</p>
+    </div>
+
+    <!-- VOUCHER BOX -->
+    <div class="voucher-box">
+      <div class="voucher-label">Your Access Code (PIN)</div>
+      <div class="voucher-code" id="voucherCode">— — — —</div>
+      <button class="copy-btn" onclick="copyCode()">
+        <svg id="copyIcon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="9" y="9" width="13" height="13" rx="2"/>
+          <path stroke-linecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        <span id="copyLabel">Copy Code</span>
+      </button>
+      <div class="copy-success" id="copySuccess">
+        <svg width="14" height="14" fill="#00C06A" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        Copied to clipboard!
+      </div>
+    </div>
+
+    <!-- Chips -->
+    <div class="chips">
+      <div class="chip"><div class="chip-label">Plan</div><div class="chip-value" id="chipPlan">—</div></div>
+      <div class="chip"><div class="chip-label">Valid for</div><div class="chip-value green" id="chipValidity">—</div></div>
+      <div class="chip"><div class="chip-label">Paid</div><div class="chip-value accent" id="chipAmount">—</div></div>
+    </div>
+
+    <!-- Payment ref -->
+    <div class="ref-info">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Payment ref: <strong id="refDisplay" style="color:var(--text);">—</strong>
+    </div>
+
+    <!-- How to connect -->
+    <div class="guide">
+      <h3>📶 How to connect</h3>
+      <ol>
+        <li>Go to <strong>Wi-Fi Settings</strong> on your device</li>
+        <li>Connect to the <strong>Z-Network</strong> hotspot</li>
+        <li>Open your browser — a login page appears</li>
+        <li>Enter the code above as your <strong>PIN / Voucher</strong></li>
+        <li>Tap <strong>Connect Now</strong> and enjoy browsing! 🚀</li>
+      </ol>
+    </div>
+
+    <!-- Actions -->
+    <div style="animation:fadeUp 0.5s 0.44s ease both;">
+      <button class="btn btn-wa" onclick="sendToWhatsApp()" style="margin-bottom:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+        </svg>
+        Send Voucher to My WhatsApp
+      </button>
+      <button class="btn btn-outline" onclick="contactSupport()">Need help? Contact Support</button>
+    </div>
+
+  </div>
+
+</div><!-- /wrap -->
+
+<footer>© 2025 Z-Network Nigeria &nbsp;·&nbsp; All rights reserved</footer>
+
+</div><!-- /page-bg -->
+
 <script>
-var ADMIN_WA = '2348123456789'; // Insert operational administrator WhatsApp contact element here
-var SUPABASE_EDGE_URL = 'https://yohndnmwvgcwadkytmix.supabase.co/functions/v1/paystack-gateway';
+/* ── CONFIG ── */
+var ADMIN_WA = '2348159694740';
+var SUPABASE_FUNCTION_URL = 'https://yohndnmwvgcwadkytmix.supabase.co/functions/v1/paystack-gateway';
 
-var DATA = { ref: '', plan: '', plankey: '', amount: '', validity: '', voucher: '' };
+/* State */
+var DATA = { ref:null, plan:null, plankey:null, phone:null, amount:null, validity:null, voucher:null };
 
-function parseParameters() {
+/* ── SHOW STATE HELPERS ── */
+function showLoading()  { document.getElementById('loadingState').style.display='block'; document.getElementById('errorState').style.display='none'; document.getElementById('successState').style.display='none'; }
+function showError(t,m) { document.getElementById('loadingState').style.display='none'; var e=document.getElementById('errorState'); e.style.display='block'; document.getElementById('errorTitle').textContent=t; document.getElementById('errorMsg').textContent=m; }
+function showSuccess()  { document.getElementById('loadingState').style.display='none'; document.getElementById('successState').style.display='block'; }
+
+/* ── MAIN BOOT ── */
+(async function init() {
+  // 1. Maintain Dark Mode preference
+  if (localStorage.getItem('zn_theme') === 'dark') {
+    document.body.classList.add('dark');
+    var t = document.getElementById('darkToggle');
+    if (t) t.classList.add('on');
+  }
+
+  // 2. Parse URL Parameters passed from index.html / Paystack
   var p = new URLSearchParams(window.location.search);
-  DATA.ref = p.get('reference') || p.get('trxref') || '';
-  DATA.plan = p.get('plan') || 'Standard Access';
-  DATA.plankey = p.get('plankey') || '';
-  DATA.amount = p.get('amount') || '';
-  DATA.validity = p.get('validity') || 'Assigned Allocation';
-  
-  // Populate interface text nodes
-  document.getElementById('meta-plan').innerText = DATA.plan;
-  document.getElementById('meta-validity').innerText = DATA.validity;
-  document.getElementById('meta-ref').innerText = DATA.ref;
-}
+  DATA.ref      = p.get('ref')      || p.get('reference') || p.get('trxref') || '';
+  DATA.plan     = p.get('plan')     || 'Unknown Plan';
+  DATA.plankey  = p.get('plankey')  || 'daily';
+  DATA.phone    = p.get('phone')    || '';
+  DATA.amount   = p.get('amount')   || '0';
+  DATA.validity = p.get('validity') || '—';
 
-async function verifyTransaction() {
+  // 3. Failsafe link verification
   if (!DATA.ref) {
-    showError('Null transaction token references passed via deployment runtime contextual path.');
+    showError('Invalid Link', 'No payment reference found. Please return to Z-Network and complete payment.');
     return;
   }
 
+  showLoading();
+
   try {
-    var response = await fetch(SUPABASE_EDGE_URL, {
+    // 4. Hit Supabase Edge Function instead of Render
+    var response = await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         reference: DATA.ref,
-        plan: DATA.plan,
         plankey: DATA.plankey,
-        amount: DATA.amount,
-        validity: DATA.validity
+        phone: DATA.phone
       })
     });
 
-    if (!response.ok) {
-      var errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || 'Remote edge gateway processing context faulted.');
-    }
-
     var result = await response.json();
-    if (result && result.voucher) {
+
+    if (response.ok && result.voucher) {
+      // 5. Update UI states seamlessly with real database values
       DATA.voucher = result.voucher;
-      showSuccess(result.voucher);
+      
+      document.getElementById('voucherCode').textContent  = DATA.voucher;
+      document.getElementById('chipPlan').textContent      = DATA.plan;
+      document.getElementById('chipValidity').textContent = DATA.validity;
+      document.getElementById('chipAmount').textContent   = '₦' + parseInt(DATA.amount).toLocaleString();
+      document.getElementById('refDisplay').textContent   = DATA.ref;
+      
+      showSuccess();
     } else {
-      throw new Error('Database edge executed cleanly but validation returned an empty voucher slot.');
+      showError('Payment Verification Failed', result.message || 'Could not retrieve voucher. Contact support with ref: ' + DATA.ref);
     }
-  } catch (err) {
-    showError(err.message);
+  } catch (error) {
+    console.error("Supabase connection link interrupted:", error);
+    showError('Network Error', 'Could not establish connection to verification server. Please retry or contact support.');
+  }
+})();
+
+/* ── COPY CODE ── */
+function copyCode() {
+  if (!DATA.voucher) return;
+  function onCopied() {
+    document.getElementById('copyLabel').textContent = 'Copied!';
+    document.getElementById('copySuccess').style.display = 'flex';
+    if (navigator.vibrate) navigator.vibrate([30, 15, 30]);
+    setTimeout(function(){
+      document.getElementById('copyLabel').textContent = 'Copy Code';
+      document.getElementById('copySuccess').style.display = 'none';
+    }, 2600);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(DATA.voucher).then(onCopied).catch(onCopied);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = DATA.voucher; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); onCopied();
   }
 }
 
-function showSuccess(voucherCode) {
-  document.getElementById('display-voucher').innerText = voucherCode;
-  document.getElementById('panel-loading').classList.add('hidden');
-  document.getElementById('panel-success').classList.remove('hidden');
-}
-
-function showError(msg) {
-  document.getElementById('error-message').innerText = msg;
-  document.getElementById('panel-loading').classList.add('hidden');
-  document.getElementById('panel-error').classList.remove('hidden');
-}
-
-function copyVoucher() {
-  if (!DATA.voucher) return;
-  navigator.clipboard.writeText(DATA.voucher).then(onCopied).catch(function() {
-    var ta = document.createElement('textarea');
-    ta.value = DATA.voucher;
-    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    onCopied();
-  });
-}
-
-function onCopied() {
-  var lbl = document.getElementById('copy-text');
-  lbl.innerText = 'PIN Code Copied';
-  setTimeout(function() { lbl.innerText = 'Copy PIN Code'; }, 2000);
-}
-
+/* ── WHATSAPP UTILITIES ── */
 function sendToWhatsApp() {
-  var msg = '🌐 *Z-Network Voucher*\n\n'
-          + 'Code: *' + (DATA.voucher || '—') + '*\n'
-          + 'Plan: ' + DATA.plan + '\n'
-          + 'Validity: ' + DATA.validity + '\n'
-          + 'Ref: ' + DATA.ref + '\n\n'
-          + '📶 To connect:\n'
-          + '1. Join Z-Network WiFi\n'
-          + '2. Open browser → enter code → Connect Now';
-  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+  var intl = DATA.phone ? ('234' + DATA.phone.slice(1)) : ADMIN_WA;
+  var msg  = '🌐 *Z-Network Voucher*\n\n'
+           + 'Code: *' + (DATA.voucher || '—') + '*\n'
+           + 'Plan: ' + DATA.plan + '\n'
+           + 'Validity: ' + DATA.validity + '\n'
+           + 'Ref: ' + DATA.ref + '\n\n'
+           + '📶 To connect:\n'
+           + '1. Join Z-Network WiFi\n'
+           + '2. Open browser → enter code → Connect Now\n\n'
+           + 'Enjoy! 🚀';
+  window.open('https://wa.me/' + intl + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
 
 function contactSupport() {
   var msg = '🆘 Z-Network Support Request\n\n'
           + 'Ref: ' + (DATA.ref || 'N/A') + '\n'
           + 'Plan: ' + (DATA.plan || 'N/A') + '\n'
-          + 'Issue: Voucher verification processing mismatch.';
+          + (DATA.phone ? 'Phone: ' + DATA.phone + '\n' : '')
+          + '\nI need help with my voucher.';
   window.open('https://wa.me/' + ADMIN_WA + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
 
-// Execution Entrypoint Hook
-window.addEventListener('DOMContentLoaded', function() {
-  parseParameters();
-  verifyTransaction();
-});
+/* ── DARK MODE ── */
+function toggleDark() {
+  var isDark = document.body.classList.toggle('dark');
+  document.getElementById('darkToggle').classList.toggle('on', isDark);
+  localStorage.setItem('zn_theme', isDark ? 'dark' : 'light');
+}
 </script>
 </body>
 </html>
