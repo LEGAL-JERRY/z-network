@@ -4,8 +4,10 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Z-Network Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <style>
-
 /* ============================================================
    TOKENS
 ============================================================ */
@@ -44,48 +46,32 @@ body.dark {
   --shadow:      0 2px 16px rgba(0,0,0,0.5);
   --shadow-lg:   0 6px 32px rgba(0,0,0,0.65);
 }
-
-/* ============================================================
-   RESET
-============================================================ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif;
   -webkit-font-smoothing:antialiased;
-  background:var(--bg);
-  color:var(--text);
+  background:var(--bg);color:var(--text);
   min-height:100vh;
   transition:background 0.3s,color 0.3s;
 }
 button{cursor:pointer;border:none;outline:none;font-family:inherit;}
-input{font-family:inherit;border:none;outline:none;}
+input,select,textarea{font-family:inherit;border:none;outline:none;}
 
-/* ============================================================
-   LAYOUT SHELL
-============================================================ */
-
-/* Sidebar */
+/* ============================================================ SIDEBAR */
 .sidebar{
-  position:fixed;
-  top:0;left:0;bottom:0;
-  width:var(--sidebar-w);
-  background:var(--bg-card);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  z-index:200;
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-card);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:200;
   transition:transform 0.3s cubic-bezier(0.4,0,0.2,1),background 0.3s,border-color 0.3s;
 }
 @media(max-width:767px){
   .sidebar{transform:translateX(-100%);}
   .sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,0.18);}
 }
-
 .sidebar-logo{
   display:flex;align-items:center;gap:10px;
-  padding:18px 16px 14px;
-  border-bottom:1px solid var(--border);
-  flex-shrink:0;
+  padding:18px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0;
 }
 .sidebar-logo-icon{
   width:30px;height:30px;border-radius:9px;
@@ -94,103 +80,69 @@ input{font-family:inherit;border:none;outline:none;}
 }
 .sidebar-logo-text{font-weight:700;font-size:0.88rem;color:var(--text);letter-spacing:-0.01em;}
 .sidebar-logo-badge{
-  margin-left:auto;
-  font-size:0.58rem;font-weight:700;
+  margin-left:auto;font-size:0.58rem;font-weight:700;
   letter-spacing:0.08em;text-transform:uppercase;
-  color:var(--accent);background:var(--accent-glow);
-  border-radius:4px;padding:2px 5px;
+  color:var(--accent);background:var(--accent-glow);border-radius:4px;padding:2px 5px;
 }
-
 .sidebar-nav{flex:1;padding:10px 8px;overflow-y:auto;}
 .nav-label{
   font-size:0.65rem;font-weight:600;letter-spacing:0.1em;
-  text-transform:uppercase;color:var(--text-muted);
-  padding:10px 8px 6px;
+  text-transform:uppercase;color:var(--text-muted);padding:10px 8px 6px;
 }
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:10px 12px;border-radius:10px;
-  font-size:0.875rem;font-weight:500;
-  color:var(--text-soft);cursor:pointer;
-  transition:background 0.15s,color 0.15s;
-  margin-bottom:2px;
-  user-select:none;
+  font-size:0.875rem;font-weight:500;color:var(--text-soft);
+  cursor:pointer;transition:background 0.15s,color 0.15s;
+  margin-bottom:2px;user-select:none;
 }
 .nav-item:hover{background:var(--bg-card2);color:var(--text);}
 .nav-item.active{background:var(--accent-glow);color:var(--accent);}
 .nav-item .nav-icon{font-size:1.1rem;width:22px;text-align:center;flex-shrink:0;}
 .nav-badge{
-  margin-left:auto;
-  background:var(--red);color:#fff;
-  font-size:0.65rem;font-weight:700;
-  border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;
+  margin-left:auto;background:var(--red);color:#fff;
+  font-size:0.65rem;font-weight:700;border-radius:99px;padding:1px 6px;
+  min-width:18px;text-align:center;
 }
-
 .sidebar-footer{
   padding:12px 16px;border-top:1px solid var(--border);
   font-size:0.7rem;color:var(--text-muted);
   display:flex;align-items:center;justify-content:space-between;
 }
-
-/* Overlay (mobile sidebar backdrop) */
 .sidebar-overlay{
-  display:none;
-  position:fixed;inset:0;
-  background:rgba(0,0,0,0.45);
-  z-index:199;
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:199;
 }
 .sidebar-overlay.show{display:block;}
 
-/* Top Bar */
+/* ============================================================ TOPBAR */
 .topbar{
-  position:fixed;
-  top:0;right:0;left:0;
-  height:var(--topbar-h);
-  background:var(--bg-card);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:12px;
-  padding:0 16px;
-  z-index:100;
-  transition:background 0.3s,border-color 0.3s;
+  position:fixed;top:0;right:0;left:0;height:var(--topbar-h);
+  background:var(--bg-card);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  z-index:100;transition:background 0.3s,border-color 0.3s;
 }
-@media(min-width:768px){
-  .topbar{left:var(--sidebar-w);}
-}
+@media(min-width:768px){.topbar{left:var(--sidebar-w);}}
 .topbar-hamburger{
   display:flex;align-items:center;justify-content:center;
-  width:36px;height:36px;border-radius:9px;
-  background:transparent;color:var(--text-soft);
-  transition:background 0.15s;flex-shrink:0;
+  width:36px;height:36px;border-radius:9px;background:transparent;
+  color:var(--text-soft);transition:background 0.15s;flex-shrink:0;
 }
 .topbar-hamburger:hover{background:var(--bg-card2);}
 @media(min-width:768px){.topbar-hamburger{display:none;}}
-
-.topbar-title{
-  font-size:0.95rem;font-weight:700;
-  color:var(--text);flex:1;
-  letter-spacing:-0.01em;
-}
+.topbar-title{font-size:0.95rem;font-weight:700;color:var(--text);flex:1;letter-spacing:-0.01em;}
 .topbar-right{display:flex;align-items:center;gap:8px;}
-
 .icon-btn{
-  position:relative;
-  width:36px;height:36px;border-radius:9px;
+  position:relative;width:36px;height:36px;border-radius:9px;
   display:flex;align-items:center;justify-content:center;
   background:transparent;color:var(--text-soft);
-  transition:background 0.15s,color 0.15s;
-  flex-shrink:0;
+  transition:background 0.15s,color 0.15s;flex-shrink:0;
 }
 .icon-btn:hover{background:var(--bg-card2);color:var(--text);}
 .bell-badge{
-  position:absolute;top:5px;right:5px;
-  width:8px;height:8px;border-radius:50%;
-  background:var(--red);
-  border:2px solid var(--bg-card);
-  display:none;
+  position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;
+  background:var(--red);border:2px solid var(--bg-card);display:none;
 }
 .bell-badge.show{display:block;}
-
-/* Dark mode toggle */
 .toggle-track{
   width:40px;height:22px;background:var(--border);
   border-radius:99px;position:relative;cursor:pointer;
@@ -198,119 +150,68 @@ input{font-family:inherit;border:none;outline:none;}
 }
 .toggle-track.on{background:var(--accent);}
 .toggle-thumb{
-  position:absolute;top:2px;left:2px;
-  width:18px;height:18px;border-radius:50%;background:#fff;
-  box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  position:absolute;top:2px;left:2px;width:18px;height:18px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);
   transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
 }
 .toggle-track.on .toggle-thumb{transform:translateX(18px);}
-
 .logout-btn{
-  padding:7px 14px;border-radius:9px;
-  font-size:0.78rem;font-weight:600;
-  background:transparent;color:var(--text-muted);
-  border:1px solid var(--border);
+  padding:7px 14px;border-radius:9px;font-size:0.78rem;font-weight:600;
+  background:transparent;color:var(--text-muted);border:1px solid var(--border);
   transition:border-color 0.2s,color 0.2s;
 }
 .logout-btn:hover{border-color:var(--red);color:var(--red);}
 
-/* Main Content */
+/* ============================================================ MAIN */
 .main{
   padding-top:var(--topbar-h);
-  padding-bottom:calc(var(--bottom-h) + 8px);
-  min-height:100vh;
+  padding-bottom:calc(var(--bottom-h) + 8px);min-height:100vh;
 }
-@media(min-width:768px){
-  .main{margin-left:var(--sidebar-w);padding-bottom:24px;}
-}
-
+@media(min-width:768px){.main{margin-left:var(--sidebar-w);padding-bottom:24px;}}
 .section{
-  display:none;
-  padding:20px 16px;
-  max-width:900px;
+  display:none;padding:20px 16px;max-width:960px;
   animation:fadeIn 0.25s ease both;
 }
 .section.active{display:block;}
-@media(min-width:768px){
-  .section{padding:24px;}
-}
+@media(min-width:768px){.section{padding:24px;}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-/* Bottom Nav (mobile only) */
+/* ============================================================ BOTTOM NAV */
 .bottom-nav{
-  position:fixed;bottom:0;left:0;right:0;
-  height:var(--bottom-h);
-  background:var(--bg-card);
-  border-top:1px solid var(--border);
-  display:flex;
-  z-index:100;
-  transition:background 0.3s,border-color 0.3s;
+  position:fixed;bottom:0;left:0;right:0;height:var(--bottom-h);
+  background:var(--bg-card);border-top:1px solid var(--border);
+  display:flex;z-index:100;transition:background 0.3s,border-color 0.3s;
 }
 @media(min-width:768px){.bottom-nav{display:none;}}
 .bnav-item{
-  flex:1;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:3px;
-  font-size:0.62rem;font-weight:500;
-  color:var(--text-muted);cursor:pointer;
-  transition:color 0.15s;
-  user-select:none;
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;font-size:0.62rem;font-weight:500;color:var(--text-muted);
+  cursor:pointer;transition:color 0.15s;user-select:none;
 }
 .bnav-item.active{color:var(--accent);}
 .bnav-icon{font-size:1.25rem;line-height:1;}
 
-/* ============================================================
-   CARDS & COMMON
-============================================================ */
+/* ============================================================ CARDS */
 .card{
-  background:var(--bg-card);
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow:var(--shadow);
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:16px;box-shadow:var(--shadow);
   transition:background 0.3s,border-color 0.3s;
 }
-.card2{
-  background:var(--bg-card2);
-  border:1px solid var(--border);
-  border-radius:12px;
-}
-.section-title{
-  font-size:1.2rem;font-weight:700;
-  color:var(--text);margin-bottom:4px;
-  letter-spacing:-0.02em;
-}
+.card2{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;}
+.section-title{font-size:1.2rem;font-weight:700;color:var(--text);margin-bottom:4px;letter-spacing:-0.02em;}
 .section-sub{font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;}
 
-/* ============================================================
-   SUMMARY CARDS
-============================================================ */
+/* ============================================================ SUMMARY CARDS */
 .summary-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:12px;
-  margin-bottom:20px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;
 }
-@media(min-width:600px){
-  .summary-grid{grid-template-columns:repeat(4,1fr);}
-}
+@media(min-width:600px){.summary-grid{grid-template-columns:repeat(4,1fr);}}
 .sum-card{
-  background:var(--bg-card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:14px 16px;
-  box-shadow:var(--shadow);
-  transition:background 0.3s,border-color 0.3s;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;box-shadow:var(--shadow);transition:background 0.3s,border-color 0.3s;
 }
-.sum-label{
-  font-size:0.68rem;font-weight:600;
-  text-transform:uppercase;letter-spacing:0.08em;
-  color:var(--text-muted);margin-bottom:8px;
-}
-.sum-value{
-  font-size:1.4rem;font-weight:800;
-  color:var(--text);letter-spacing:-0.02em;
-  margin-bottom:4px;
-  font-variant-numeric:tabular-nums;
-}
+.sum-label{font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px;}
+.sum-value{font-size:1.4rem;font-weight:800;color:var(--text);letter-spacing:-0.02em;margin-bottom:4px;font-variant-numeric:tabular-nums;}
 .sum-value.accent{color:var(--accent);}
 .sum-value.green{color:var(--green);}
 .sum-value.red{color:var(--red);}
@@ -319,70 +220,37 @@ input{font-family:inherit;border:none;outline:none;}
 .sum-detail.up{color:var(--green);}
 .sum-detail.down{color:var(--red);}
 
-/* ============================================================
-   STOCK BARS
-============================================================ */
+/* ============================================================ STOCK BARS */
 .stock-card{padding:16px 18px;margin-bottom:20px;}
-.stock-title{
-  font-size:0.8rem;font-weight:600;
-  color:var(--text-soft);margin-bottom:14px;
-}
+.stock-title{font-size:0.8rem;font-weight:600;color:var(--text-soft);margin-bottom:14px;}
 .stock-row{margin-bottom:12px;}
 .stock-row:last-child{margin-bottom:0;}
-.stock-meta{
-  display:flex;justify-content:space-between;
-  align-items:center;margin-bottom:5px;
-}
+.stock-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
 .stock-name{font-size:0.8rem;font-weight:500;color:var(--text);}
-.stock-count{
-  font-size:0.75rem;font-weight:700;
-  font-variant-numeric:tabular-nums;
-}
+.stock-count{font-size:0.75rem;font-weight:700;font-variant-numeric:tabular-nums;}
 .stock-count.green{color:var(--green);}
 .stock-count.amber{color:var(--amber);}
 .stock-count.red{color:var(--red);}
-.stock-bar-bg{
-  height:6px;border-radius:99px;
-  background:var(--bg-card2);
-  overflow:hidden;
-}
-.stock-bar-fill{
-  height:100%;border-radius:99px;
-  transition:width 0.6s cubic-bezier(0.4,0,0.2,1);
-}
+.stock-bar-bg{height:6px;border-radius:99px;background:var(--bg-card2);overflow:hidden;}
+.stock-bar-fill{height:100%;border-radius:99px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);}
 .stock-bar-fill.green{background:var(--green);}
 .stock-bar-fill.amber{background:var(--amber);}
 .stock-bar-fill.red{background:var(--red);}
 
-/* ============================================================
-   ACTIVITY FEED
-============================================================ */
+/* ============================================================ ACTIVITY FEED */
 .activity-card{padding:16px 18px;margin-bottom:20px;}
-.activity-header{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:14px;
-}
+.activity-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .activity-title{font-size:0.8rem;font-weight:600;color:var(--text-soft);}
-.activity-refresh{
-  font-size:0.72rem;color:var(--accent);
-  background:none;border:none;cursor:pointer;font-family:inherit;
-}
+.activity-refresh{font-size:0.72rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;}
 .activity-item{
   display:flex;align-items:center;gap:12px;
-  padding:10px 0;
+  border-radius:8px;padding:10px 8px;margin:0 -8px;
+  cursor:pointer;transition:background 0.1s;
   border-bottom:1px solid var(--border);
-  cursor:pointer;
-  transition:background 0.1s;
-  border-radius:8px;
-  padding:10px 8px;
-  margin:0 -8px;
 }
 .activity-item:last-child{border-bottom:none;}
 .activity-item:hover{background:var(--bg-card2);}
-.activity-dot{
-  width:10px;height:10px;border-radius:50%;
-  flex-shrink:0;
-}
+.activity-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .activity-dot.online{background:var(--green);}
 .activity-dot.cash{background:var(--amber);}
 .activity-info{flex:1;min-width:0;}
@@ -391,80 +259,359 @@ input{font-family:inherit;border:none;outline:none;}
 .activity-right{text-align:right;flex-shrink:0;}
 .activity-amount{font-size:0.88rem;font-weight:700;color:var(--text);}
 .activity-time{font-size:0.68rem;color:var(--text-muted);margin-top:1px;}
+.activity-empty{text-align:center;padding:28px 0;font-size:0.82rem;color:var(--text-muted);}
 
-.activity-empty{
-  text-align:center;padding:28px 0;
-  font-size:0.82rem;color:var(--text-muted);
-}
-
-/* ============================================================
-   LOADING / SKELETON
-============================================================ */
-@keyframes shimmer{
-  0%{background-position:-400px 0;}
-  100%{background-position:400px 0;}
-}
+/* ============================================================ SPINNER / SKELETON */
+@keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
 .skeleton{
   background:linear-gradient(90deg,var(--bg-card2) 25%,var(--border) 50%,var(--bg-card2) 75%);
-  background-size:400px 100%;
-  animation:shimmer 1.4s infinite;
-  border-radius:6px;
+  background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:6px;
 }
-
-/* ============================================================
-   PLACEHOLDER SECTIONS
-============================================================ */
-.placeholder-wrap{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:60px 20px;text-align:center;
-}
-.placeholder-icon{font-size:3rem;margin-bottom:14px;}
-.placeholder-title{
-  font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:8px;
-}
-.placeholder-sub{font-size:0.85rem;color:var(--text-muted);line-height:1.6;}
-.phase-badge{
-  display:inline-block;
-  background:var(--accent-glow);color:var(--accent);
-  font-size:0.72rem;font-weight:600;
-  border-radius:6px;padding:3px 10px;
-  margin-top:14px;
-}
-
-/* ============================================================
-   SPINNER
-============================================================ */
 @keyframes spin{to{transform:rotate(360deg);}}
 .spinner{
-  width:20px;height:20px;
-  border:2.5px solid var(--border);
-  border-top-color:var(--accent);
-  border-radius:50%;
-  animation:spin 0.7s linear infinite;
-  margin:32px auto;display:block;
+  width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 0.7s linear infinite;margin:32px auto;display:block;
 }
+
+/* ============================================================ BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 16px;border-radius:10px;font-size:0.83rem;font-weight:600;
+  cursor:pointer;border:none;transition:background 0.15s,transform 0.1s,box-shadow 0.15s;
+}
+.btn:active{transform:scale(0.97);}
+.btn-blue{background:var(--accent);color:#fff;box-shadow:0 2px 10px rgba(26,111,232,0.25);}
+.btn-blue:hover{background:var(--accent-dark);}
+.btn-green{background:var(--green);color:#fff;box-shadow:0 2px 10px rgba(0,192,106,0.25);}
+.btn-green:hover{background:#00a85a;}
+.btn-outline{
+  background:transparent;color:var(--text-soft);
+  border:1px solid var(--border);
+}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:#dc2626;}
+.btn-sm{padding:6px 12px;font-size:0.75rem;}
+
+/* ============================================================ FILTERS ROW */
+.filters-row{
+  display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center;
+}
+.filter-input{
+  flex:1;min-width:140px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;font-size:0.83rem;color:var(--text);
+  transition:border-color 0.2s;
+}
+.filter-input:focus{border-color:var(--accent);}
+.filter-select{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;font-size:0.83rem;color:var(--text);
+  cursor:pointer;transition:border-color 0.2s;
+}
+.filter-select:focus{border-color:var(--accent);}
+
+/* ============================================================ VOUCHER TABLE */
+.voucher-wrap{overflow-x:auto;margin:0 -1px;}
+.v-table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+.v-table th{
+  text-align:left;padding:10px 12px;
+  font-size:0.68rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap;
+}
+.v-table td{
+  padding:11px 12px;border-bottom:1px solid var(--border);
+  color:var(--text);white-space:nowrap;
+}
+.v-table tr:last-child td{border-bottom:none;}
+.v-table tbody tr{cursor:pointer;transition:background 0.1s;}
+.v-table tbody tr:hover{background:var(--bg-card2);}
+.badge{
+  display:inline-block;border-radius:5px;padding:2px 8px;
+  font-size:0.7rem;font-weight:700;
+}
+.badge-green{background:var(--green-glow);color:var(--green);}
+.badge-gray{background:var(--bg-card2);color:var(--text-muted);}
+.badge-amber{background:rgba(245,158,11,0.12);color:var(--amber);}
+.badge-red{background:rgba(239,68,68,0.12);color:var(--red);}
+
+/* mobile: table → card list */
+@media(max-width:600px){
+  .v-table thead{display:none;}
+  .v-table,
+  .v-table tbody,
+  .v-table tr,
+  .v-table td{display:block;}
+  .v-table tr{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:12px;margin-bottom:10px;padding:12px 14px;
+    cursor:pointer;transition:box-shadow 0.15s;
+  }
+  .v-table tr:hover{box-shadow:var(--shadow);}
+  .v-table td{
+    border:none;padding:3px 0;white-space:normal;
+  }
+  .v-table td::before{
+    content:attr(data-label)': ';
+    font-size:0.68rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;
+  }
+}
+
+/* Pagination */
+.pagination{
+  display:flex;align-items:center;justify-content:center;gap:6px;padding:16px 0 0;
+}
+.page-btn{
+  width:32px;height:32px;border-radius:8px;font-size:0.82rem;font-weight:600;
+  background:var(--bg-card2);color:var(--text-soft);border:1px solid var(--border);
+  cursor:pointer;transition:background 0.15s,color 0.15s;
+}
+.page-btn:hover,.page-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.page-btn:disabled{opacity:0.4;cursor:default;}
+
+/* ============================================================ MODAL */
+.modal-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+  z-index:500;align-items:center;justify-content:center;padding:16px;
+}
+.modal-backdrop.show{display:flex;}
+.modal{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow-lg);
+  width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
+  animation:modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@media(max-width:600px){
+  .modal-backdrop{align-items:flex-end;padding:0;}
+  .modal{max-width:100%;border-radius:20px 20px 0 0;max-height:85vh;}
+}
+@keyframes modalIn{from{opacity:0;transform:scale(0.92) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px 14px;border-bottom:1px solid var(--border);
+}
+.modal-title{font-size:1rem;font-weight:700;color:var(--text);}
+.modal-close{
+  width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--bg-card2);color:var(--text-muted);cursor:pointer;border:none;
+  transition:background 0.15s;font-size:1.1rem;
+}
+.modal-close:hover{background:var(--border);color:var(--text);}
+.modal-body{padding:20px;}
+.modal-footer{
+  padding:14px 20px 18px;border-top:1px solid var(--border);
+  display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;
+}
+
+/* Detail rows */
+.detail-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-bottom:1px solid var(--border);
+}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{font-size:0.75rem;color:var(--text-muted);font-weight:500;}
+.detail-val{font-size:0.85rem;color:var(--text);font-weight:600;text-align:right;}
+
+/* ============================================================ FORM FIELDS */
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:0.75rem;font-weight:600;color:var(--text-soft);margin-bottom:5px;}
+.form-input{
+  width:100%;background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;padding:10px 12px;font-size:0.87rem;color:var(--text);
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+.form-input::placeholder{color:var(--text-muted);}
+.form-textarea{resize:vertical;min-height:90px;}
+
+/* ============================================================ CASH SALE */
+.plan-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;
+}
+@media(min-width:500px){.plan-grid{grid-template-columns:repeat(3,1fr);}}
+.plan-card{
+  border:2px solid var(--border);border-radius:14px;padding:14px;
+  cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:center;
+  background:var(--bg-card);
+}
+.plan-card:hover{border-color:var(--accent);background:var(--accent-glow);}
+.plan-card.selected{border-color:var(--accent);background:var(--accent-glow);}
+.plan-card.disabled{opacity:0.45;cursor:not-allowed;pointer-events:none;}
+.plan-card-name{font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:4px;}
+.plan-card-price{font-size:1.2rem;font-weight:800;color:var(--accent);}
+.plan-card-stock{font-size:0.68rem;color:var(--text-muted);margin-top:4px;}
+.plan-card-dur{font-size:0.68rem;color:var(--text-soft);margin-top:2px;}
+
+.cash-step{display:none;}
+.cash-step.active{display:block;}
+.step-indicator{
+  display:flex;align-items:center;margin-bottom:20px;
+}
+.step-dot{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.75rem;font-weight:700;
+  background:var(--bg-card2);color:var(--text-muted);border:2px solid var(--border);
+  flex-shrink:0;transition:all 0.3s;
+}
+.step-dot.done{background:var(--green);color:#fff;border-color:var(--green);}
+.step-dot.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.step-line{flex:1;height:2px;background:var(--border);transition:background 0.3s;}
+.step-line.done{background:var(--green);}
+
+.voucher-result{
+  text-align:center;padding:20px 0;
+}
+.voucher-code-display{
+  font-size:2rem;font-weight:900;letter-spacing:0.18em;
+  color:var(--accent);background:var(--accent-glow);
+  border:2px dashed var(--accent);border-radius:14px;
+  padding:18px 24px;margin:16px 0;
+  font-variant-numeric:tabular-nums;display:inline-block;
+}
+.success-icon{font-size:2.5rem;margin-bottom:8px;}
+
+/* ============================================================ ANALYTICS */
+.analytics-summary{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;
+}
+@media(min-width:600px){.analytics-summary{grid-template-columns:repeat(4,1fr);}}
+.time-tabs{display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap;}
+.time-tab{
+  padding:7px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;
+  background:var(--bg-card2);color:var(--text-muted);cursor:pointer;
+  transition:background 0.15s,color 0.15s;border:1px solid transparent;
+}
+.time-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent);}
+.chart-card{padding:20px;margin-bottom:20px;}
+.chart-title{font-size:0.82rem;font-weight:600;color:var(--text-soft);margin-bottom:14px;}
+.chart-wrap{position:relative;height:220px;}
+
+/* Plan performance table */
+.perf-table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+.perf-table th{
+  text-align:left;padding:10px 12px;
+  font-size:0.68rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text-muted);border-bottom:1px solid var(--border);
+}
+.perf-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);}
+.perf-table tr:last-child td{border-bottom:none;}
+
+/* Peak hours */
+.peak-grid{
+  display:grid;grid-template-columns:repeat(12,1fr);gap:4px;
+  margin-bottom:8px;
+}
+@media(max-width:500px){.peak-grid{grid-template-columns:repeat(6,1fr);}}
+.peak-hour{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.peak-bar-wrap{width:100%;height:40px;display:flex;align-items:flex-end;}
+.peak-bar{
+  width:100%;border-radius:4px 4px 0 0;
+  background:var(--accent);opacity:0.3;
+  transition:height 0.5s cubic-bezier(0.4,0,0.2,1),opacity 0.3s;
+  min-height:2px;
+}
+.peak-bar.high{opacity:0.9;}
+.peak-bar.med{opacity:0.55;}
+.peak-label{font-size:0.6rem;color:var(--text-muted);}
+
+/* ============================================================ SETTINGS */
+.settings-section{margin-bottom:28px;}
+.settings-section-title{
+  font-size:0.78rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px;
+}
+.settings-card{padding:18px 20px;}
+.settings-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;
+}
+.settings-row:last-child{border-bottom:none;}
+.settings-row-info{flex:1;min-width:0;}
+.settings-row-label{font-size:0.87rem;font-weight:600;color:var(--text);}
+.settings-row-sub{font-size:0.75rem;color:var(--text-muted);margin-top:2px;}
+.settings-row-action{flex-shrink:0;}
+
+/* Plan ref table */
+.plan-ref-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+.plan-ref-table th{
+  text-align:left;padding:8px 10px;
+  font-size:0.65rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text-muted);border-bottom:1px solid var(--border);
+}
+.plan-ref-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+.plan-ref-table tr:last-child td{border-bottom:none;}
+.mono{font-family:monospace;font-size:0.7rem;color:var(--text-muted);}
+
+/* Range slider */
+.slider{-webkit-appearance:none;width:100%;height:4px;border-radius:99px;background:var(--border);outline:none;cursor:pointer;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:900;display:flex;flex-direction:column;gap:8px;align-items:center;}
+@media(min-width:768px){.toast-wrap{bottom:24px;}}
+.toast{
+  background:var(--text);color:var(--bg-card);
+  border-radius:10px;padding:10px 18px;font-size:0.82rem;font-weight:600;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  animation:toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  white-space:nowrap;
+}
+.toast.success{background:var(--green);color:#fff;}
+.toast.error{background:var(--red);color:#fff;}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(0.9);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+/* Confirm overlay */
+.confirm-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+  z-index:600;align-items:center;justify-content:center;padding:20px;
+}
+.confirm-backdrop.show{display:flex;}
+.confirm-box{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
+  padding:24px;max-width:340px;width:100%;text-align:center;
+  box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease both;
+}
+.confirm-icon{font-size:2.5rem;margin-bottom:12px;}
+.confirm-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.confirm-msg{font-size:0.82rem;color:var(--text-muted);margin-bottom:18px;line-height:1.5;}
+.confirm-btns{display:flex;gap:10px;justify-content:center;}
+
+/* ============================================================ IMPORT PREVIEW */
+.preview-table-wrap{overflow-x:auto;margin-top:12px;max-height:200px;overflow-y:auto;}
+
+/* Sales log totals bar */
+.totals-bar{
+  display:flex;flex-wrap:wrap;gap:16px;align-items:center;
+  background:var(--bg-card2);border-radius:10px;padding:12px 16px;
+  margin-bottom:14px;font-size:0.82rem;
+}
+.totals-bar strong{font-weight:700;color:var(--text);}
+.totals-bar span{color:var(--text-muted);}
 </style>
 </head>
 
-<!-- Auth check — must be first -->
+<!-- Auth check -->
 <script>
   if(!sessionStorage.getItem('zn_admin')){
     window.location.replace('admin-login.html');
   }
-  if(localStorage.getItem('zn_theme')==='dark'){
-    document.addEventListener('DOMContentLoaded',function(){
-      document.body.classList.add('dark');
-      var t=document.getElementById('darkToggle');
-      if(t)t.classList.add('on');
-    });
-  }
+  (function(){
+    if(localStorage.getItem('zn_theme')==='dark'){
+      document.addEventListener('DOMContentLoaded',function(){
+        document.body.classList.add('dark');
+        var t=document.getElementById('darkToggle');
+        if(t)t.classList.add('on');
+      });
+    }
+  })();
 </script>
 
 <body>
 
-<!-- ============================================================
-     SIDEBAR
-============================================================ -->
+<!-- ============================================================ SIDEBAR -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">
@@ -476,10 +623,8 @@ input{font-family:inherit;border:none;outline:none;}
     <span class="sidebar-logo-text">Z-Network</span>
     <span class="sidebar-logo-badge">Admin</span>
   </div>
-
   <nav class="sidebar-nav">
     <div class="nav-label">Main</div>
-
     <div class="nav-item active" data-section="overview" onclick="navigate('overview',this)">
       <span class="nav-icon">📊</span> Overview
     </div>
@@ -489,87 +634,64 @@ input{font-family:inherit;border:none;outline:none;}
     <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
       <span class="nav-icon">💰</span> Cash Sale
     </div>
-
     <div class="nav-label">Reports</div>
-
     <div class="nav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
       <span class="nav-icon">📋</span> Sales Log
     </div>
     <div class="nav-item" data-section="analytics" onclick="navigate('analytics',this)">
       <span class="nav-icon">📈</span> Analytics
     </div>
-
     <div class="nav-label">System</div>
-
     <div class="nav-item" data-section="settings" onclick="navigate('settings',this)">
       <span class="nav-icon">⚙️</span> Settings
     </div>
   </nav>
-
   <div class="sidebar-footer">
     <span>v1.0.0</span>
     <span id="sidebarTime">—</span>
   </div>
 </div>
-
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- ============================================================
-     TOP BAR
-============================================================ -->
+<!-- ============================================================ TOPBAR -->
 <div class="topbar">
   <button class="topbar-hamburger" onclick="toggleSidebar()">
     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
       <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
     </svg>
   </button>
-
   <span class="topbar-title" id="topbarTitle">Overview</span>
-
   <div class="topbar-right">
-    <!-- Bell -->
     <button class="icon-btn" onclick="navigate('vouchers')" title="Low stock alerts">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
       </svg>
       <div class="bell-badge" id="bellBadge"></div>
     </button>
-
-    <!-- Dark mode -->
     <div class="toggle-track" id="darkToggle" onclick="toggleDark()">
       <div class="toggle-thumb"></div>
     </div>
-
-    <!-- Logout -->
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </div>
 
-<!-- ============================================================
-     MAIN CONTENT
-============================================================ -->
+<!-- ============================================================ MAIN -->
 <main class="main">
 
-  <!-- ── OVERVIEW ── -->
+  <!-- OVERVIEW -->
   <section class="section active" id="section-overview">
     <div class="section-title">Overview</div>
     <div class="section-sub" id="overviewDate">Loading…</div>
-
-    <!-- Summary cards -->
     <div class="summary-grid" id="summaryGrid">
       <div class="sum-card"><div class="sum-label">Today's Revenue</div><div class="skeleton" style="height:28px;width:80px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:60px;"></div></div>
       <div class="sum-card"><div class="sum-label">Sold Today</div><div class="skeleton" style="height:28px;width:50px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:80px;"></div></div>
       <div class="sum-card"><div class="sum-label">Active Vouchers</div><div class="skeleton" style="height:28px;width:50px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:70px;"></div></div>
       <div class="sum-card"><div class="sum-label">Low Stock Plans</div><div class="skeleton" style="height:28px;width:40px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:90px;"></div></div>
     </div>
-
-    <!-- Stock levels -->
     <div class="card stock-card" id="stockCard">
       <div class="stock-title">📦 Voucher Stock Levels</div>
       <div id="stockBars"><div class="spinner"></div></div>
     </div>
-
-    <!-- Recent activity -->
     <div class="card activity-card">
       <div class="activity-header">
         <span class="activity-title">🕐 Recent Activity</span>
@@ -579,105 +701,521 @@ input{font-family:inherit;border:none;outline:none;}
     </div>
   </section>
 
-  <!-- ── VOUCHERS (Phase 2) ── -->
+  <!-- VOUCHERS -->
   <section class="section" id="section-vouchers">
     <div class="section-title">Vouchers</div>
-    <div class="section-sub">Manage your entire voucher inventory</div>
-    <div class="placeholder-wrap">
-      <div class="placeholder-icon">🎟️</div>
-      <div class="placeholder-title">Voucher Management</div>
-      <div class="placeholder-sub">View all vouchers, filter by plan and status,<br/>revoke codes, and manage your inventory.</div>
-      <span class="phase-badge">Phase 2 — Coming Next</span>
+    <div class="section-sub">Full inventory management</div>
+
+    <div class="filters-row">
+      <input class="filter-input" type="text" id="vSearch" placeholder="Search code…" oninput="filterVouchers()"/>
+      <select class="filter-select" id="vPlan" onchange="filterVouchers()">
+        <option value="">All Plans</option>
+        <option value="31fd47b9-fa74-4da3-a390-9e450ca3923c">Daily</option>
+        <option value="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae">2-Day</option>
+        <option value="6ce23b1a-bdb4-4118-958a-bcd4d637fb96">Half-Week</option>
+        <option value="08dbcc38-34fa-4251-a667-f989d26d625e">Weekly</option>
+        <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly</option>
+      </select>
+      <select class="filter-select" id="vStatus" onchange="filterVouchers()">
+        <option value="">All Status</option>
+        <option value="used">Used</option>
+        <option value="unused">Unused</option>
+      </select>
+      <select class="filter-select" id="vChannel" onchange="filterVouchers()">
+        <option value="">All Channels</option>
+        <option value="online">Online</option>
+        <option value="cash">Cash</option>
+      </select>
+    </div>
+    <div class="filters-row" style="margin-top:-4px;">
+      <button class="btn btn-blue btn-sm" onclick="openAddVouchersModal()">+ Add Vouchers</button>
+      <button class="btn btn-outline btn-sm" onclick="openImportModal()">📤 Import CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="exportVouchers()">📥 Export CSV</button>
+      <button class="btn btn-outline btn-sm" id="vRefreshBtn" onclick="loadVouchers()">↻ Refresh</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="voucher-wrap">
+        <table class="v-table" id="vTable">
+          <thead>
+            <tr>
+              <th>Code</th><th>Plan</th><th>Status</th>
+              <th>Channel</th><th>Used At</th><th>Expires</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="vTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="vPagination"></div>
     </div>
   </section>
 
-  <!-- ── CASH SALE (Phase 3) ── -->
+  <!-- CASH SALE -->
   <section class="section" id="section-cashsale">
     <div class="section-title">Cash Sale</div>
-    <div class="section-sub">Manually assign vouchers for cash payments</div>
-    <div class="placeholder-wrap">
-      <div class="placeholder-icon">💰</div>
-      <div class="placeholder-title">Cash Sale Flow</div>
-      <div class="placeholder-sub">Select a plan, assign a voucher, and send<br/>the code to your customer via WhatsApp.</div>
-      <span class="phase-badge">Phase 3 — Coming Next</span>
+    <div class="section-sub">Assign a voucher for a cash payment</div>
+
+    <div class="step-indicator" id="stepIndicator">
+      <div class="step-dot active" id="stepDot1">1</div>
+      <div class="step-line" id="stepLine1"></div>
+      <div class="step-dot" id="stepDot2">2</div>
+      <div class="step-line" id="stepLine2"></div>
+      <div class="step-dot" id="stepDot3">3</div>
+    </div>
+
+    <!-- Step 1: Select Plan -->
+    <div class="cash-step active" id="cashStep1">
+      <div class="card" style="padding:20px;">
+        <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:16px;">Select the plan the customer is paying for:</p>
+        <div class="plan-grid" id="planGrid">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Confirm -->
+    <div class="cash-step" id="cashStep2">
+      <div class="card" style="padding:24px;text-align:center;">
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">Confirming sale for:</p>
+        <p style="font-size:1.3rem;font-weight:800;color:var(--text);" id="confirmPlanName">—</p>
+        <p style="font-size:1.8rem;font-weight:900;color:var(--accent);margin:4px 0 20px;" id="confirmPlanPrice">—</p>
+        <div class="form-group" style="text-align:left;">
+          <label class="form-label">Customer Phone (optional)</label>
+          <input class="form-input" type="tel" id="customerPhone" placeholder="+234…"/>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+          <button class="btn btn-outline" onclick="cashGoStep(1)">← Back</button>
+          <button class="btn btn-green" onclick="completeCashSale()">Assign & Complete Sale ✓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div class="cash-step" id="cashStep3">
+      <div class="card" style="padding:28px;">
+        <div class="voucher-result">
+          <div class="success-icon">✅</div>
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">Voucher Assigned</p>
+          <p style="font-size:0.95rem;font-weight:700;color:var(--text);" id="resultPlanName">—</p>
+          <div class="voucher-code-display" id="resultCode">—</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="copyResultCode()">📋 Copy Code</button>
+            <button class="btn btn-green" onclick="sendViaWhatsApp()">📱 Send via WhatsApp</button>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+          <button class="btn btn-blue" onclick="resetCashSale()">+ Complete Another Sale</button>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- ── SALES LOG (Phase 3) ── -->
+  <!-- SALES LOG -->
   <section class="section" id="section-saleslog">
     <div class="section-title">Sales Log</div>
-    <div class="section-sub">Full history of all transactions</div>
-    <div class="placeholder-wrap">
-      <div class="placeholder-icon">📋</div>
-      <div class="placeholder-title">Transaction History</div>
-      <div class="placeholder-sub">Filter sales by date, plan, and channel.<br/>Export CSV for your records.</div>
-      <span class="phase-badge">Phase 3 — Coming Next</span>
+    <div class="section-sub">Full transaction history</div>
+
+    <div class="filters-row">
+      <input class="filter-input" type="date" id="slFrom"/>
+      <input class="filter-input" type="date" id="slTo"/>
+      <select class="filter-select" id="slPlan" onchange="filterSalesLog()">
+        <option value="">All Plans</option>
+        <option value="31fd47b9-fa74-4da3-a390-9e450ca3923c">Daily</option>
+        <option value="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae">2-Day</option>
+        <option value="6ce23b1a-bdb4-4118-958a-bcd4d637fb96">Half-Week</option>
+        <option value="08dbcc38-34fa-4251-a667-f989d26d625e">Weekly</option>
+        <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly</option>
+      </select>
+      <select class="filter-select" id="slChannel" onchange="filterSalesLog()">
+        <option value="">All Channels</option>
+        <option value="online">Online</option>
+        <option value="cash">Cash</option>
+      </select>
+      <button class="btn btn-blue btn-sm" onclick="filterSalesLog()">Filter</button>
+      <button class="btn btn-outline btn-sm" onclick="exportSalesLog()">📥 Export CSV</button>
+    </div>
+
+    <div class="totals-bar" id="slTotals">
+      <span>Loading…</span>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="voucher-wrap">
+        <table class="v-table" id="slTable">
+          <thead>
+            <tr>
+              <th>Date/Time</th><th>Plan</th><th>Amount</th>
+              <th>Channel</th><th>Code</th><th>Reference</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="slTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="slPagination"></div>
     </div>
   </section>
 
-  <!-- ── ANALYTICS (Phase 4) ── -->
+  <!-- ANALYTICS -->
   <section class="section" id="section-analytics">
     <div class="section-title">Analytics</div>
     <div class="section-sub">Sales performance over time</div>
-    <div class="placeholder-wrap">
-      <div class="placeholder-icon">📈</div>
-      <div class="placeholder-title">Revenue Analytics</div>
-      <div class="placeholder-sub">Daily, weekly, and monthly charts.<br/>Online vs cash breakdown. Peak hours.</div>
-      <span class="phase-badge">Phase 4 — Coming Next</span>
+
+    <div class="analytics-summary" id="analyticsAllTime">
+      <div class="sum-card"><div class="sum-label">All Time Revenue</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Total Sold</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Online Sales</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Cash Sales</div><div class="spinner" style="margin:8px auto;"></div></div>
+    </div>
+
+    <div class="time-tabs" id="timeTabs">
+      <div class="time-tab active" data-range="today" onclick="setAnalyticsRange('today',this)">Today</div>
+      <div class="time-tab" data-range="week" onclick="setAnalyticsRange('week',this)">This Week</div>
+      <div class="time-tab" data-range="month" onclick="setAnalyticsRange('month',this)">This Month</div>
+      <div class="time-tab" data-range="30days" onclick="setAnalyticsRange('30days',this)">Last 30 Days</div>
+      <div class="time-tab" data-range="all" onclick="setAnalyticsRange('all',this)">All Time</div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="chart-title">Revenue Chart — Online vs Cash</div>
+      <div class="chart-wrap">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px;">
+      <div class="chart-title">Plan Performance</div>
+      <div style="overflow-x:auto;">
+        <table class="perf-table" id="perfTable">
+          <thead><tr><th>Plan</th><th>Sold</th><th>Revenue</th><th>% of Total</th></tr></thead>
+          <tbody id="perfBody"><tr><td colspan="4" style="text-align:center;padding:20px;"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px;">
+      <div class="chart-title">Peak Hours</div>
+      <div class="peak-grid" id="peakGrid">
+        <div class="spinner"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">Darker = more sales at that hour</div>
     </div>
   </section>
 
-  <!-- ── SETTINGS (Phase 5) ── -->
+  <!-- SETTINGS -->
   <section class="section" id="section-settings">
     <div class="section-title">Settings</div>
     <div class="section-sub">Configure your admin dashboard</div>
-    <div class="placeholder-wrap">
-      <div class="placeholder-icon">⚙️</div>
-      <div class="placeholder-title">Settings</div>
-      <div class="placeholder-sub">Change admin password, WhatsApp number,<br/>stock alert thresholds, and more.</div>
-      <span class="phase-badge">Phase 5 — Coming Next</span>
+
+    <!-- Admin Security -->
+    <div class="settings-section">
+      <div class="settings-section-title">Admin Security</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Change Password</div>
+            <div class="settings-row-sub">Update your admin login password</div>
+          </div>
+          <div class="settings-row-action">
+            <button class="btn btn-outline btn-sm" onclick="openPasswordModal()">Change</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Change Username</div>
+            <div class="settings-row-sub">Current: <strong id="displayUsername">admin</strong></div>
+          </div>
+          <div class="settings-row-action">
+            <button class="btn btn-outline btn-sm" onclick="openUsernameModal()">Change</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business Info -->
+    <div class="settings-section">
+      <div class="settings-section-title">Business Info</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">WhatsApp Number</div>
+            <div class="settings-row-sub">Used in receipt messages</div>
+          </div>
+          <div class="settings-row-action">
+            <input class="form-input" style="width:160px;text-align:right;" type="tel" id="settingsWA" placeholder="234xxxxxxxxxx"/>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Network Name</div>
+            <div class="settings-row-sub">Shown in customer receipts</div>
+          </div>
+          <div class="settings-row-action">
+            <input class="form-input" style="width:140px;text-align:right;" type="text" id="settingsNetName" placeholder="Z-Network"/>
+          </div>
+        </div>
+        <div class="settings-row" style="padding-top:16px;">
+          <div></div>
+          <button class="btn btn-blue btn-sm" onclick="saveBusinessSettings()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock Alerts -->
+    <div class="settings-section">
+      <div class="settings-section-title">Stock Alerts</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Low Stock Threshold</div>
+            <div class="settings-row-sub">Alert when any plan falls to or below <strong id="stockThreshVal">10</strong> vouchers</div>
+          </div>
+          <div style="width:100%;">
+            <input class="slider" type="range" min="5" max="50" value="10" id="stockThresh" oninput="document.getElementById('stockThreshVal').textContent=this.value"/>
+            <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-muted);margin-top:4px;"><span>5</span><span>50</span></div>
+          </div>
+        </div>
+        <div class="settings-row" style="padding-top:10px;">
+          <div></div>
+          <button class="btn btn-blue btn-sm" onclick="saveStockSettings()">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan Reference -->
+    <div class="settings-section">
+      <div class="settings-section-title">Plan Reference</div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="overflow-x:auto;">
+          <table class="plan-ref-table">
+            <thead><tr><th>Plan</th><th>Price</th><th>Duration</th><th>Plan ID</th></tr></thead>
+            <tbody>
+              <tr><td>Daily</td><td>₦350</td><td>24 hrs</td><td class="mono">31fd47b9-…</td></tr>
+              <tr><td>2-Day</td><td>₦500</td><td>48 hrs</td><td class="mono">cfa7e627-…</td></tr>
+              <tr><td>Half-Week</td><td>₦1,000</td><td>84 hrs</td><td class="mono">6ce23b1a-…</td></tr>
+              <tr><td>Weekly</td><td>₦2,000</td><td>168 hrs</td><td class="mono">08dbcc38-…</td></tr>
+              <tr><td>Monthly</td><td>₦6,000</td><td>720 hrs</td><td class="mono">925f31d8-…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="settings-section">
+      <div class="settings-section-title">Data Management</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Export All Vouchers</div>
+            <div class="settings-row-sub">Full inventory as CSV</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="exportAllVouchers()">📥 Export</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Export All Sales</div>
+            <div class="settings-row-sub">Complete transaction history as CSV</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="exportAllSales()">📥 Export</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="settings-section">
+      <div class="settings-section-title">About</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">Version</div>
+          <div style="font-size:0.82rem;color:var(--text-muted);">v1.0.0</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">Supabase Project</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);font-family:monospace;">yohndnmwvgcwadkytmix</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">Last Sync</div>
+          <div style="font-size:0.82rem;color:var(--text-muted);" id="lastSyncTime">—</div>
+        </div>
+      </div>
     </div>
   </section>
-
 </main>
 
-<!-- ============================================================
-     BOTTOM NAV (mobile)
-============================================================ -->
+<!-- BOTTOM NAV -->
 <nav class="bottom-nav">
   <div class="bnav-item active" data-section="overview" onclick="navigate('overview',this)">
-    <span class="bnav-icon">📊</span>
-    <span>Overview</span>
+    <span class="bnav-icon">📊</span><span>Overview</span>
   </div>
   <div class="bnav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
-    <span class="bnav-icon">🎟️</span>
-    <span>Vouchers</span>
+    <span class="bnav-icon">🎟️</span><span>Vouchers</span>
   </div>
   <div class="bnav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
-    <span class="bnav-icon">💰</span>
-    <span>Cash Sale</span>
+    <span class="bnav-icon">💰</span><span>Cash</span>
   </div>
   <div class="bnav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
-    <span class="bnav-icon">📋</span>
-    <span>Sales</span>
+    <span class="bnav-icon">📋</span><span>Sales</span>
   </div>
   <div class="bnav-item" data-section="analytics" onclick="navigate('analytics',this)">
-    <span class="bnav-icon">📈</span>
-    <span>More</span>
+    <span class="bnav-icon">📈</span><span>Analytics</span>
   </div>
 </nav>
 
-<!-- ============================================================
-     SUPABASE CLIENT
-============================================================ -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toastWrap"></div>
 
+<!-- ============================================================ MODALS -->
+
+<!-- Voucher Detail Modal -->
+<div class="modal-backdrop" id="vDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Voucher Details</span>
+      <button class="modal-close" onclick="closeModal('vDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="vDetailBody"></div>
+    <div class="modal-footer" id="vDetailFooter"></div>
+  </div>
+</div>
+
+<!-- Add Vouchers Modal -->
+<div class="modal-backdrop" id="addVouchersModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Vouchers</span>
+      <button class="modal-close" onclick="closeModal('addVouchersModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Paste voucher codes (one per line)</label>
+        <textarea class="form-input form-textarea" id="addCodesInput" placeholder="84729361&#10;33948271&#10;77219034"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan</label>
+        <select class="form-input" id="addCodesPlan">
+          <option value="31fd47b9-fa74-4da3-a390-9e450ca3923c">Daily Plan</option>
+          <option value="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae">2-Day Plan</option>
+          <option value="6ce23b1a-bdb4-4118-958a-bcd4d637fb96">Half-Week Plan</option>
+          <option value="08dbcc38-34fa-4251-a667-f989d26d625e">Weekly Plan</option>
+          <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly Plan</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addVouchersModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="submitAddVouchers()">Add Vouchers</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-backdrop" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Import Vouchers from CSV</span>
+      <button class="modal-close" onclick="closeModal('importModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">Expected format: <code style="background:var(--bg-card2);padding:2px 6px;border-radius:4px;">code,plan_id</code></p>
+      <input type="file" accept=".csv" id="csvFileInput" style="display:none" onchange="handleCSVImport(this)"/>
+      <button class="btn btn-outline" onclick="document.getElementById('csvFileInput').click()">📂 Choose CSV File</button>
+      <div id="importPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-blue" id="importConfirmBtn" style="display:none" onclick="confirmImport()">Import All</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sales Log Detail Modal -->
+<div class="modal-backdrop" id="slDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Transaction Details</span>
+      <button class="modal-close" onclick="closeModal('slDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="slDetailBody"></div>
+    <div class="modal-footer" id="slDetailFooter"></div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-backdrop" id="passwordModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Change Password</span>
+      <button class="modal-close" onclick="closeModal('passwordModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input class="form-input" type="password" id="pwCurrent" placeholder="Current password"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input class="form-input" type="password" id="pwNew" placeholder="New password (min 8 chars)"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input class="form-input" type="password" id="pwConfirm" placeholder="Repeat new password"/>
+      </div>
+      <div class="login-error" id="pwError" style="margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('passwordModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="savePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Username Modal -->
+<div class="modal-backdrop" id="usernameModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Change Username</span>
+      <button class="modal-close" onclick="closeModal('usernameModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">New Username</label>
+        <input class="form-input" type="text" id="newUsername" placeholder="Enter new username"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('usernameModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveUsername()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-backdrop" id="confirmBackdrop">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirmIcon">⚠️</div>
+    <div class="confirm-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-msg" id="confirmMsg">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline" onclick="closeConfirm(false)">Cancel</button>
+      <button class="btn btn-red" id="confirmOkBtn" onclick="closeConfirm(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ SCRIPTS -->
 <script>
-/* ── CONFIG ──────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════════════════════ */
 var SUPABASE_URL  = 'https://yohndnmwvgcwadkytmix.supabase.co';
 var SUPABASE_ANON = 'YOUR_ANON_KEY_HERE'; // ← replace with your anon key
-var ADMIN_WA      = '2348159694740';
+var ADMIN_WA      = localStorage.getItem('zn_wa') || '2348159694740';
 var LOW_STOCK     = parseInt(localStorage.getItem('zn_low_stock') || '10');
+var NET_NAME      = localStorage.getItem('zn_netname') || 'Z-Network';
 
 var PLANS = {
   '31fd47b9-fa74-4da3-a390-9e450ca3923c': { name:'Daily Plan',     price:350,  hours:24  },
@@ -687,230 +1225,745 @@ var PLANS = {
   '925f31d8-6a56-450b-aca0-5b165e336642': { name:'Monthly Plan',   price:6000, hours:720 },
 };
 
-/* ── SUPABASE INIT ───────────────────────────────────── */
 var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-/* ── NAVIGATION ──────────────────────────────────────── */
-var currentSection = 'overview';
-var SECTION_TITLES = {
-  overview:'Overview', vouchers:'Vouchers', cashsale:'Cash Sale',
-  saleslog:'Sales Log', analytics:'Analytics', settings:'Settings'
+/* ══════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════ */
+function getPlanName(id){return PLANS[id]?PLANS[id].name:'Unknown';}
+function getPlanPrice(id){return PLANS[id]?PLANS[id].price:0;}
+function getPlanHours(id){return PLANS[id]?PLANS[id].hours:0;}
+function getExpiry(used_at,plan_id){
+  if(!used_at||!PLANS[plan_id])return'—';
+  var ms=PLANS[plan_id].hours*3600000;
+  return new Date(new Date(used_at).getTime()+ms).toLocaleString('en-NG',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+function timeAgo(d){
+  var diff=(Date.now()-new Date(d).getTime())/1000;
+  if(diff<60)return Math.floor(diff)+'s ago';
+  if(diff<3600)return Math.floor(diff/60)+'m ago';
+  if(diff<86400)return Math.floor(diff/3600)+'h ago';
+  return Math.floor(diff/86400)+'d ago';
+}
+function fmtMoney(n){return'₦'+Number(n).toLocaleString('en-NG');}
+function fmtDate(d){
+  if(!d)return'—';
+  return new Date(d).toLocaleString('en-NG',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function isActive(used_at,plan_id){
+  if(!used_at||!PLANS[plan_id])return false;
+  return(new Date(used_at).getTime()+PLANS[plan_id].hours*3600000)>Date.now();
+}
+function maskCode(code){
+  if(!code)return'—';
+  var s=code.toString();
+  return s.length>4?s.slice(0,4)+'x'.repeat(s.length-4):s;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════════ */
+function toast(msg,type){
+  var w=document.getElementById('toastWrap');
+  var el=document.createElement('div');
+  el.className='toast'+(type?' '+type:'');
+  el.textContent=msg;
+  w.appendChild(el);
+  setTimeout(function(){el.remove();},3200);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIRM DIALOG
+══════════════════════════════════════════════════════════════ */
+var _confirmResolve=null;
+function showConfirm(title,msg,icon){
+  document.getElementById('confirmTitle').textContent=title||'Are you sure?';
+  document.getElementById('confirmMsg').textContent=msg||'This action cannot be undone.';
+  document.getElementById('confirmIcon').textContent=icon||'⚠️';
+  document.getElementById('confirmBackdrop').classList.add('show');
+  return new Promise(function(res){_confirmResolve=res;});
+}
+function closeConfirm(val){
+  document.getElementById('confirmBackdrop').classList.remove('show');
+  if(_confirmResolve)_confirmResolve(val);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODALS
+══════════════════════════════════════════════════════════════ */
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.addEventListener('click',function(e){
+  if(e.target.classList.contains('modal-backdrop'))e.target.classList.remove('show');
+});
+
+/* ══════════════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════════════ */
+var currentSection='overview';
+var SECTION_TITLES={
+  overview:'Overview',vouchers:'Vouchers',cashsale:'Cash Sale',
+  saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
 };
-
-function navigate(id, el) {
-  // Hide current section
-  document.getElementById('section-' + currentSection).classList.remove('active');
-
-  // Deactivate all nav items
-  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-  document.querySelectorAll('.bnav-item').forEach(function(n){ n.classList.remove('active'); });
-
-  // Show new section
-  currentSection = id;
-  document.getElementById('section-' + id).classList.add('active');
-  document.getElementById('topbarTitle').textContent = SECTION_TITLES[id] || id;
-
-  // Activate nav items
-  document.querySelectorAll('[data-section="' + id + '"]').forEach(function(n){
-    n.classList.add('active');
-  });
-
-  // Load section data
-  if (id === 'overview') loadOverview();
-
-  // Close sidebar on mobile after navigation
+function navigate(id,el){
+  document.getElementById('section-'+currentSection).classList.remove('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.querySelectorAll('.bnav-item').forEach(function(n){n.classList.remove('active');});
+  currentSection=id;
+  document.getElementById('section-'+id).classList.add('active');
+  document.getElementById('topbarTitle').textContent=SECTION_TITLES[id]||id;
+  document.querySelectorAll('[data-section="'+id+'"]').forEach(function(n){n.classList.add('active');});
+  if(id==='overview')loadOverview();
+  else if(id==='vouchers'){if(!_vouchersLoaded)loadVouchers();}
+  else if(id==='cashsale')loadCashSalePlans();
+  else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
+  else if(id==='analytics')loadAnalytics();
+  else if(id==='settings')initSettings();
   closeSidebar();
 }
 
-/* ── SIDEBAR ─────────────────────────────────────────── */
-function toggleSidebar() {
-  var s = document.getElementById('sidebar');
-  var o = document.getElementById('sidebarOverlay');
-  var isOpen = s.classList.contains('open');
-  s.classList.toggle('open', !isOpen);
-  o.classList.toggle('show', !isOpen);
+/* ══════════════════════════════════════════════════════════════
+   SIDEBAR / DARK
+══════════════════════════════════════════════════════════════ */
+function toggleSidebar(){
+  var s=document.getElementById('sidebar');
+  var o=document.getElementById('sidebarOverlay');
+  var open=s.classList.contains('open');
+  s.classList.toggle('open',!open);
+  o.classList.toggle('show',!open);
 }
-function closeSidebar() {
+function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
-
-/* ── DARK MODE ───────────────────────────────────────── */
-function toggleDark() {
-  var isDark = document.body.classList.toggle('dark');
-  document.getElementById('darkToggle').classList.toggle('on', isDark);
-  localStorage.setItem('zn_theme', isDark ? 'dark' : 'light');
+function toggleDark(){
+  var isDark=document.body.classList.toggle('dark');
+  document.getElementById('darkToggle').classList.toggle('on',isDark);
+  localStorage.setItem('zn_theme',isDark?'dark':'light');
+  if(_chartInstance)rebuildChart();
 }
-
-/* ── LOGOUT ──────────────────────────────────────────── */
-function logout() {
-  if (confirm('Log out of admin dashboard?')) {
-    sessionStorage.removeItem('zn_admin');
-    window.location.href = 'admin-login.html';
-  }
-}
-
-/* ── HELPERS ─────────────────────────────────────────── */
-function getPlanName(plan_id) {
-  return PLANS[plan_id] ? PLANS[plan_id].name : 'Unknown Plan';
-}
-function getPlanPrice(plan_id) {
-  return PLANS[plan_id] ? PLANS[plan_id].price : 0;
-}
-function getExpiry(used_at, plan_id) {
-  if (!used_at || !PLANS[plan_id]) return '—';
-  var ms = PLANS[plan_id].hours * 3600000;
-  return new Date(new Date(used_at).getTime() + ms).toLocaleString('en-NG', {
-    day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'
+function logout(){
+  showConfirm('Log Out','Are you sure you want to log out of the admin dashboard?','🔒').then(function(ok){
+    if(ok){sessionStorage.removeItem('zn_admin');window.location.href='admin-login.html';}
   });
 }
-function timeAgo(dateStr) {
-  var diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60)   return Math.floor(diff) + 's ago';
-  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-  if (diff < 86400)return Math.floor(diff/3600) + 'h ago';
-  return Math.floor(diff/86400) + 'd ago';
+
+/* ══════════════════════════════════════════════════════════════
+   CLOCK
+══════════════════════════════════════════════════════════════ */
+function updateClock(){
+  var el=document.getElementById('sidebarTime');
+  if(el)el.textContent=new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'});
 }
-function fmtMoney(n) {
-  return '₦' + Number(n).toLocaleString('en-NG');
-}
-function isActive(used_at, plan_id) {
-  if (!used_at || !PLANS[plan_id]) return false;
-  var ms = PLANS[plan_id].hours * 3600000;
-  return (new Date(used_at).getTime() + ms) > Date.now();
-}
+setInterval(updateClock,1000);updateClock();
 
-/* ── OVERVIEW ────────────────────────────────────────── */
-async function loadOverview() {
-  var today   = new Date().toISOString().split('T')[0];
-  var todayTs = today + 'T00:00:00.000Z';
+/* ══════════════════════════════════════════════════════════════
+   OVERVIEW
+══════════════════════════════════════════════════════════════ */
+async function loadOverview(){
+  var todayTs=new Date().toISOString().split('T')[0]+'T00:00:00.000Z';
+  document.getElementById('overviewDate').textContent=
+    new Date().toLocaleDateString('en-NG',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  try{
+    var[r1,r2,r3]=await Promise.all([
+      supabase.from('vouchers').select('code,plan_id,used_at,sold_by').eq('is_used',true).gte('used_at',todayTs).order('used_at',{ascending:false}),
+      supabase.from('vouchers').select('plan_id,used_at').eq('is_used',true),
+      supabase.from('vouchers').select('plan_id').eq('is_used',false)
+    ]);
+    var todaySales=r1.data||[];
+    var allUsed=r2.data||[];
+    var allUnused=r3.data||[];
+    var todayRevenue=todaySales.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+    var onlineCount=todaySales.filter(function(v){return v.sold_by!=='cash';}).length;
+    var cashCount=todaySales.filter(function(v){return v.sold_by==='cash';}).length;
+    var activeCount=allUsed.filter(function(v){return isActive(v.used_at,v.plan_id);}).length;
+    var stock={};
+    Object.keys(PLANS).forEach(function(id){stock[id]=0;});
+    allUnused.forEach(function(v){if(stock[v.plan_id]!==undefined)stock[v.plan_id]++;});
+    var lowStockCount=Object.values(stock).filter(function(n){return n<=LOW_STOCK;}).length;
 
-  // Date subtitle
-  document.getElementById('overviewDate').textContent =
-    new Date().toLocaleDateString('en-NG', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    document.getElementById('summaryGrid').innerHTML=
+      sumCard('Today\'s Revenue',fmtMoney(todayRevenue),'accent',todaySales.length?(onlineCount+' online · '+cashCount+' cash'):'No sales yet')+
+      sumCard('Sold Today',todaySales.length,'green',todaySales.length+' voucher'+(todaySales.length!==1?'s':''))+
+      sumCard('Active Users',activeCount,'','currently valid')+
+      sumCard('Low Stock',lowStockCount,lowStockCount>0?'red':'green',lowStockCount>0?'plans need restocking':'All plans stocked');
 
-  try {
-    // Fetch today's used vouchers
-    var { data: todayData, error: e1 } = await supabase
-      .from('vouchers')
-      .select('code, plan_id, used_at, sold_by, transaction_reference, is_used')
-      .eq('is_used', true)
-      .gte('used_at', todayTs)
-      .order('used_at', { ascending: false });
+    document.getElementById('bellBadge').classList.toggle('show',lowStockCount>0);
 
-    // Fetch ALL used vouchers (for active count)
-    var { data: allUsed } = await supabase
-      .from('vouchers')
-      .select('plan_id, used_at, is_used')
-      .eq('is_used', true);
-
-    // Fetch ALL unused (for stock)
-    var { data: allUnused } = await supabase
-      .from('vouchers')
-      .select('plan_id')
-      .eq('is_used', false);
-
-    // ── Calculate summary ──
-    var todaySales   = todayData || [];
-    var todayRevenue = todaySales.reduce(function(sum, v){ return sum + getPlanPrice(v.plan_id); }, 0);
-    var onlineCount  = todaySales.filter(function(v){ return v.sold_by !== 'cash'; }).length;
-    var cashCount    = todaySales.filter(function(v){ return v.sold_by === 'cash'; }).length;
-
-    // Active = used but not yet expired
-    var activeCount = (allUsed||[]).filter(function(v){ return isActive(v.used_at, v.plan_id); }).length;
-
-    // Stock per plan
-    var stock = {};
-    Object.keys(PLANS).forEach(function(id){ stock[id] = 0; });
-    (allUnused||[]).forEach(function(v){ if(stock[v.plan_id] !== undefined) stock[v.plan_id]++; });
-
-    var lowStockCount = Object.values(stock).filter(function(n){ return n <= LOW_STOCK; }).length;
-
-    // ── Render Summary Cards ──
-    document.getElementById('summaryGrid').innerHTML =
-      sumCard('Today\'s Revenue', fmtMoney(todayRevenue), 'accent',
-        todaySales.length ? onlineCount + ' online · ' + cashCount + ' cash' : 'No sales yet today') +
-      sumCard('Sold Today', todaySales.length, 'green',
-        todaySales.length === 1 ? '1 voucher' : todaySales.length + ' vouchers') +
-      sumCard('Active Users', activeCount, '',
-        'vouchers currently valid') +
-      sumCard('Low Stock', lowStockCount, lowStockCount > 0 ? 'red' : 'green',
-        lowStockCount > 0 ? 'plans need restocking' : 'all plans stocked');
-
-    // Bell badge
-    document.getElementById('bellBadge').classList.toggle('show', lowStockCount > 0);
-
-    // ── Render Stock Bars ──
-    var maxStock = Math.max.apply(null, Object.values(stock).concat([1]));
-    var stockHtml = Object.keys(PLANS).map(function(id) {
-      var n    = stock[id];
-      var cls  = n > LOW_STOCK ? 'green' : n > 5 ? 'amber' : 'red';
-      var pct  = Math.min(100, Math.round((n / Math.max(maxStock, 1)) * 100));
-      return '<div class="stock-row">' +
-        '<div class="stock-meta">' +
-          '<span class="stock-name">' + PLANS[id].name + '</span>' +
-          '<span class="stock-count ' + cls + '">' + n + ' left</span>' +
-        '</div>' +
-        '<div class="stock-bar-bg">' +
-          '<div class="stock-bar-fill ' + cls + '" style="width:' + pct + '%"></div>' +
-        '</div>' +
-      '</div>';
+    var maxStock=Math.max.apply(null,Object.values(stock).concat([1]));
+    document.getElementById('stockBars').innerHTML=Object.keys(PLANS).map(function(id){
+      var n=stock[id];
+      var cls=n>LOW_STOCK?'green':n>5?'amber':'red';
+      var pct=Math.min(100,Math.round(n/Math.max(maxStock,1)*100));
+      return'<div class="stock-row"><div class="stock-meta"><span class="stock-name">'+PLANS[id].name+'</span><span class="stock-count '+cls+'">'+n+' left</span></div><div class="stock-bar-bg"><div class="stock-bar-fill '+cls+'" style="width:'+pct+'%"></div></div></div>';
     }).join('');
-    document.getElementById('stockBars').innerHTML = stockHtml;
 
-    // ── Render Activity Feed ──
-    var recentAll = (allUsed||[])
-      .sort(function(a,b){ return new Date(b.used_at) - new Date(a.used_at); })
-      .slice(0, 10);
-
-    // Merge with today for code data
-    var feedData = todayData ? todayData.slice(0,10) : [];
-
-    if (!feedData.length) {
-      document.getElementById('activityFeed').innerHTML =
-        '<div class="activity-empty">No activity yet today.<br/>Sales will appear here in real time.</div>';
-    } else {
-      document.getElementById('activityFeed').innerHTML = feedData.map(function(v) {
-        var isCash = v.sold_by === 'cash';
-        var code   = v.code ? v.code.toString().slice(0,4) + 'xxxx' : '—';
-        return '<div class="activity-item">' +
-          '<div class="activity-dot ' + (isCash ? 'cash' : 'online') + '"></div>' +
-          '<div class="activity-info">' +
-            '<div class="activity-plan">' + getPlanName(v.plan_id) + '</div>' +
-            '<div class="activity-meta">' + (isCash ? '💵 Cash' : '🌐 Online') + ' · Code: ' + code + '</div>' +
-          '</div>' +
-          '<div class="activity-right">' +
-            '<div class="activity-amount">' + fmtMoney(getPlanPrice(v.plan_id)) + '</div>' +
-            '<div class="activity-time">' + timeAgo(v.used_at) + '</div>' +
-          '</div>' +
-        '</div>';
+    if(!todaySales.length){
+      document.getElementById('activityFeed').innerHTML='<div class="activity-empty">No activity yet today.<br/>Sales will appear here in real time.</div>';
+    }else{
+      document.getElementById('activityFeed').innerHTML=todaySales.slice(0,10).map(function(v){
+        var isCash=v.sold_by==='cash';
+        return'<div class="activity-item"><div class="activity-dot '+(isCash?'cash':'online')+'"></div>'+
+          '<div class="activity-info"><div class="activity-plan">'+getPlanName(v.plan_id)+'</div>'+
+          '<div class="activity-meta">'+(isCash?'💵 Cash':'🌐 Online')+' · '+maskCode(v.code)+'</div></div>'+
+          '<div class="activity-right"><div class="activity-amount">'+fmtMoney(getPlanPrice(v.plan_id))+'</div>'+
+          '<div class="activity-time">'+timeAgo(v.used_at)+'</div></div></div>';
       }).join('');
     }
-
-  } catch(err) {
-    console.error('Overview load error:', err);
-    document.getElementById('summaryGrid').innerHTML =
-      '<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:0.82rem;padding:20px;">Failed to load data. Check your Supabase connection.</div>';
+    document.getElementById('lastSyncTime').textContent=new Date().toLocaleTimeString('en-NG');
+  }catch(err){
+    console.error(err);
+    document.getElementById('summaryGrid').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--red);padding:20px;font-size:0.82rem;">Failed to load. Check Supabase config.</div>';
   }
 }
-
-function sumCard(label, value, colorClass, detail) {
-  return '<div class="sum-card">' +
-    '<div class="sum-label">' + label + '</div>' +
-    '<div class="sum-value ' + (colorClass||'') + '">' + value + '</div>' +
-    '<div class="sum-detail">' + detail + '</div>' +
-  '</div>';
+function sumCard(label,value,colorClass,detail){
+  return'<div class="sum-card"><div class="sum-label">'+label+'</div>'+
+    '<div class="sum-value '+(colorClass||'')+'">'+value+'</div>'+
+    '<div class="sum-detail">'+detail+'</div></div>';
 }
 
-/* ── CLOCK ───────────────────────────────────────────── */
-function updateClock() {
-  var el = document.getElementById('sidebarTime');
-  if (el) el.textContent = new Date().toLocaleTimeString('en-NG', {hour:'2-digit',minute:'2-digit'});
-}
-setInterval(updateClock, 1000);
-updateClock();
+/* ══════════════════════════════════════════════════════════════
+   VOUCHERS
+══════════════════════════════════════════════════════════════ */
+var _allVouchers=[];
+var _filteredVouchers=[];
+var _vouchersLoaded=false;
+var _vPage=1;
+var _vPageSize=20;
 
-/* ── INIT ────────────────────────────────────────────── */
+async function loadVouchers(){
+  _vouchersLoaded=true;
+  document.getElementById('vTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  var{data}=await supabase.from('vouchers').select('*').order('created_at',{ascending:false});
+  _allVouchers=data||[];
+  filterVouchers();
+}
+
+function filterVouchers(){
+  var search=document.getElementById('vSearch').value.toLowerCase();
+  var plan=document.getElementById('vPlan').value;
+  var status=document.getElementById('vStatus').value;
+  var channel=document.getElementById('vChannel').value;
+  _filteredVouchers=_allVouchers.filter(function(v){
+    if(search&&!v.code.toString().toLowerCase().includes(search))return false;
+    if(plan&&v.plan_id!==plan)return false;
+    if(status==='used'&&!v.is_used)return false;
+    if(status==='unused'&&v.is_used)return false;
+    if(channel&&v.sold_by!==channel)return false;
+    return true;
+  });
+  _vPage=1;
+  renderVouchersPage();
+}
+
+function renderVouchersPage(){
+  var start=(_vPage-1)*_vPageSize;
+  var page=_filteredVouchers.slice(start,start+_vPageSize);
+  if(!page.length){
+    document.getElementById('vTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No vouchers found.</td></tr>';
+    document.getElementById('vPagination').innerHTML='';
+    return;
+  }
+  document.getElementById('vTableBody').innerHTML=page.map(function(v){
+    var used=v.is_used;
+    var badgeCls=used?'badge-green':'badge-gray';
+    var badgeTxt=used?'✅ Used':'⬜ Free';
+    var ch=v.sold_by||'—';
+    return'<tr onclick="openVoucherDetail(\''+v.id+'\')">'+
+      '<td data-label="Code"><strong>'+v.code+'</strong></td>'+
+      '<td data-label="Plan">'+getPlanName(v.plan_id)+'</td>'+
+      '<td data-label="Status"><span class="badge '+badgeCls+'">'+badgeTxt+'</span></td>'+
+      '<td data-label="Channel">'+ch+'</td>'+
+      '<td data-label="Used At">'+(v.used_at?fmtDate(v.used_at):'—')+'</td>'+
+      '<td data-label="Expires">'+getExpiry(v.used_at,v.plan_id)+'</td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openVoucherDetail(\''+v.id+'\')">View</button></td>'+
+    '</tr>';
+  }).join('');
+  renderPagination('vPagination',_filteredVouchers.length,_vPage,_vPageSize,function(p){_vPage=p;renderVouchersPage();});
+}
+
+function renderPagination(containerId,total,page,size,onPage){
+  var pages=Math.ceil(total/size);
+  if(pages<=1){document.getElementById(containerId).innerHTML='';return;}
+  var html='';
+  if(page>1)html+='<button class="page-btn" onclick="('+onPage+')('+( page-1)+')">‹</button>';
+  for(var i=Math.max(1,page-2);i<=Math.min(pages,page+2);i++){
+    html+='<button class="page-btn'+(i===page?' active':'')+'" onclick="('+onPage+')('+i+')">'+i+'</button>';
+  }
+  if(page<pages)html+='<button class="page-btn" onclick="('+onPage+')('+(page+1)+')">›</button>';
+  document.getElementById(containerId).innerHTML=html;
+}
+
+function openVoucherDetail(id){
+  var v=_allVouchers.find(function(x){return x.id===id;});
+  if(!v)return;
+  var used=v.is_used;
+  document.getElementById('vDetailBody').innerHTML=
+    '<div class="detail-row"><span class="detail-label">Code</span><span class="detail-val" style="font-size:1.1rem;font-weight:800;">'+v.code+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Plan</span><span class="detail-val">'+getPlanName(v.plan_id)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-val"><span class="badge '+(used?'badge-green':'badge-gray')+'">'+(used?'✅ Used':'⬜ Free')+'</span></span></div>'+
+    '<div class="detail-row"><span class="detail-label">Channel</span><span class="detail-val">'+(v.sold_by||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Used At</span><span class="detail-val">'+(v.used_at?fmtDate(v.used_at):'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val">'+getExpiry(v.used_at,v.plan_id)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Reference</span><span class="detail-val" style="font-size:0.72rem;">'+(v.transaction_reference||'—')+'</span></div>';
+  var footer='<button class="btn btn-outline" onclick="copyToClipboard(\''+v.code+'\',\'Code copied!\')">📋 Copy Code</button>'+
+    '<button class="btn btn-outline" onclick="sendCodeViaWA(\''+v.code+'\',\''+v.plan_id+'\')">📱 WhatsApp</button>';
+  if(used)footer+='<button class="btn btn-red" onclick="revokeVoucher(\''+id+'\')">🔄 Revoke</button>';
+  document.getElementById('vDetailFooter').innerHTML=footer;
+  openModal('vDetailModal');
+}
+
+async function revokeVoucher(id){
+  var ok=await showConfirm('Revoke Voucher','This will mark the voucher as unused and clear its usage data.','🔄');
+  if(!ok)return;
+  var{error}=await supabase.from('vouchers').update({is_used:false,used_at:null,sold_by:null,transaction_reference:null}).eq('id',id);
+  if(error){toast('Revoke failed: '+error.message,'error');return;}
+  toast('Voucher revoked successfully','success');
+  closeModal('vDetailModal');
+  loadVouchers();
+}
+
+function openAddVouchersModal(){openModal('addVouchersModal');document.getElementById('addCodesInput').value='';}
+async function submitAddVouchers(){
+  var raw=document.getElementById('addCodesInput').value.trim();
+  var planId=document.getElementById('addCodesPlan').value;
+  if(!raw){toast('Paste at least one code','error');return;}
+  var codes=raw.split('\n').map(function(c){return c.trim();}).filter(Boolean);
+  var rows=codes.map(function(c){return{code:c,plan_id:planId,is_used:false};});
+  var{error}=await supabase.from('vouchers').insert(rows);
+  if(error){toast('Insert failed: '+error.message,'error');return;}
+  toast(codes.length+' voucher'+(codes.length!==1?'s':'')+' added!','success');
+  closeModal('addVouchersModal');
+  loadVouchers();
+}
+
+var _importData=[];
+function openImportModal(){openModal('importModal');document.getElementById('importPreview').innerHTML='';document.getElementById('importConfirmBtn').style.display='none';}
+function handleCSVImport(input){
+  if(!input.files.length)return;
+  Papa.parse(input.files[0],{
+    header:true,skipEmptyLines:true,
+    complete:function(result){
+      _importData=result.data.filter(function(r){return r.code&&r.plan_id;});
+      if(!_importData.length){toast('No valid rows found. Expected columns: code, plan_id','error');return;}
+      var preview='<div class="preview-table-wrap"><table class="v-table"><thead><tr><th>Code</th><th>Plan</th></tr></thead><tbody>'+
+        _importData.slice(0,20).map(function(r){return'<tr><td>'+r.code+'</td><td>'+getPlanName(r.plan_id)+'</td></tr>';}).join('')+
+        (_importData.length>20?'<tr><td colspan="2" style="text-align:center;color:var(--text-muted);">…and '+(_importData.length-20)+' more</td></tr>':'')+
+        '</tbody></table></div>';
+      document.getElementById('importPreview').innerHTML='<p style="font-size:0.8rem;color:var(--text-muted);margin-top:12px;">'+_importData.length+' vouchers to import</p>'+preview;
+      document.getElementById('importConfirmBtn').style.display='';
+    }
+  });
+}
+async function confirmImport(){
+  var rows=_importData.map(function(r){return{code:r.code.trim(),plan_id:r.plan_id.trim(),is_used:false};});
+  var{error}=await supabase.from('vouchers').insert(rows);
+  if(error){toast('Import failed: '+error.message,'error');return;}
+  toast(_importData.length+' vouchers imported!','success');
+  closeModal('importModal');
+  loadVouchers();
+}
+
+function exportVouchers(){
+  var data=_filteredVouchers.map(function(v){
+    return{code:v.code,plan:getPlanName(v.plan_id),status:v.is_used?'used':'unused',
+      sold_by:v.sold_by||'',used_at:v.used_at||'',expires:getExpiry(v.used_at,v.plan_id),
+      transaction_reference:v.transaction_reference||''};
+  });
+  downloadCSV(data,'vouchers_export.csv');
+}
+function exportAllVouchers(){
+  supabase.from('vouchers').select('*').then(function(r){
+    downloadCSV((r.data||[]).map(function(v){
+      return{code:v.code,plan:getPlanName(v.plan_id),status:v.is_used?'used':'unused',sold_by:v.sold_by||'',used_at:v.used_at||'',expires:getExpiry(v.used_at,v.plan_id),ref:v.transaction_reference||''};
+    }),'all_vouchers.csv');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CASH SALE
+══════════════════════════════════════════════════════════════ */
+var _cashSelectedPlan=null;
+var _cashResult=null;
+
+async function loadCashSalePlans(){
+  var{data:unused}=await supabase.from('vouchers').select('plan_id').eq('is_used',false);
+  var stock={};Object.keys(PLANS).forEach(function(id){stock[id]=0;});
+  (unused||[]).forEach(function(v){if(stock[v.plan_id]!==undefined)stock[v.plan_id]++;});
+  document.getElementById('planGrid').innerHTML=Object.keys(PLANS).map(function(id){
+    var p=PLANS[id];var n=stock[id];var disabled=n===0?'disabled':'';
+    return'<div class="plan-card '+disabled+'" onclick="selectCashPlan(\''+id+'\')">'+
+      '<div class="plan-card-name">'+p.name+'</div>'+
+      '<div class="plan-card-price">'+fmtMoney(p.price)+'</div>'+
+      '<div class="plan-card-dur">'+p.hours+'hrs access</div>'+
+      '<div class="plan-card-stock">'+(n>0?n+' in stock':'Out of stock')+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function selectCashPlan(id){
+  _cashSelectedPlan=id;
+  document.querySelectorAll('.plan-card').forEach(function(c){c.classList.remove('selected');});
+  document.querySelectorAll('.plan-card').forEach(function(c){
+    if(c.querySelector('.plan-card-name').textContent===PLANS[id].name)c.classList.add('selected');
+  });
+  document.getElementById('confirmPlanName').textContent=PLANS[id].name;
+  document.getElementById('confirmPlanPrice').textContent=fmtMoney(PLANS[id].price);
+  cashGoStep(2);
+}
+
+function cashGoStep(n){
+  ['cashStep1','cashStep2','cashStep3'].forEach(function(id,i){
+    document.getElementById(id).classList.toggle('active',i===n-1);
+  });
+  ['stepDot1','stepDot2','stepDot3'].forEach(function(id,i){
+    var el=document.getElementById(id);
+    el.classList.toggle('active',i===n-1);
+    el.classList.toggle('done',i<n-1);
+  });
+  ['stepLine1','stepLine2'].forEach(function(id,i){
+    document.getElementById(id).classList.toggle('done',i<n-1);
+  });
+}
+
+async function completeCashSale(){
+  if(!_cashSelectedPlan){toast('No plan selected','error');return;}
+  var{data:voucher,error:e1}=await supabase.from('vouchers')
+    .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
+  if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
+  var phone=document.getElementById('customerPhone').value.trim()||null;
+  var ref='CASH-'+Date.now();
+  var{error:e2}=await supabase.from('vouchers').update({
+    is_used:true,used_at:new Date().toISOString(),sold_by:'cash',
+    transaction_reference:ref,...(phone?{phone:phone}:{})
+  }).eq('id',voucher.id);
+  if(e2){toast('Sale failed: '+e2.message,'error');return;}
+  _cashResult={code:voucher.code,plan_id:_cashSelectedPlan};
+  document.getElementById('resultPlanName').textContent=PLANS[_cashSelectedPlan].name;
+  document.getElementById('resultCode').textContent=voucher.code.toString().replace(/(.{4})/g,'$1 ').trim();
+  cashGoStep(3);
+  toast('Voucher assigned!','success');
+}
+
+function copyResultCode(){copyToClipboard(_cashResult.code,'Code copied!');}
+function sendViaWhatsApp(){sendCodeViaWA(_cashResult.code,_cashResult.plan_id);}
+function sendCodeViaWA(code,planId){
+  var p=PLANS[planId];
+  var msg='🌐 *'+NET_NAME+' Voucher*\n\nCode: *'+code+'*\nPlan: '+p.name+'\nValid for: '+p.hours+' Hours\n\n📶 How to connect:\n1. Join '+NET_NAME+' WiFi\n2. Open your browser\n3. Enter code above as PIN\n4. Tap Connect and enjoy! 🚀';
+  var wa=localStorage.getItem('zn_wa')||ADMIN_WA;
+  window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(msg),'_blank');
+}
+function resetCashSale(){_cashSelectedPlan=null;_cashResult=null;document.getElementById('customerPhone').value='';cashGoStep(1);loadCashSalePlans();}
+
+/* ══════════════════════════════════════════════════════════════
+   SALES LOG
+══════════════════════════════════════════════════════════════ */
+var _allSales=[];
+var _filteredSales=[];
+var _slLoaded=false;
+var _slPage=1;
+var _slPageSize=20;
+
+async function loadSalesLog(){
+  _slLoaded=true;
+  document.getElementById('slTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  var{data}=await supabase.from('vouchers').select('*').eq('is_used',true).order('used_at',{ascending:false});
+  _allSales=data||[];
+  filterSalesLog();
+}
+
+function filterSalesLog(){
+  var from=document.getElementById('slFrom').value;
+  var to=document.getElementById('slTo').value;
+  var plan=document.getElementById('slPlan').value;
+  var ch=document.getElementById('slChannel').value;
+  _filteredSales=_allSales.filter(function(v){
+    if(from&&v.used_at<from)return false;
+    if(to&&v.used_at.split('T')[0]>to)return false;
+    if(plan&&v.plan_id!==plan)return false;
+    if(ch&&v.sold_by!==ch)return false;
+    return true;
+  });
+  _slPage=1;
+  var total=_filteredSales.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+  var online=_filteredSales.filter(function(v){return v.sold_by!=='cash';});
+  var cash=_filteredSales.filter(function(v){return v.sold_by==='cash';});
+  var onlineRev=online.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+  var cashRev=cash.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+  document.getElementById('slTotals').innerHTML=
+    '<strong>'+_filteredSales.length+' results</strong>'+
+    ' &nbsp;|&nbsp; Total: <strong>'+fmtMoney(total)+'</strong>'+
+    ' &nbsp;|&nbsp; Online: <strong style="color:var(--accent)">'+fmtMoney(onlineRev)+'</strong>'+
+    ' &nbsp;|&nbsp; Cash: <strong style="color:var(--amber)">'+fmtMoney(cashRev)+'</strong>';
+  renderSalesPage();
+}
+
+function renderSalesPage(){
+  var start=(_slPage-1)*_slPageSize;
+  var page=_filteredSales.slice(start,start+_slPageSize);
+  if(!page.length){
+    document.getElementById('slTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No transactions found.</td></tr>';
+    document.getElementById('slPagination').innerHTML='';
+    return;
+  }
+  document.getElementById('slTableBody').innerHTML=page.map(function(v){
+    return'<tr onclick="openSaleDetail(\''+v.id+'\')">'+
+      '<td data-label="Date">'+fmtDate(v.used_at)+'</td>'+
+      '<td data-label="Plan">'+getPlanName(v.plan_id)+'</td>'+
+      '<td data-label="Amount"><strong>'+fmtMoney(getPlanPrice(v.plan_id))+'</strong></td>'+
+      '<td data-label="Channel"><span class="badge '+(v.sold_by==='cash'?'badge-amber':'badge-green')+'">'+( v.sold_by||'online')+'</span></td>'+
+      '<td data-label="Code">'+maskCode(v.code)+'</td>'+
+      '<td data-label="Ref" style="font-size:0.72rem;color:var(--text-muted);">'+(v.transaction_reference||'—').substring(0,16)+'…</td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openSaleDetail(\''+v.id+'\')">View</button></td>'+
+    '</tr>';
+  }).join('');
+  renderPagination('slPagination',_filteredSales.length,_slPage,_slPageSize,function(p){_slPage=p;renderSalesPage();});
+}
+
+function openSaleDetail(id){
+  var v=_allSales.find(function(x){return x.id===id;});
+  if(!v)return;
+  document.getElementById('slDetailBody').innerHTML=
+    '<div class="detail-row"><span class="detail-label">Code</span><span class="detail-val" style="font-size:1.1rem;font-weight:800;">'+v.code+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Plan</span><span class="detail-val">'+getPlanName(v.plan_id)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Amount</span><span class="detail-val">'+fmtMoney(getPlanPrice(v.plan_id))+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Channel</span><span class="detail-val">'+( v.sold_by||'online')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Used At</span><span class="detail-val">'+fmtDate(v.used_at)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val">'+getExpiry(v.used_at,v.plan_id)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Reference</span><span class="detail-val" style="font-size:0.72rem;">'+( v.transaction_reference||'—')+'</span></div>'+
+    (v.phone?'<div class="detail-row"><span class="detail-label">Customer Phone</span><span class="detail-val">'+v.phone+'</span></div>':'');
+  document.getElementById('slDetailFooter').innerHTML=
+    '<button class="btn btn-outline" onclick="copyToClipboard(\''+v.code+'\',\'Code copied!\')">📋 Copy Code</button>'+
+    '<button class="btn btn-outline" onclick="sendCodeViaWA(\''+v.code+'\',\''+v.plan_id+'\')">📱 WhatsApp</button>'+
+    '<button class="btn btn-red" onclick="revokeSale(\''+id+'\')">🔄 Revoke</button>';
+  openModal('slDetailModal');
+}
+
+async function revokeSale(id){
+  var ok=await showConfirm('Revoke Sale','This will mark the voucher as unused and remove usage data.','🔄');
+  if(!ok)return;
+  var{error}=await supabase.from('vouchers').update({is_used:false,used_at:null,sold_by:null,transaction_reference:null}).eq('id',id);
+  if(error){toast('Revoke failed: '+error.message,'error');return;}
+  toast('Sale revoked','success');
+  closeModal('slDetailModal');
+  loadSalesLog();
+}
+
+function exportSalesLog(){
+  downloadCSV(_filteredSales.map(function(v){
+    return{date:fmtDate(v.used_at),plan:getPlanName(v.plan_id),amount:getPlanPrice(v.plan_id),
+      channel:v.sold_by||'online',code:v.code,reference:v.transaction_reference||'',phone:v.phone||''};
+  }),'sales_log.csv');
+}
+function exportAllSales(){
+  supabase.from('vouchers').select('*').eq('is_used',true).then(function(r){
+    downloadCSV((r.data||[]).map(function(v){
+      return{date:fmtDate(v.used_at),plan:getPlanName(v.plan_id),amount:getPlanPrice(v.plan_id),
+        channel:v.sold_by||'online',code:v.code,reference:v.transaction_reference||'',phone:v.phone||''};
+    }),'all_sales.csv');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANALYTICS
+══════════════════════════════════════════════════════════════ */
+var _analyticsRange='today';
+var _chartInstance=null;
+var _allSalesData=[];
+
+async function loadAnalytics(){
+  var{data}=await supabase.from('vouchers').select('plan_id,used_at,sold_by').eq('is_used',true).order('used_at',{ascending:true});
+  _allSalesData=data||[];
+  renderAllTimeStats();
+  setAnalyticsRange('today',document.querySelector('.time-tab'));
+}
+
+function renderAllTimeStats(){
+  var all=_allSalesData;
+  var rev=all.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+  var online=all.filter(function(v){return v.sold_by!=='cash';});
+  var cash=all.filter(function(v){return v.sold_by==='cash';});
+  document.getElementById('analyticsAllTime').innerHTML=
+    sumCard('All Time Revenue',fmtMoney(rev),'accent','')+
+    sumCard('Total Sold',all.length,'green','')+
+    sumCard('Online Sales',online.length,'',fmtMoney(online.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0)))+
+    sumCard('Cash Sales',cash.length,'amber',fmtMoney(cash.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0)));
+}
+
+function setAnalyticsRange(range,el){
+  _analyticsRange=range;
+  document.querySelectorAll('.time-tab').forEach(function(t){t.classList.remove('active');});
+  if(el)el.classList.add('active');
+  var now=new Date();
+  var from;
+  if(range==='today'){from=new Date(now.toISOString().split('T')[0]);}
+  else if(range==='week'){from=new Date(now);from.setDate(from.getDate()-from.getDay());}
+  else if(range==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
+  else if(range==='30days'){from=new Date(now);from.setDate(from.getDate()-29);}
+  else{from=null;}
+  var filtered=from?_allSalesData.filter(function(v){return new Date(v.used_at)>=from;}):_allSalesData;
+  rebuildChart(filtered,range);
+  renderPerfTable(filtered);
+  renderPeakHours(filtered);
+}
+
+function rebuildChart(data,range){
+  var ctx=document.getElementById('revenueChart').getContext('2d');
+  if(_chartInstance){_chartInstance.destroy();}
+  var labels=[],onlineRevs=[],cashRevs=[];
+  var isDark=document.body.classList.contains('dark');
+  if(!data||!data.length){
+    _chartInstance=new Chart(ctx,{type:'bar',data:{labels:['No data'],datasets:[{label:'Revenue',data:[0],backgroundColor:'rgba(128,128,128,0.2)'}]},options:{responsive:true,maintainAspectRatio:false}});
+    return;
+  }
+  var grouped={};
+  data.forEach(function(v){
+    var key;
+    if(range==='today'||range==='week'||range==='30days'){
+      key=new Date(v.used_at).toLocaleDateString('en-NG',{day:'2-digit',month:'short'});
+    }else if(range==='month'){
+      key=new Date(v.used_at).toLocaleDateString('en-NG',{day:'2-digit',month:'short'});
+    }else{
+      key=new Date(v.used_at).toLocaleDateString('en-NG',{month:'short',year:'2-digit'});
+    }
+    if(!grouped[key])grouped[key]={online:0,cash:0};
+    if(v.sold_by==='cash')grouped[key].cash+=getPlanPrice(v.plan_id);
+    else grouped[key].online+=getPlanPrice(v.plan_id);
+  });
+  labels=Object.keys(grouped);
+  onlineRevs=labels.map(function(k){return grouped[k].online;});
+  cashRevs=labels.map(function(k){return grouped[k].cash;});
+  _chartInstance=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'Online',data:onlineRevs,backgroundColor:'rgba(26,111,232,0.75)',borderRadius:5},
+        {label:'Cash',data:cashRevs,backgroundColor:'rgba(245,158,11,0.75)',borderRadius:5}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:isDark?'#8a97b0':'#4d5e80',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:isDark?'#404d65':'#8a97b0',font:{size:10}},grid:{color:isDark?'#1e2535':'#dde4f0'}},
+        y:{ticks:{color:isDark?'#404d65':'#8a97b0',font:{size:10},callback:function(v){return'₦'+v.toLocaleString();}},grid:{color:isDark?'#1e2535':'#dde4f0'}}
+      }
+    }
+  });
+}
+
+function renderPerfTable(data){
+  var byPlan={};
+  Object.keys(PLANS).forEach(function(id){byPlan[id]={sold:0,rev:0};});
+  data.forEach(function(v){if(byPlan[v.plan_id]){byPlan[v.plan_id].sold++;byPlan[v.plan_id].rev+=getPlanPrice(v.plan_id);}});
+  var totalRev=data.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+  document.getElementById('perfBody').innerHTML=Object.keys(PLANS).map(function(id){
+    var p=byPlan[id];var pct=totalRev>0?Math.round(p.rev/totalRev*100):0;
+    return'<tr><td>'+PLANS[id].name+'</td><td>'+p.sold+'</td><td>'+fmtMoney(p.rev)+'</td><td>'+pct+'%</td></tr>';
+  }).join('');
+}
+
+function renderPeakHours(data){
+  var hours=new Array(24).fill(0);
+  data.forEach(function(v){
+    var h=new Date(v.used_at).getHours();hours[h]++;
+  });
+  var max=Math.max.apply(null,hours.concat([1]));
+  document.getElementById('peakGrid').innerHTML=hours.map(function(n,h){
+    var pct=Math.round(n/max*100);
+    var cls=pct>66?'high':pct>33?'med':'';
+    return'<div class="peak-hour"><div class="peak-bar-wrap"><div class="peak-bar '+cls+'" style="height:'+Math.max(2,pct)+'%"></div></div><div class="peak-label">'+h+'</div></div>';
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════════════════════ */
+function initSettings(){
+  document.getElementById('displayUsername').textContent=localStorage.getItem('zn_admin_user')||'admin';
+  document.getElementById('settingsWA').value=localStorage.getItem('zn_wa')||'2348159694740';
+  document.getElementById('settingsNetName').value=localStorage.getItem('zn_netname')||'Z-Network';
+  var thresh=parseInt(localStorage.getItem('zn_low_stock')||'10');
+  document.getElementById('stockThresh').value=thresh;
+  document.getElementById('stockThreshVal').textContent=thresh;
+}
+
+function saveBusinessSettings(){
+  var wa=document.getElementById('settingsWA').value.trim();
+  var net=document.getElementById('settingsNetName').value.trim();
+  if(wa)localStorage.setItem('zn_wa',wa);
+  if(net)localStorage.setItem('zn_netname',net);
+  ADMIN_WA=wa;NET_NAME=net;
+  toast('Business settings saved','success');
+}
+
+function saveStockSettings(){
+  var val=document.getElementById('stockThresh').value;
+  localStorage.setItem('zn_low_stock',val);
+  LOW_STOCK=parseInt(val);
+  toast('Stock alert threshold updated','success');
+}
+
+function openPasswordModal(){
+  document.getElementById('pwCurrent').value='';
+  document.getElementById('pwNew').value='';
+  document.getElementById('pwConfirm').value='';
+  document.getElementById('pwError').style.display='none';
+  openModal('passwordModal');
+}
+
+function savePassword(){
+  var cur=document.getElementById('pwCurrent').value;
+  var nw=document.getElementById('pwNew').value;
+  var conf=document.getElementById('pwConfirm').value;
+  var storedPass=localStorage.getItem('zn_admin_pass')||'znetwork2025';
+  var errEl=document.getElementById('pwError');
+  if(cur!==storedPass){errEl.textContent='Current password is incorrect.';errEl.style.display='flex';return;}
+  if(nw.length<8){errEl.textContent='New password must be at least 8 characters.';errEl.style.display='flex';return;}
+  if(nw!==conf){errEl.textContent='Passwords do not match.';errEl.style.display='flex';return;}
+  localStorage.setItem('zn_admin_pass',nw);
+  toast('Password updated!','success');
+  closeModal('passwordModal');
+}
+
+function openUsernameModal(){
+  document.getElementById('newUsername').value=localStorage.getItem('zn_admin_user')||'admin';
+  openModal('usernameModal');
+}
+
+function saveUsername(){
+  var u=document.getElementById('newUsername').value.trim();
+  if(!u){toast('Username cannot be empty','error');return;}
+  localStorage.setItem('zn_admin_user',u);
+  document.getElementById('displayUsername').textContent=u;
+  toast('Username updated!','success');
+  closeModal('usernameModal');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════════════════ */
+function copyToClipboard(text,msg){
+  navigator.clipboard.writeText(text).then(function(){toast(msg||'Copied!','success');}).catch(function(){
+    var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast(msg||'Copied!','success');
+  });
+}
+
+function downloadCSV(rows,filename){
+  if(!rows.length){toast('Nothing to export','error');return;}
+  var keys=Object.keys(rows[0]);
+  var csv=[keys.join(',')].concat(rows.map(function(r){
+    return keys.map(function(k){var v=String(r[k]||'').replace(/"/g,'""');return'"'+v+'"';}).join(',');
+  })).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
 loadOverview();
 </script>
 </body>
