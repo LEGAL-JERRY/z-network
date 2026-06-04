@@ -1,106 +1,917 @@
-Z-Network Admin Dashboard — Full Build Plan
-Overview
-A mobile-first, responsive admin dashboard for managing Z-Network hotspot
-vouchers, sales, and analytics. Built in vanilla HTML/CSS/JS with direct
-Supabase queries. No new backend or edge functions required for most features.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Z-Network Admin</title>
+<style>
 
-Tech Stack
+/* ============================================================
+   TOKENS
+============================================================ */
+:root {
+  --bg:          #f4f7fc;
+  --bg-card:     #ffffff;
+  --bg-card2:    #eef2fb;
+  --border:      #dde4f0;
+  --text:        #1a2236;
+  --text-soft:   #4d5e80;
+  --text-muted:  #8a97b0;
+  --accent:      #1A6FE8;
+  --accent-dark: #1459BB;
+  --accent-glow: rgba(26,111,232,0.13);
+  --green:       #00C06A;
+  --green-glow:  rgba(0,192,106,0.13);
+  --amber:       #f59e0b;
+  --red:         #ef4444;
+  --shadow:      0 2px 14px rgba(26,111,232,0.08);
+  --shadow-lg:   0 6px 28px rgba(26,111,232,0.12);
+  --sidebar-w:   220px;
+  --topbar-h:    56px;
+  --bottom-h:    60px;
+}
+body.dark {
+  --bg:          #0b0d12;
+  --bg-card:     #111520;
+  --bg-card2:    #181d2a;
+  --border:      #1e2535;
+  --text:        #e8edf5;
+  --text-soft:   #8a97b0;
+  --text-muted:  #404d65;
+  --accent:      #3B8EFF;
+  --accent-dark: #2270e8;
+  --accent-glow: rgba(59,142,255,0.15);
+  --shadow:      0 2px 16px rgba(0,0,0,0.5);
+  --shadow-lg:   0 6px 32px rgba(0,0,0,0.65);
+}
 
-Frontend: Single file HTML (admin.html) — consistent with existing portal
-Database: Supabase (direct JS client with anon key)
-Auth: Simple password gate (upgrade to Supabase Auth later)
-Charts: Chart.js (CDN) for analytics
-Hosting: Vercel (same repo as portal)
+/* ============================================================
+   RESET
+============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  transition:background 0.3s,color 0.3s;
+}
+button{cursor:pointer;border:none;outline:none;font-family:inherit;}
+input{font-family:inherit;border:none;outline:none;}
 
+/* ============================================================
+   LAYOUT SHELL
+============================================================ */
 
-File Structure
-z-network/
-├── index.html          ← existing captive portal
-├── success.html        ← existing voucher delivery
-├── admin.html          ← NEW: admin dashboard
-└── admin-login.html    ← NEW: password gate
+/* Sidebar */
+.sidebar{
+  position:fixed;
+  top:0;left:0;bottom:0;
+  width:var(--sidebar-w);
+  background:var(--bg-card);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:200;
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1),background 0.3s,border-color 0.3s;
+}
+@media(max-width:767px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,0.18);}
+}
 
-Authentication
-Login Page (admin-login.html)
+.sidebar-logo{
+  display:flex;align-items:center;gap:10px;
+  padding:18px 16px 14px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sidebar-logo-icon{
+  width:30px;height:30px;border-radius:9px;
+  background:linear-gradient(135deg,#1A6FE8,#1459BB);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sidebar-logo-text{font-weight:700;font-size:0.88rem;color:var(--text);letter-spacing:-0.01em;}
+.sidebar-logo-badge{
+  margin-left:auto;
+  font-size:0.58rem;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--accent);background:var(--accent-glow);
+  border-radius:4px;padding:2px 5px;
+}
 
-Full screen centered card — Z-Network logo at top
-Single password input field
-"Enter Dashboard" button
-On correct password → store token in sessionStorage → redirect to admin.html
-On wrong password → shake animation + error message
-admin.html checks sessionStorage on load — redirect to login if not authenticated
-Logout button clears sessionStorage
+.sidebar-nav{flex:1;padding:10px 8px;overflow-y:auto;}
+.nav-label{
+  font-size:0.65rem;font-weight:600;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--text-muted);
+  padding:10px 8px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:10px;
+  font-size:0.875rem;font-weight:500;
+  color:var(--text-soft);cursor:pointer;
+  transition:background 0.15s,color 0.15s;
+  margin-bottom:2px;
+  user-select:none;
+}
+.nav-item:hover{background:var(--bg-card2);color:var(--text);}
+.nav-item.active{background:var(--accent-glow);color:var(--accent);}
+.nav-item .nav-icon{font-size:1.1rem;width:22px;text-align:center;flex-shrink:0;}
+.nav-badge{
+  margin-left:auto;
+  background:var(--red);color:#fff;
+  font-size:0.65rem;font-weight:700;
+  border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;
+}
 
-Password Storage
-javascript// In admin.html — check at very top before rendering anything
-const ADMIN_PASSWORD_HASH = 'your-hashed-password'; // use SHA-256
-const session = sessionStorage.getItem('zn_admin');
-if (!session) window.location.href = 'admin-login.html';
-Security Notes
+.sidebar-footer{
+  padding:12px 16px;border-top:1px solid var(--border);
+  font-size:0.7rem;color:var(--text-muted);
+  display:flex;align-items:center;justify-content:space-between;
+}
 
-Password is hashed (SHA-256) before comparing — never store plaintext
-Session expires when browser tab closes (sessionStorage)
-Future upgrade: replace with Supabase Auth email/password
+/* Overlay (mobile sidebar backdrop) */
+.sidebar-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.45);
+  z-index:199;
+}
+.sidebar-overlay.show{display:block;}
 
+/* Top Bar */
+.topbar{
+  position:fixed;
+  top:0;right:0;left:0;
+  height:var(--topbar-h);
+  background:var(--bg-card);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+  padding:0 16px;
+  z-index:100;
+  transition:background 0.3s,border-color 0.3s;
+}
+@media(min-width:768px){
+  .topbar{left:var(--sidebar-w);}
+}
+.topbar-hamburger{
+  display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:9px;
+  background:transparent;color:var(--text-soft);
+  transition:background 0.15s;flex-shrink:0;
+}
+.topbar-hamburger:hover{background:var(--bg-card2);}
+@media(min-width:768px){.topbar-hamburger{display:none;}}
 
-Layout & Navigation
-Top Bar (fixed)
-[≡ Menu]   [Z-Network Admin]   [🔔 Alerts]   [Logout]
+.topbar-title{
+  font-size:0.95rem;font-weight:700;
+  color:var(--text);flex:1;
+  letter-spacing:-0.01em;
+}
+.topbar-right{display:flex;align-items:center;gap:8px;}
 
-Hamburger opens slide-in sidebar on mobile
-Bell icon shows low stock count badge
-Dark mode toggle (matches portal preference)
+.icon-btn{
+  position:relative;
+  width:36px;height:36px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;color:var(--text-soft);
+  transition:background 0.15s,color 0.15s;
+  flex-shrink:0;
+}
+.icon-btn:hover{background:var(--bg-card2);color:var(--text);}
+.bell-badge{
+  position:absolute;top:5px;right:5px;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--red);
+  border:2px solid var(--bg-card);
+  display:none;
+}
+.bell-badge.show{display:block;}
 
-Sidebar Navigation (slide-in on mobile, fixed on desktop ≥768px)
-──────────────────
-  Z-Network Admin
-──────────────────
-  📊  Overview
-  🎟️  Vouchers
-  💰  Cash Sale
-  📋  Sales Log
-  📈  Analytics
-  ⚙️  Settings
-──────────────────
-  v1.0.0
-Bottom Navigation Bar (mobile only, fixed)
-[Overview] [Vouchers] [Cash Sale] [Sales] [More]
+/* Dark mode toggle */
+.toggle-track{
+  width:40px;height:22px;background:var(--border);
+  border-radius:99px;position:relative;cursor:pointer;
+  transition:background 0.3s;flex-shrink:0;
+}
+.toggle-track.on{background:var(--accent);}
+.toggle-thumb{
+  position:absolute;top:2px;left:2px;
+  width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toggle-track.on .toggle-thumb{transform:translateX(18px);}
 
-Visible on screens < 768px
-Sidebar hidden on mobile, shown via hamburger
-Active tab highlighted with accent color
+.logout-btn{
+  padding:7px 14px;border-radius:9px;
+  font-size:0.78rem;font-weight:600;
+  background:transparent;color:var(--text-muted);
+  border:1px solid var(--border);
+  transition:border-color 0.2s,color 0.2s;
+}
+.logout-btn:hover{border-color:var(--red);color:var(--red);}
 
+/* Main Content */
+.main{
+  padding-top:var(--topbar-h);
+  padding-bottom:calc(var(--bottom-h) + 8px);
+  min-height:100vh;
+}
+@media(min-width:768px){
+  .main{margin-left:var(--sidebar-w);padding-bottom:24px;}
+}
 
-Section 1 — Overview (Home)
-Purpose
-First screen admin sees. Quick snapshot of the business at a glance.
-Summary Cards (2×2 grid on mobile, 4×1 on desktop)
-CardValueDetailToday's Revenue₦3,500+₦500 from yesterdayVouchers Sold Today75 online · 2 cashTotal Active Users42vouchers currently validLow Stock Plans2Daily Plan · Weekly Plan
-Stock Level Bar (per plan)
-Daily Plan      ████████░░  80 left
-2-Day Plan      ██████████  120 left
-Half-Week       ████░░░░░░  40 left  ← warning color
-Weekly Plan     ██░░░░░░░░  18 left  ← danger color
-Monthly Plan    ██████████  95 left
+.section{
+  display:none;
+  padding:20px 16px;
+  max-width:900px;
+  animation:fadeIn 0.25s ease both;
+}
+.section.active{display:block;}
+@media(min-width:768px){
+  .section{padding:24px;}
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-Green: >30 vouchers
-Yellow/amber: 10–30 vouchers
-Red: <10 vouchers (also triggers bell notification)
+/* Bottom Nav (mobile only) */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--bottom-h);
+  background:var(--bg-card);
+  border-top:1px solid var(--border);
+  display:flex;
+  z-index:100;
+  transition:background 0.3s,border-color 0.3s;
+}
+@media(min-width:768px){.bottom-nav{display:none;}}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;
+  font-size:0.62rem;font-weight:500;
+  color:var(--text-muted);cursor:pointer;
+  transition:color 0.15s;
+  user-select:none;
+}
+.bnav-item.active{color:var(--accent);}
+.bnav-icon{font-size:1.25rem;line-height:1;}
 
-Recent Activity Feed (last 10 transactions)
-🟢 Daily Plan   ₦350   Online    2 mins ago   Code: 8472xxxx
-🟡 Weekly Plan  ₦2000  Cash      14 mins ago  Code: 3391xxxx
-🟢 2-Day Plan   ₦500   Online    1 hr ago     Code: 7721xxxx
+/* ============================================================
+   CARDS & COMMON
+============================================================ */
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  transition:background 0.3s,border-color 0.3s;
+}
+.card2{
+  background:var(--bg-card2);
+  border:1px solid var(--border);
+  border-radius:12px;
+}
+.section-title{
+  font-size:1.2rem;font-weight:700;
+  color:var(--text);margin-bottom:4px;
+  letter-spacing:-0.02em;
+}
+.section-sub{font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;}
 
-Tap any row to see full details
-Color: green = online, yellow = cash
+/* ============================================================
+   SUMMARY CARDS
+============================================================ */
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+@media(min-width:600px){
+  .summary-grid{grid-template-columns:repeat(4,1fr);}
+}
+.sum-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+  transition:background 0.3s,border-color 0.3s;
+}
+.sum-label{
+  font-size:0.68rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--text-muted);margin-bottom:8px;
+}
+.sum-value{
+  font-size:1.4rem;font-weight:800;
+  color:var(--text);letter-spacing:-0.02em;
+  margin-bottom:4px;
+  font-variant-numeric:tabular-nums;
+}
+.sum-value.accent{color:var(--accent);}
+.sum-value.green{color:var(--green);}
+.sum-value.red{color:var(--red);}
+.sum-value.amber{color:var(--amber);}
+.sum-detail{font-size:0.72rem;color:var(--text-muted);}
+.sum-detail.up{color:var(--green);}
+.sum-detail.down{color:var(--red);}
 
-Supabase Query (Overview)
-javascript// Revenue today
-const today = new Date().toISOString().split('T')[0];
-const { data } = await supabase
-  .from('vouchers')
-  .select('code, plan_id, used_at, sold_by, transaction_reference')
-  .eq('is_used', true)
-  .gte('used_at', today + 'T00:00:00')
-  .order('used_at', { ascending: false });
+/* ============================================================
+   STOCK BARS
+============================================================ */
+.stock-card{padding:16px 18px;margin-bottom:20px;}
+.stock-title{
+  font-size:0.8rem;font-weight:600;
+  color:var(--text-soft);margin-bottom:14px;
+}
+.stock-row{margin-bottom:12px;}
+.stock-row:last-child{margin-bottom:0;}
+.stock-meta{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:5px;
+}
+.stock-name{font-size:0.8rem;font-weight:500;color:var(--text);}
+.stock-count{
+  font-size:0.75rem;font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.stock-count.green{color:var(--green);}
+.stock-count.amber{color:var(--amber);}
+.stock-count.red{color:var(--red);}
+.stock-bar-bg{
+  height:6px;border-radius:99px;
+  background:var(--bg-card2);
+  overflow:hidden;
+}
+.stock-bar-fill{
+  height:100%;border-radius:99px;
+  transition:width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.stock-bar-fill.green{background:var(--green);}
+.stock-bar-fill.amber{background:var(--amber);}
+.stock-bar-fill.red{background:var(--red);}
+
+/* ============================================================
+   ACTIVITY FEED
+============================================================ */
+.activity-card{padding:16px 18px;margin-bottom:20px;}
+.activity-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;
+}
+.activity-title{font-size:0.8rem;font-weight:600;color:var(--text-soft);}
+.activity-refresh{
+  font-size:0.72rem;color:var(--accent);
+  background:none;border:none;cursor:pointer;font-family:inherit;
+}
+.activity-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background 0.1s;
+  border-radius:8px;
+  padding:10px 8px;
+  margin:0 -8px;
+}
+.activity-item:last-child{border-bottom:none;}
+.activity-item:hover{background:var(--bg-card2);}
+.activity-dot{
+  width:10px;height:10px;border-radius:50%;
+  flex-shrink:0;
+}
+.activity-dot.online{background:var(--green);}
+.activity-dot.cash{background:var(--amber);}
+.activity-info{flex:1;min-width:0;}
+.activity-plan{font-size:0.82rem;font-weight:600;color:var(--text);}
+.activity-meta{font-size:0.72rem;color:var(--text-muted);margin-top:1px;}
+.activity-right{text-align:right;flex-shrink:0;}
+.activity-amount{font-size:0.88rem;font-weight:700;color:var(--text);}
+.activity-time{font-size:0.68rem;color:var(--text-muted);margin-top:1px;}
+
+.activity-empty{
+  text-align:center;padding:28px 0;
+  font-size:0.82rem;color:var(--text-muted);
+}
+
+/* ============================================================
+   LOADING / SKELETON
+============================================================ */
+@keyframes shimmer{
+  0%{background-position:-400px 0;}
+  100%{background-position:400px 0;}
+}
+.skeleton{
+  background:linear-gradient(90deg,var(--bg-card2) 25%,var(--border) 50%,var(--bg-card2) 75%);
+  background-size:400px 100%;
+  animation:shimmer 1.4s infinite;
+  border-radius:6px;
+}
+
+/* ============================================================
+   PLACEHOLDER SECTIONS
+============================================================ */
+.placeholder-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:60px 20px;text-align:center;
+}
+.placeholder-icon{font-size:3rem;margin-bottom:14px;}
+.placeholder-title{
+  font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:8px;
+}
+.placeholder-sub{font-size:0.85rem;color:var(--text-muted);line-height:1.6;}
+.phase-badge{
+  display:inline-block;
+  background:var(--accent-glow);color:var(--accent);
+  font-size:0.72rem;font-weight:600;
+  border-radius:6px;padding:3px 10px;
+  margin-top:14px;
+}
+
+/* ============================================================
+   SPINNER
+============================================================ */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner{
+  width:20px;height:20px;
+  border:2.5px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  margin:32px auto;display:block;
+}
+</style>
+</head>
+
+<!-- Auth check — must be first -->
+<script>
+  if(!sessionStorage.getItem('zn_admin')){
+    window.location.replace('admin-login.html');
+  }
+  if(localStorage.getItem('zn_theme')==='dark'){
+    document.addEventListener('DOMContentLoaded',function(){
+      document.body.classList.add('dark');
+      var t=document.getElementById('darkToggle');
+      if(t)t.classList.add('on');
+    });
+  }
+</script>
+
+<body>
+
+<!-- ============================================================
+     SIDEBAR
+============================================================ -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg width="17" height="17" viewBox="0 0 34 34" fill="none">
+        <path d="M7 8h20L8 26h19" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="27" cy="27" r="4" fill="#00C06A"/>
+      </svg>
+    </div>
+    <span class="sidebar-logo-text">Z-Network</span>
+    <span class="sidebar-logo-badge">Admin</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Main</div>
+
+    <div class="nav-item active" data-section="overview" onclick="navigate('overview',this)">
+      <span class="nav-icon">📊</span> Overview
+    </div>
+    <div class="nav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
+      <span class="nav-icon">🎟️</span> Vouchers
+    </div>
+    <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
+      <span class="nav-icon">💰</span> Cash Sale
+    </div>
+
+    <div class="nav-label">Reports</div>
+
+    <div class="nav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
+      <span class="nav-icon">📋</span> Sales Log
+    </div>
+    <div class="nav-item" data-section="analytics" onclick="navigate('analytics',this)">
+      <span class="nav-icon">📈</span> Analytics
+    </div>
+
+    <div class="nav-label">System</div>
+
+    <div class="nav-item" data-section="settings" onclick="navigate('settings',this)">
+      <span class="nav-icon">⚙️</span> Settings
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <span>v1.0.0</span>
+    <span id="sidebarTime">—</span>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ============================================================
+     TOP BAR
+============================================================ -->
+<div class="topbar">
+  <button class="topbar-hamburger" onclick="toggleSidebar()">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+  </button>
+
+  <span class="topbar-title" id="topbarTitle">Overview</span>
+
+  <div class="topbar-right">
+    <!-- Bell -->
+    <button class="icon-btn" onclick="navigate('vouchers')" title="Low stock alerts">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+      <div class="bell-badge" id="bellBadge"></div>
+    </button>
+
+    <!-- Dark mode -->
+    <div class="toggle-track" id="darkToggle" onclick="toggleDark()">
+      <div class="toggle-thumb"></div>
+    </div>
+
+    <!-- Logout -->
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+============================================================ -->
+<main class="main">
+
+  <!-- ── OVERVIEW ── -->
+  <section class="section active" id="section-overview">
+    <div class="section-title">Overview</div>
+    <div class="section-sub" id="overviewDate">Loading…</div>
+
+    <!-- Summary cards -->
+    <div class="summary-grid" id="summaryGrid">
+      <div class="sum-card"><div class="sum-label">Today's Revenue</div><div class="skeleton" style="height:28px;width:80px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:60px;"></div></div>
+      <div class="sum-card"><div class="sum-label">Sold Today</div><div class="skeleton" style="height:28px;width:50px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:80px;"></div></div>
+      <div class="sum-card"><div class="sum-label">Active Vouchers</div><div class="skeleton" style="height:28px;width:50px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:70px;"></div></div>
+      <div class="sum-card"><div class="sum-label">Low Stock Plans</div><div class="skeleton" style="height:28px;width:40px;margin-bottom:6px;"></div><div class="skeleton" style="height:12px;width:90px;"></div></div>
+    </div>
+
+    <!-- Stock levels -->
+    <div class="card stock-card" id="stockCard">
+      <div class="stock-title">📦 Voucher Stock Levels</div>
+      <div id="stockBars"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="card activity-card">
+      <div class="activity-header">
+        <span class="activity-title">🕐 Recent Activity</span>
+        <button class="activity-refresh" onclick="loadOverview()">↻ Refresh</button>
+      </div>
+      <div id="activityFeed"><div class="spinner"></div></div>
+    </div>
+  </section>
+
+  <!-- ── VOUCHERS (Phase 2) ── -->
+  <section class="section" id="section-vouchers">
+    <div class="section-title">Vouchers</div>
+    <div class="section-sub">Manage your entire voucher inventory</div>
+    <div class="placeholder-wrap">
+      <div class="placeholder-icon">🎟️</div>
+      <div class="placeholder-title">Voucher Management</div>
+      <div class="placeholder-sub">View all vouchers, filter by plan and status,<br/>revoke codes, and manage your inventory.</div>
+      <span class="phase-badge">Phase 2 — Coming Next</span>
+    </div>
+  </section>
+
+  <!-- ── CASH SALE (Phase 3) ── -->
+  <section class="section" id="section-cashsale">
+    <div class="section-title">Cash Sale</div>
+    <div class="section-sub">Manually assign vouchers for cash payments</div>
+    <div class="placeholder-wrap">
+      <div class="placeholder-icon">💰</div>
+      <div class="placeholder-title">Cash Sale Flow</div>
+      <div class="placeholder-sub">Select a plan, assign a voucher, and send<br/>the code to your customer via WhatsApp.</div>
+      <span class="phase-badge">Phase 3 — Coming Next</span>
+    </div>
+  </section>
+
+  <!-- ── SALES LOG (Phase 3) ── -->
+  <section class="section" id="section-saleslog">
+    <div class="section-title">Sales Log</div>
+    <div class="section-sub">Full history of all transactions</div>
+    <div class="placeholder-wrap">
+      <div class="placeholder-icon">📋</div>
+      <div class="placeholder-title">Transaction History</div>
+      <div class="placeholder-sub">Filter sales by date, plan, and channel.<br/>Export CSV for your records.</div>
+      <span class="phase-badge">Phase 3 — Coming Next</span>
+    </div>
+  </section>
+
+  <!-- ── ANALYTICS (Phase 4) ── -->
+  <section class="section" id="section-analytics">
+    <div class="section-title">Analytics</div>
+    <div class="section-sub">Sales performance over time</div>
+    <div class="placeholder-wrap">
+      <div class="placeholder-icon">📈</div>
+      <div class="placeholder-title">Revenue Analytics</div>
+      <div class="placeholder-sub">Daily, weekly, and monthly charts.<br/>Online vs cash breakdown. Peak hours.</div>
+      <span class="phase-badge">Phase 4 — Coming Next</span>
+    </div>
+  </section>
+
+  <!-- ── SETTINGS (Phase 5) ── -->
+  <section class="section" id="section-settings">
+    <div class="section-title">Settings</div>
+    <div class="section-sub">Configure your admin dashboard</div>
+    <div class="placeholder-wrap">
+      <div class="placeholder-icon">⚙️</div>
+      <div class="placeholder-title">Settings</div>
+      <div class="placeholder-sub">Change admin password, WhatsApp number,<br/>stock alert thresholds, and more.</div>
+      <span class="phase-badge">Phase 5 — Coming Next</span>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================================================
+     BOTTOM NAV (mobile)
+============================================================ -->
+<nav class="bottom-nav">
+  <div class="bnav-item active" data-section="overview" onclick="navigate('overview',this)">
+    <span class="bnav-icon">📊</span>
+    <span>Overview</span>
+  </div>
+  <div class="bnav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
+    <span class="bnav-icon">🎟️</span>
+    <span>Vouchers</span>
+  </div>
+  <div class="bnav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
+    <span class="bnav-icon">💰</span>
+    <span>Cash Sale</span>
+  </div>
+  <div class="bnav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
+    <span class="bnav-icon">📋</span>
+    <span>Sales</span>
+  </div>
+  <div class="bnav-item" data-section="analytics" onclick="navigate('analytics',this)">
+    <span class="bnav-icon">📈</span>
+    <span>More</span>
+  </div>
+</nav>
+
+<!-- ============================================================
+     SUPABASE CLIENT
+============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<script>
+/* ── CONFIG ──────────────────────────────────────────── */
+var SUPABASE_URL  = 'https://yohndnmwvgcwadkytmix.supabase.co';
+var SUPABASE_ANON = 'YOUR_ANON_KEY_HERE'; // ← replace with your anon key
+var ADMIN_WA      = '2348159694740';
+var LOW_STOCK     = parseInt(localStorage.getItem('zn_low_stock') || '10');
+
+var PLANS = {
+  '31fd47b9-fa74-4da3-a390-9e450ca3923c': { name:'Daily Plan',     price:350,  hours:24  },
+  'cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae': { name:'2-Day Plan',     price:500,  hours:48  },
+  '6ce23b1a-bdb4-4118-958a-bcd4d637fb96': { name:'Half-Week Plan', price:1000, hours:84  },
+  '08dbcc38-34fa-4251-a667-f989d26d625e': { name:'Weekly Plan',    price:2000, hours:168 },
+  '925f31d8-6a56-450b-aca0-5b165e336642': { name:'Monthly Plan',   price:6000, hours:720 },
+};
+
+/* ── SUPABASE INIT ───────────────────────────────────── */
+var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ── NAVIGATION ──────────────────────────────────────── */
+var currentSection = 'overview';
+var SECTION_TITLES = {
+  overview:'Overview', vouchers:'Vouchers', cashsale:'Cash Sale',
+  saleslog:'Sales Log', analytics:'Analytics', settings:'Settings'
+};
+
+function navigate(id, el) {
+  // Hide current section
+  document.getElementById('section-' + currentSection).classList.remove('active');
+
+  // Deactivate all nav items
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.querySelectorAll('.bnav-item').forEach(function(n){ n.classList.remove('active'); });
+
+  // Show new section
+  currentSection = id;
+  document.getElementById('section-' + id).classList.add('active');
+  document.getElementById('topbarTitle').textContent = SECTION_TITLES[id] || id;
+
+  // Activate nav items
+  document.querySelectorAll('[data-section="' + id + '"]').forEach(function(n){
+    n.classList.add('active');
+  });
+
+  // Load section data
+  if (id === 'overview') loadOverview();
+
+  // Close sidebar on mobile after navigation
+  closeSidebar();
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+function toggleSidebar() {
+  var s = document.getElementById('sidebar');
+  var o = document.getElementById('sidebarOverlay');
+  var isOpen = s.classList.contains('open');
+  s.classList.toggle('open', !isOpen);
+  o.classList.toggle('show', !isOpen);
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+/* ── DARK MODE ───────────────────────────────────────── */
+function toggleDark() {
+  var isDark = document.body.classList.toggle('dark');
+  document.getElementById('darkToggle').classList.toggle('on', isDark);
+  localStorage.setItem('zn_theme', isDark ? 'dark' : 'light');
+}
+
+/* ── LOGOUT ──────────────────────────────────────────── */
+function logout() {
+  if (confirm('Log out of admin dashboard?')) {
+    sessionStorage.removeItem('zn_admin');
+    window.location.href = 'admin-login.html';
+  }
+}
+
+/* ── HELPERS ─────────────────────────────────────────── */
+function getPlanName(plan_id) {
+  return PLANS[plan_id] ? PLANS[plan_id].name : 'Unknown Plan';
+}
+function getPlanPrice(plan_id) {
+  return PLANS[plan_id] ? PLANS[plan_id].price : 0;
+}
+function getExpiry(used_at, plan_id) {
+  if (!used_at || !PLANS[plan_id]) return '—';
+  var ms = PLANS[plan_id].hours * 3600000;
+  return new Date(new Date(used_at).getTime() + ms).toLocaleString('en-NG', {
+    day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'
+  });
+}
+function timeAgo(dateStr) {
+  var diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60)   return Math.floor(diff) + 's ago';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400)return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+function fmtMoney(n) {
+  return '₦' + Number(n).toLocaleString('en-NG');
+}
+function isActive(used_at, plan_id) {
+  if (!used_at || !PLANS[plan_id]) return false;
+  var ms = PLANS[plan_id].hours * 3600000;
+  return (new Date(used_at).getTime() + ms) > Date.now();
+}
+
+/* ── OVERVIEW ────────────────────────────────────────── */
+async function loadOverview() {
+  var today   = new Date().toISOString().split('T')[0];
+  var todayTs = today + 'T00:00:00.000Z';
+
+  // Date subtitle
+  document.getElementById('overviewDate').textContent =
+    new Date().toLocaleDateString('en-NG', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  try {
+    // Fetch today's used vouchers
+    var { data: todayData, error: e1 } = await supabase
+      .from('vouchers')
+      .select('code, plan_id, used_at, sold_by, transaction_reference, is_used')
+      .eq('is_used', true)
+      .gte('used_at', todayTs)
+      .order('used_at', { ascending: false });
+
+    // Fetch ALL used vouchers (for active count)
+    var { data: allUsed } = await supabase
+      .from('vouchers')
+      .select('plan_id, used_at, is_used')
+      .eq('is_used', true);
+
+    // Fetch ALL unused (for stock)
+    var { data: allUnused } = await supabase
+      .from('vouchers')
+      .select('plan_id')
+      .eq('is_used', false);
+
+    // ── Calculate summary ──
+    var todaySales   = todayData || [];
+    var todayRevenue = todaySales.reduce(function(sum, v){ return sum + getPlanPrice(v.plan_id); }, 0);
+    var onlineCount  = todaySales.filter(function(v){ return v.sold_by !== 'cash'; }).length;
+    var cashCount    = todaySales.filter(function(v){ return v.sold_by === 'cash'; }).length;
+
+    // Active = used but not yet expired
+    var activeCount = (allUsed||[]).filter(function(v){ return isActive(v.used_at, v.plan_id); }).length;
+
+    // Stock per plan
+    var stock = {};
+    Object.keys(PLANS).forEach(function(id){ stock[id] = 0; });
+    (allUnused||[]).forEach(function(v){ if(stock[v.plan_id] !== undefined) stock[v.plan_id]++; });
+
+    var lowStockCount = Object.values(stock).filter(function(n){ return n <= LOW_STOCK; }).length;
+
+    // ── Render Summary Cards ──
+    document.getElementById('summaryGrid').innerHTML =
+      sumCard('Today\'s Revenue', fmtMoney(todayRevenue), 'accent',
+        todaySales.length ? onlineCount + ' online · ' + cashCount + ' cash' : 'No sales yet today') +
+      sumCard('Sold Today', todaySales.length, 'green',
+        todaySales.length === 1 ? '1 voucher' : todaySales.length + ' vouchers') +
+      sumCard('Active Users', activeCount, '',
+        'vouchers currently valid') +
+      sumCard('Low Stock', lowStockCount, lowStockCount > 0 ? 'red' : 'green',
+        lowStockCount > 0 ? 'plans need restocking' : 'all plans stocked');
+
+    // Bell badge
+    document.getElementById('bellBadge').classList.toggle('show', lowStockCount > 0);
+
+    // ── Render Stock Bars ──
+    var maxStock = Math.max.apply(null, Object.values(stock).concat([1]));
+    var stockHtml = Object.keys(PLANS).map(function(id) {
+      var n    = stock[id];
+      var cls  = n > LOW_STOCK ? 'green' : n > 5 ? 'amber' : 'red';
+      var pct  = Math.min(100, Math.round((n / Math.max(maxStock, 1)) * 100));
+      return '<div class="stock-row">' +
+        '<div class="stock-meta">' +
+          '<span class="stock-name">' + PLANS[id].name + '</span>' +
+          '<span class="stock-count ' + cls + '">' + n + ' left</span>' +
+        '</div>' +
+        '<div class="stock-bar-bg">' +
+          '<div class="stock-bar-fill ' + cls + '" style="width:' + pct + '%"></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('stockBars').innerHTML = stockHtml;
+
+    // ── Render Activity Feed ──
+    var recentAll = (allUsed||[])
+      .sort(function(a,b){ return new Date(b.used_at) - new Date(a.used_at); })
+      .slice(0, 10);
+
+    // Merge with today for code data
+    var feedData = todayData ? todayData.slice(0,10) : [];
+
+    if (!feedData.length) {
+      document.getElementById('activityFeed').innerHTML =
+        '<div class="activity-empty">No activity yet today.<br/>Sales will appear here in real time.</div>';
+    } else {
+      document.getElementById('activityFeed').innerHTML = feedData.map(function(v) {
+        var isCash = v.sold_by === 'cash';
+        var code   = v.code ? v.code.toString().slice(0,4) + 'xxxx' : '—';
+        return '<div class="activity-item">' +
+          '<div class="activity-dot ' + (isCash ? 'cash' : 'online') + '"></div>' +
+          '<div class="activity-info">' +
+            '<div class="activity-plan">' + getPlanName(v.plan_id) + '</div>' +
+            '<div class="activity-meta">' + (isCash ? '💵 Cash' : '🌐 Online') + ' · Code: ' + code + '</div>' +
+          '</div>' +
+          '<div class="activity-right">' +
+            '<div class="activity-amount">' + fmtMoney(getPlanPrice(v.plan_id)) + '</div>' +
+            '<div class="activity-time">' + timeAgo(v.used_at) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+  } catch(err) {
+    console.error('Overview load error:', err);
+    document.getElementById('summaryGrid').innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;color:var(--red);font-size:0.82rem;padding:20px;">Failed to load data. Check your Supabase connection.</div>';
+  }
+}
+
+function sumCard(label, value, colorClass, detail) {
+  return '<div class="sum-card">' +
+    '<div class="sum-label">' + label + '</div>' +
+    '<div class="sum-value ' + (colorClass||'') + '">' + value + '</div>' +
+    '<div class="sum-detail">' + detail + '</div>' +
+  '</div>';
+}
+
+/* ── CLOCK ───────────────────────────────────────────── */
+function updateClock() {
+  var el = document.getElementById('sidebarTime');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-NG', {hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ── INIT ────────────────────────────────────────────── */
+loadOverview();
+</script>
+</body>
+</html>
