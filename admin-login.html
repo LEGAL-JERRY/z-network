@@ -370,6 +370,9 @@ document.addEventListener('keydown',function(e){
 if(sessionStorage.getItem('zn_admin')){
   window.location.replace('admin.html');
 }
+  if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
 </script>
 </body>
 </html>
