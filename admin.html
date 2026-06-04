@@ -1,1 +1,106 @@
+Z-Network Admin Dashboard — Full Build Plan
+Overview
+A mobile-first, responsive admin dashboard for managing Z-Network hotspot
+vouchers, sales, and analytics. Built in vanilla HTML/CSS/JS with direct
+Supabase queries. No new backend or edge functions required for most features.
 
+Tech Stack
+
+Frontend: Single file HTML (admin.html) — consistent with existing portal
+Database: Supabase (direct JS client with anon key)
+Auth: Simple password gate (upgrade to Supabase Auth later)
+Charts: Chart.js (CDN) for analytics
+Hosting: Vercel (same repo as portal)
+
+
+File Structure
+z-network/
+├── index.html          ← existing captive portal
+├── success.html        ← existing voucher delivery
+├── admin.html          ← NEW: admin dashboard
+└── admin-login.html    ← NEW: password gate
+
+Authentication
+Login Page (admin-login.html)
+
+Full screen centered card — Z-Network logo at top
+Single password input field
+"Enter Dashboard" button
+On correct password → store token in sessionStorage → redirect to admin.html
+On wrong password → shake animation + error message
+admin.html checks sessionStorage on load — redirect to login if not authenticated
+Logout button clears sessionStorage
+
+Password Storage
+javascript// In admin.html — check at very top before rendering anything
+const ADMIN_PASSWORD_HASH = 'your-hashed-password'; // use SHA-256
+const session = sessionStorage.getItem('zn_admin');
+if (!session) window.location.href = 'admin-login.html';
+Security Notes
+
+Password is hashed (SHA-256) before comparing — never store plaintext
+Session expires when browser tab closes (sessionStorage)
+Future upgrade: replace with Supabase Auth email/password
+
+
+Layout & Navigation
+Top Bar (fixed)
+[≡ Menu]   [Z-Network Admin]   [🔔 Alerts]   [Logout]
+
+Hamburger opens slide-in sidebar on mobile
+Bell icon shows low stock count badge
+Dark mode toggle (matches portal preference)
+
+Sidebar Navigation (slide-in on mobile, fixed on desktop ≥768px)
+──────────────────
+  Z-Network Admin
+──────────────────
+  📊  Overview
+  🎟️  Vouchers
+  💰  Cash Sale
+  📋  Sales Log
+  📈  Analytics
+  ⚙️  Settings
+──────────────────
+  v1.0.0
+Bottom Navigation Bar (mobile only, fixed)
+[Overview] [Vouchers] [Cash Sale] [Sales] [More]
+
+Visible on screens < 768px
+Sidebar hidden on mobile, shown via hamburger
+Active tab highlighted with accent color
+
+
+Section 1 — Overview (Home)
+Purpose
+First screen admin sees. Quick snapshot of the business at a glance.
+Summary Cards (2×2 grid on mobile, 4×1 on desktop)
+CardValueDetailToday's Revenue₦3,500+₦500 from yesterdayVouchers Sold Today75 online · 2 cashTotal Active Users42vouchers currently validLow Stock Plans2Daily Plan · Weekly Plan
+Stock Level Bar (per plan)
+Daily Plan      ████████░░  80 left
+2-Day Plan      ██████████  120 left
+Half-Week       ████░░░░░░  40 left  ← warning color
+Weekly Plan     ██░░░░░░░░  18 left  ← danger color
+Monthly Plan    ██████████  95 left
+
+Green: >30 vouchers
+Yellow/amber: 10–30 vouchers
+Red: <10 vouchers (also triggers bell notification)
+
+Recent Activity Feed (last 10 transactions)
+🟢 Daily Plan   ₦350   Online    2 mins ago   Code: 8472xxxx
+🟡 Weekly Plan  ₦2000  Cash      14 mins ago  Code: 3391xxxx
+🟢 2-Day Plan   ₦500   Online    1 hr ago     Code: 7721xxxx
+
+Tap any row to see full details
+Color: green = online, yellow = cash
+
+Supabase Query (Overview)
+javascript// Revenue today
+const today = new Date().toISOString().split('T')[0];
+const { data } = await supabase
+  .from('vouchers')
+  .select('code, plan_id, used_at, sold_by, transaction_reference')
+  .eq('is_used', true)
+  .gte('used_at', today + 'T00:00:00')
+  .order('used_at', { ascending: false });
