@@ -610,6 +610,9 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
     <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
       <span class="nav-icon">💰</span> Cash Sale
     </div>
+    <div class="nav-item" data-section="expiry" onclick="navigate('expiry',this)">
+      <span class="nav-icon">⏰</span> Expiry Watch
+    </div>
     <div class="nav-label">Reports</div>
     <div class="nav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
       <span class="nav-icon">📋</span> Sales Log
@@ -638,7 +641,7 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
   </button>
   <span class="topbar-title" id="topbarTitle">Overview</span>
   <div class="topbar-right">
-    <button class="icon-btn" onclick="navigate('vouchers')" title="Low stock alerts">
+    <button class="icon-btn" onclick="navigate('expiry')" title="Expiry alerts">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
       </svg>
@@ -789,6 +792,60 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
   </section>
 
   <!-- SALES LOG -->
+   <!-- EXPIRY WATCH -->
+  <section class="section" id="section-expiry">
+    <div class="section-title">Expiry Watch</div>
+    <div class="section-sub">Track when vouchers were purchased and when they expire — catch churn before it happens</div>
+
+    <div class="summary-grid" id="expirySummaryGrid">
+      <div class="sum-card"><div class="sum-label">Expiring Soon</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Expired (Unrenewed)</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Expired Today</div><div class="spinner" style="margin:8px auto;"></div></div>
+      <div class="sum-card"><div class="sum-label">Lapsed Revenue</div><div class="spinner" style="margin:8px auto;"></div></div>
+    </div>
+
+    <div class="filters-row">
+      <select class="filter-select" id="expWindow" onchange="renderExpiryLists()" style="max-width:220px;">
+        <option value="3">Expiring within 3 hrs</option>
+        <option value="6">Expiring within 6 hrs</option>
+        <option value="24" selected>Expiring within 24 hrs</option>
+        <option value="72">Expiring within 3 days</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="loadExpiryData()">↻ Refresh</button>
+      <button class="btn btn-outline btn-sm" onclick="exportExpiring()">📥 Export Expiring</button>
+      <button class="btn btn-outline btn-sm" onclick="exportExpired()">📥 Export Expired</button>
+    </div>
+
+    <div class="card stock-card">
+      <div class="stock-title">🔔 Expiring Soon — nudge these customers to renew</div>
+      <div class="voucher-wrap">
+        <table class="v-table" id="expiringTable">
+          <thead>
+            <tr><th>Code</th><th>Plan</th><th>Purchased</th><th>Expires</th><th>Time Left</th><th>Phone</th><th></th></tr>
+          </thead>
+          <tbody id="expiringTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card stock-card">
+      <div class="stock-title">⌛ Recently Expired — no longer active</div>
+      <div class="voucher-wrap">
+        <table class="v-table" id="expiredTable">
+          <thead>
+            <tr><th>Code</th><th>Plan</th><th>Purchased</th><th>Expired</th><th>Expired Ago</th><th>Channel</th><th></th></tr>
+          </thead>
+          <tbody id="expiredTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="expiredPagination"></div>
+    </div>
+  </section>
+   
   <section class="section" id="section-saleslog">
     <div class="section-title">Sales Log</div>
     <div class="section-sub">Full transaction history</div>
@@ -1030,8 +1087,11 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
   <div class="bnav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
     <span class="bnav-icon">🎟️</span><span>Vouchers</span>
   </div>
-  <div class="bnav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
+ <div class="bnav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
     <span class="bnav-icon">💰</span><span>Cash</span>
+  </div>
+  <div class="bnav-item" data-section="expiry" onclick="navigate('expiry',this)">
+    <span class="bnav-icon">⏰</span><span>Expiry</span>
   </div>
   <div class="bnav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
     <span class="bnav-icon">📋</span><span>Sales</span>
@@ -1209,10 +1269,22 @@ var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 function getPlanName(id){return PLANS[id]?PLANS[id].name:'Unknown';}
 function getPlanPrice(id){return PLANS[id]?PLANS[id].price:0;}
 function getPlanHours(id){return PLANS[id]?PLANS[id].hours:0;}
-function getExpiry(used_at,plan_id){
-  if(!used_at||!PLANS[plan_id])return'—';
+function getExpiryDate(used_at,plan_id){
+  if(!used_at||!PLANS[plan_id])return null;
   var ms=PLANS[plan_id].hours*3600000;
-  return new Date(new Date(used_at).getTime()+ms).toLocaleString('en-NG',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  return new Date(new Date(used_at).getTime()+ms);
+}
+function getExpiry(used_at,plan_id){
+  var d=getExpiryDate(used_at,plan_id);
+  if(!d)return'—';
+  return d.toLocaleString('en-NG',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+function timeUntil(d){
+  var diff=(new Date(d).getTime()-Date.now())/1000;
+  if(diff<=0)return'Now';
+  if(diff<3600)return Math.floor(diff/60)+'m';
+  if(diff<86400)return Math.floor(diff/3600)+'h '+Math.floor((diff%3600)/60)+'m';
+  return Math.floor(diff/86400)+'d '+Math.floor((diff%86400)/3600)+'h';
 }
 function timeAgo(d){
   var diff=(Date.now()-new Date(d).getTime())/1000;
@@ -1278,7 +1350,7 @@ document.addEventListener('click',function(e){
 ══════════════════════════════════════════════════════════════ */
 var currentSection='overview';
 var SECTION_TITLES={
-  overview:'Overview',vouchers:'Vouchers',cashsale:'Cash Sale',
+  overview:'Overview',vouchers:'Vouchers',cashsale:'Cash Sale',expiry:'Expiry Watch',
   saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
 };
 function navigate(id,el){
@@ -1292,6 +1364,7 @@ function navigate(id,el){
   if(id==='overview')loadOverview();
   else if(id==='vouchers'){if(!_vouchersLoaded)loadVouchers();}
   else if(id==='cashsale')loadCashSalePlans();
+  else if(id==='expiry')loadExpiryData();
   else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
   else if(id==='analytics')loadAnalytics();
   else if(id==='settings')initSettings();
@@ -1630,6 +1703,107 @@ function sendCodeViaWA(code,planId){
   window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(msg),'_blank');
 }
 function resetCashSale(){_cashSelectedPlan=null;_cashResult=null;document.getElementById('customerPhone').value='';cashGoStep(1);loadCashSalePlans();}
+/* ══════════════════════════════════════════════════════════════
+   EXPIRY WATCH
+══════════════════════════════════════════════════════════════ */
+var _expiryUsedVouchers=[];
+var _expiredPage=1;
+var _expiredPageSize=20;
+var _expiryTimer=null;
+
+async function loadExpiryData(){
+  document.getElementById('expiringTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  document.getElementById('expiredTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  var{data,error}=await supabase.from('vouchers').select('*').eq('is_used',true).order('used_at',{ascending:false});
+  if(error){toast('Failed to load expiry data: '+error.message,'error');return;}
+  _expiryUsedVouchers=(data||[]).map(function(v){
+    return Object.assign({},v,{_expiresAt:getExpiryDate(v.used_at,v.plan_id)});
+  }).filter(function(v){return v._expiresAt;});
+  _expiredPage=1;
+  renderExpiryLists();
+  if(!_expiryTimer)_expiryTimer=setInterval(function(){if(currentSection==='expiry')renderExpiryLists();},60000);
+}
+
+function renderExpiryLists(){
+  var now=Date.now();
+  var windowHrs=parseInt(document.getElementById('expWindow').value,10);
+  var windowMs=windowHrs*3600000;
+
+  var expiringSoon=_expiryUsedVouchers.filter(function(v){
+    var t=v._expiresAt.getTime();
+    return t>now && (t-now)<=windowMs;
+  }).sort(function(a,b){return a._expiresAt-b._expiresAt;});
+
+  var expired=_expiryUsedVouchers.filter(function(v){
+    return v._expiresAt.getTime()<=now;
+  }).sort(function(a,b){return b._expiresAt-a._expiresAt;});
+
+  var expiredTodayCount=expired.filter(function(v){
+    return(now-v._expiresAt.getTime())<86400000;
+  }).length;
+  var lapsedRevenue=expired.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
+
+  document.getElementById('expirySummaryGrid').innerHTML=
+    sumCard('Expiring Soon',expiringSoon.length,expiringSoon.length>0?'amber':'green','within '+windowHrs+'h — nudge to renew')+
+    sumCard('Expired (Unrenewed)',expired.length,expired.length>0?'red':'green','no longer active')+
+    sumCard('Expired Today',expiredTodayCount,'','lapsed in last 24h')+
+    sumCard('Lapsed Revenue',fmtMoney(lapsedRevenue),'','value of expired sessions');
+
+  document.getElementById('bellBadge').classList.toggle('show',
+    document.getElementById('bellBadge').classList.contains('show')||expiringSoon.length>0);
+
+  if(!expiringSoon.length){
+    document.getElementById('expiringTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">Nothing expiring in this window.</td></tr>';
+  }else{
+    document.getElementById('expiringTableBody').innerHTML=expiringSoon.map(function(v){
+      return'<tr onclick="openVoucherDetail(\''+v.id+'\')">'+
+        '<td data-label="Code"><strong>'+v.code+'</strong></td>'+
+        '<td data-label="Plan">'+getPlanName(v.plan_id)+'</td>'+
+        '<td data-label="Purchased">'+fmtDate(v.used_at)+'</td>'+
+        '<td data-label="Expires">'+fmtDate(v._expiresAt)+'</td>'+
+        '<td data-label="Time Left"><span class="badge badge-amber">'+timeUntil(v._expiresAt)+'</span></td>'+
+        '<td data-label="Phone">'+(v.phone||'—')+'</td>'+
+        '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();sendCodeViaWA(\''+v.code+'\',\''+v.plan_id+'\')">📱 Nudge</button></td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  var start=(_expiredPage-1)*_expiredPageSize;
+  var page=expired.slice(start,start+_expiredPageSize);
+  if(!page.length){
+    document.getElementById('expiredTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No expired vouchers found.</td></tr>';
+    document.getElementById('expiredPagination').innerHTML='';
+  }else{
+    document.getElementById('expiredTableBody').innerHTML=page.map(function(v){
+      return'<tr onclick="openVoucherDetail(\''+v.id+'\')">'+
+        '<td data-label="Code">'+maskCode(v.code)+'</td>'+
+        '<td data-label="Plan">'+getPlanName(v.plan_id)+'</td>'+
+        '<td data-label="Purchased">'+fmtDate(v.used_at)+'</td>'+
+        '<td data-label="Expired">'+fmtDate(v._expiresAt)+'</td>'+
+        '<td data-label="Expired Ago">'+timeAgo(v._expiresAt)+'</td>'+
+        '<td data-label="Channel">'+(v.sold_by||'online')+'</td>'+
+        '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openVoucherDetail(\''+v.id+'\')">View</button></td>'+
+      '</tr>';
+    }).join('');
+    renderPagination('expiredPagination',expired.length,_expiredPage,_expiredPageSize,function(p){_expiredPage=p;renderExpiryLists();});
+  }
+
+  window._expiringSoonCache=expiringSoon;
+  window._expiredCache=expired;
+}
+
+function exportExpiring(){
+  var rows=(window._expiringSoonCache||[]).map(function(v){
+    return{code:v.code,plan:getPlanName(v.plan_id),purchased:fmtDate(v.used_at),expires:fmtDate(v._expiresAt),phone:v.phone||''};
+  });
+  downloadCSV(rows,'expiring_vouchers.csv');
+}
+function exportExpired(){
+  var rows=(window._expiredCache||[]).map(function(v){
+    return{code:v.code,plan:getPlanName(v.plan_id),purchased:fmtDate(v.used_at),expired:fmtDate(v._expiresAt),channel:v.sold_by||'online',reference:v.transaction_reference||''};
+  });
+  downloadCSV(rows,'expired_vouchers.csv');
+}
 
 /* ══════════════════════════════════════════════════════════════
    SALES LOG
