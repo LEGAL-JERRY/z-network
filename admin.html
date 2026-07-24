@@ -374,19 +374,84 @@ body.dark .nav-item.active{color:var(--accent-dark);}
 .v-table tbody tr:hover{background:var(--accent-glow);}
 .v-table tbody tr:last-child td{border-bottom:none;}
 .cust-list-row{
-  display:flex;align-items:center;gap:12px;padding:14px 16px;
-  border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  transition:background 0.1s;
+  min-width:0;
 }
-.cust-list-row:last-child{border-bottom:none;}
-.cust-list-row:hover{background:var(--accent-glow);}
-.cust-list-cl{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:0.85rem;color:var(--text);min-width:70px;}
-.cust-list-tags{display:flex;gap:6px;flex:1;flex-wrap:wrap;}
-.cust-list-tag{
-  padding:4px 9px;border-radius:99px;font-size:0.68rem;font-weight:700;
-  background:var(--bg-card2);color:var(--text-muted);border:1px solid var(--border);
+
+.cust-list-row:last-child{
+  border-bottom:none;
 }
-.cust-list-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.cust-list-countdown{font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:700;color:var(--text);}
+
+.cust-list-row:hover{
+  background:var(--accent-glow);
+}
+
+.cust-list-cl{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:800;
+  font-size:0.85rem;
+  color:var(--text);
+  min-width:60px;
+  flex-shrink:0;
+}
+
+.cust-list-name{
+  min-width:140px;
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:700;
+  color:var(--text);
+  flex:1;
+}
+
+.cust-list-status{
+  flex-shrink:0;
+}
+
+.cust-list-warning{
+  flex-shrink:0;
+}
+
+.cust-list-countdown{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.78rem;
+  font-weight:700;
+  color:var(--text);
+  min-width:72px;
+  text-align:right;
+  flex-shrink:0;
+}
+
+.cust-list-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+
+.cust-list-action{
+  padding:6px 9px;
+  border-radius:6px;
+  font-size:0.68rem;
+  font-weight:700;
+  border:1px solid var(--border);
+  background:var(--bg-card2);
+  color:var(--text-muted);
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.cust-list-action:hover{
+  background:var(--accent-glow);
+  color:var(--text);
+}
 .badge{
   display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:99px;
   font-size:0.68rem;font-weight:700;
@@ -1885,8 +1950,20 @@ function filterCustomers(){
 }
 
 function renderCustomersPage(){
-  var start=(_cPage-1)*_cPageSize;
-  var page=_filteredCustomers.slice(start,start+_cPageSize);
+ var sortedCustomers=_filteredCustomers.slice().sort(function(a,b){
+  var aExpiry=a.expiry_date
+    ? new Date(a.expiry_date).getTime()
+    : Infinity;
+
+  var bExpiry=b.expiry_date
+    ? new Date(b.expiry_date).getTime()
+    : Infinity;
+
+  return aExpiry-bExpiry;
+});
+
+var start=(_cPage-1)*_cPageSize;
+var page=sortedCustomers.slice(start,start+_cPageSize);
   if(!page.length){
     document.getElementById('cListBody').innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">No customers found.</div>';
     document.getElementById('cPagination').innerHTML='';
@@ -1897,17 +1974,32 @@ function renderCustomersPage(){
     var statusCls=isActiveNow?'badge-green':'badge-gray';
     var statusTxt=isActiveNow?'Active':'Inactive';
     return'<div class="cust-list-row" onclick="openCustomerDetail(\''+c.id+'\')">'+
-      '<div class="cust-list-cl">'+(c.customer_number||'—')+'</div>'+
-      '<div class="cust-list-tags">'+
-        '<span class="cust-list-tag">💳 Buy Plan</span>'+
-        '<span class="cust-list-tag">🐢 Slow Down</span>'+
-        '<span class="cust-list-tag">⚠️ Low Warning</span>'+
-      '</div>'+
-      '<div class="cust-list-right">'+
-        '<span class="badge '+statusCls+'">'+statusTxt+'</span>'+
-        '<span class="cust-list-countdown countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span>'+
-      '</div>'+
-    '</div>';
+  '<div class="cust-list-cl">'+
+    (c.customer_number||'—')+
+  '</div>'+
+  '<div class="cust-list-name">'+
+    (c.name||c.username||'Unnamed Customer')+
+  '</div>'+
+  '<div class="cust-list-status">'+
+    '<span class="badge '+statusCls+'">'+statusTxt+'</span>'+
+  '</div>'+
+  '<button class="cust-list-action cust-list-warning" onclick="event.stopPropagation();">'+
+    '⚠️ Send Warning 3hrs'+
+  '</button>'+
+  '<span class="cust-list-countdown countdown mono" data-expiry="'+
+    (c.expiry_date||'')+
+  '">'+
+    getCountdown(c.expiry_date)+
+  '</span>'+
+  '<div class="cust-list-actions">'+
+    '<button class="cust-list-action" onclick="event.stopPropagation();">'+
+      '⏸ Pause Sub'+
+    '</button>'+
+    '<button class="cust-list-action" onclick="event.stopPropagation();">'+
+      '▶ Resume Sub'+
+    '</button>'+
+  '</div>'+
+'</div>';
   }).join('');
   renderPagination('cPagination',_filteredCustomers.length,_cPage,_cPageSize,function(p){_cPage=p;renderCustomersPage();});
 }
