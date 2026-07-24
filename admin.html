@@ -825,7 +825,11 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">Confirming sale for:</p>
         <p style="font-size:1.25rem;font-weight:800;color:var(--text);" id="confirmPlanName">—</p>
         <p style="font-size:1.7rem;font-weight:900;color:var(--accent);margin:4px 0 20px;" id="confirmPlanPrice">—</p>
-        <div class="form-group" style="text-align:left;max-width:340px;margin:0 auto 18px;">
+        <div class="form-group" style="text-align:left;">
+          <label class="form-label">Customer Name</label>
+          <input class="form-input" type="text" id="customerName" placeholder="e.g. John Doe"/>
+        </div>
+        <div class="form-group" style="text-align:left;">
           <label class="form-label">Customer Phone (optional)</label>
           <input class="form-input" type="tel" id="customerPhone" placeholder="+234…"/>
         </div>
@@ -1757,6 +1761,7 @@ async function completeCashSale(){
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
   if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
+  var name=document.getElementById('customerName').value.trim()||null;
   var phone=document.getElementById('customerPhone').value.trim()||null;
   var ref='CASH-'+Date.now();
   var{error:e2}=await supabase.from('vouchers').update({
@@ -1764,11 +1769,16 @@ async function completeCashSale(){
     transaction_reference:ref,...(phone?{phone:phone}:{})
   }).eq('id',voucher.id);
   if(e2){toast('Sale failed: '+e2.message,'error');return;}
+  var p=PLANS[_cashSelectedPlan];
+  var expiryDate=new Date(Date.now()+p.hours*3600000).toISOString();
+  await supabase.from('customers').insert({
+    whatsapp:phone,name:name,plan_id:_cashSelectedPlan,plan_name:p.name,
+    voucher_code:voucher.code,price:p.price,expiry_date:expiryDate,status:'active'
+  });
   _cashResult={code:voucher.code,plan_id:_cashSelectedPlan};
-  document.getElementById('resultPlanName').textContent=PLANS[_cashSelectedPlan].name;
+  document.getElementById('resultPlanName').textContent=p.name;
   document.getElementById('resultCode').textContent=voucher.code.toString().replace(/(.{4})/g,'$1 ').trim();
   cashGoStep(3);
-  injectIcons(document.getElementById('cashStep3'));
   toast('Voucher assigned!','success');
 }
 
