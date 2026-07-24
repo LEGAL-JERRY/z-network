@@ -468,6 +468,67 @@ body.dark .nav-item.active{color:var(--accent-dark);}
   .v-table tr{background:var(--bg-card) !important;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;padding:14px 16px;}
   .v-table td{border:none;padding:6px 0;white-space:normal;display:flex;justify-content:space-between;gap:12px;align-items:center;}
   .v-table td::before{content:attr(data-label)':';font-size:0.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0;}
+
+  /* CUSTOMER MOBILE UX */
+  .cust-list-row{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:10px 12px;
+    padding:16px;
+    align-items:center;
+  }
+
+  .cust-list-cl{
+    grid-column:1;
+    grid-row:1;
+  }
+
+  .cust-list-name{
+    grid-column:1 / -1;
+    grid-row:2;
+    max-width:none;
+    width:100%;
+  }
+
+  .cust-list-status{
+    grid-column:1;
+    grid-row:3;
+  }
+
+  .cust-list-countdown{
+    grid-column:2;
+    grid-row:3;
+    min-width:auto;
+    text-align:right;
+  }
+
+  .cust-list-voucher{
+    grid-column:1 / -1;
+    grid-row:4;
+    width:100%;
+  }
+
+  .cust-list-warning{
+    grid-column:1 / -1;
+    grid-row:5;
+    width:100%;
+    padding:10px;
+  }
+
+  .cust-list-actions{
+    grid-column:1 / -1;
+    grid-row:6;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    width:100%;
+    gap:8px;
+  }
+
+  .cust-list-action{
+    width:100%;
+    padding:10px 8px;
+    min-height:40px;
+  }
 }
 
 .pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:20px 0 0;flex-wrap:wrap;}
