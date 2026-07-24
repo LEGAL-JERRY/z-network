@@ -790,11 +790,21 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <button class="btn btn-outline btn-sm" id="vRefreshBtn" onclick="loadVouchers()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
     </div>
 
-  <div class="card" style="padding:0;overflow:hidden;">
-      <div id="cListBody">
-        <div style="text-align:center;padding:32px;"><div class="spinner"></div></div>
+ <div class="card" style="padding:0;overflow:hidden;">
+      <div class="table-scroll">
+        <table class="v-table" id="vTable">
+          <thead>
+            <tr>
+              <th>Code</th><th>Plan</th><th>Status</th>
+              <th>Channel</th><th>Used At</th><th>Expires</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="vTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="pagination" id="cPagination"></div>
+      <div class="pagination" id="vPagination"></div>
     </div>
   </section>
 
@@ -823,24 +833,13 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <button class="btn btn-outline btn-sm" onclick="exportCustomers()">📥 Export CSV</button>
     </div>
 
-    <div class="card" style="padding:0;overflow:hidden;">
-      <div class="voucher-wrap">
-        <table class="v-table" id="cTable">
-          <thead>
-            <tr>
-              <th>Customer #</th><th>Name</th><th>Phone</th>
-              <th>Plan</th><th>Status</th><th>Expires</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="cTableBody">
-            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
-          </tbody>
-        </table>
+   <div class="card" style="padding:0;overflow:hidden;">
+      <div id="cListBody">
+        <div style="text-align:center;padding:32px;"><div class="spinner"></div></div>
       </div>
       <div class="pagination" id="cPagination"></div>
     </div>
   </section>
-
   <!-- CASH SALE -->
   <section class="section" id="section-cashsale">
     <div class="section-head">
