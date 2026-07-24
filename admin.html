@@ -2210,6 +2210,21 @@ function exportCustomers(){
 ══════════════════════════════════════════════════════════════ */
 var _cashSelectedPlan=null;
 var _cashResult=null;
+var _cashCustomerType='regular';
+
+   function setCashCustomerType(type){
+
+  _cashCustomerType=type;
+
+  var fields=document.getElementById('cashCustomerFields');
+
+  if(type==='new'){
+    fields.style.display='block';
+  }else{
+    fields.style.display='none';
+  }
+
+}
 
 async function loadCashSalePlans(){
   var{data:unused}=await supabase.from('vouchers').select('plan_id').eq('is_used',false);
@@ -2258,19 +2273,67 @@ async function completeCashSale(){
     .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
   if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
   var name=document.getElementById('customerName').value.trim()||null;
-  var phone=document.getElementById('customerPhone').value.trim()||null;
-  var ref='CASH-'+Date.now();
-  var{error:e2}=await supabase.from('vouchers').update({
-    is_used:true,used_at:new Date().toISOString(),sold_by:'cash',
-    transaction_reference:ref,...(phone?{phone:phone}:{})
-  }).eq('id',voucher.id);
-  if(e2){toast('Sale failed: '+e2.message,'error');return;}
-  var p=PLANS[_cashSelectedPlan];
-  var expiryDate=new Date(Date.now()+p.hours*3600000).toISOString();
-  await supabase.from('customers').insert({
-    whatsapp:phone,name:name,plan_id:_cashSelectedPlan,plan_name:p.name,
-    voucher_code:voucher.code,price:p.price,expiry_date:expiryDate,status:'active'
-  });
+var phone=document.getElementById('customerPhone').value.trim()||null;
+
+var ref='CASH-'+Date.now();
+
+var{error:e2}=await supabase.from('vouchers').update({
+  is_used:true,
+  used_at:new Date().toISOString(),
+  sold_by:'cash',
+  transaction_reference:ref,
+  ...(phone?{phone:phone}:{})
+}).eq('id',voucher.id);
+
+if(e2){
+  toast('Sale failed: '+e2.message,'error');
+  return;
+}
+
+var p=PLANS[_cashSelectedPlan];
+
+var expiryDate=new Date(
+  Date.now()+p.hours*3600000
+).toISOString();
+
+/*
+  ONLY create a customer when
+  this sale is intentionally linked
+  to a new customer.
+*/
+
+if(_cashCustomerType==='new'){
+
+  if(!name){
+    toast('Customer name is required','error');
+    return;
+  }
+
+  if(!phone){
+    toast('Customer phone is required','error');
+    return;
+  }
+
+  var{error:e3}=await supabase
+    .from('customers')
+    .insert({
+      whatsapp:phone,
+      name:name,
+      plan_id:_cashSelectedPlan,
+      plan_name:p.name,
+      voucher_code:voucher.code,
+      price:p.price,
+      expiry_date:expiryDate,
+      status:'active',
+      is_legacy:false
+    });
+
+  if(e3){
+    toast('Customer creation failed: '+e3.message,'error');
+    return;
+  }
+
+}
   _cashResult={code:voucher.code,plan_id:_cashSelectedPlan};
   document.getElementById('resultPlanName').textContent=p.name;
   document.getElementById('resultCode').textContent=voucher.code.toString().replace(/(.{4})/g,'$1 ').trim();
