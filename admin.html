@@ -815,6 +815,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <option value="new">New Sale</option>
         <option value="legacy">Legacy (Backfilled)</option>
       </select>
+     <button class="btn btn-blue btn-sm" onclick="openAddCustomerModal()">+ New Customer</button>
       <button class="btn btn-outline btn-sm" onclick="loadCustomers()">↻ Refresh</button>
       <button class="btn btn-outline btn-sm" onclick="exportCustomers()">📥 Export CSV</button>
     </div>
@@ -1231,6 +1232,41 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="modal-header"><span class="modal-title">Voucher Details</span><button class="modal-close" onclick="closeModal('vDetailModal')">✕</button></div>
     <div class="modal-body" id="vDetailBody"></div>
     <div class="modal-footer" id="vDetailFooter"></div>
+  </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal-backdrop" id="addCustomerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Customer</span>
+      <button class="modal-close" onclick="closeModal('addCustomerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" type="text" id="newCustName" placeholder="e.g. John Doe"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone (optional)</label>
+        <input class="form-input" type="tel" id="newCustPhone" placeholder="+234…"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan (optional)</label>
+        <select class="form-input" id="newCustPlan">
+          <option value="">— No plan —</option>
+          <option value="31fd47b9-fa74-4da3-a390-9e450ca3923c">Daily Plan</option>
+          <option value="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae">2-Day Plan</option>
+          <option value="6ce23b1a-bdb4-4118-958a-bcd4d637fb96">Half-Week Plan</option>
+          <option value="08dbcc38-34fa-4251-a667-f989d26d625e">Weekly Plan</option>
+          <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly Plan</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addCustomerModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="submitAddCustomer()">Create Customer</button>
+    </div>
   </div>
 </div>
 
@@ -1848,6 +1884,31 @@ function openCustomerDetail(id){
   if(c.whatsapp)footer+='<button class="btn btn-outline" onclick="copyToClipboard(\''+c.whatsapp+'\',\'Phone copied!\')">📋 Copy Phone</button>';
   document.getElementById('cDetailFooter').innerHTML=footer;
   openModal('cDetailModal');
+}
+
+function openAddCustomerModal(){
+  document.getElementById('newCustName').value='';
+  document.getElementById('newCustPhone').value='';
+  document.getElementById('newCustPlan').value='';
+  openModal('addCustomerModal');
+}
+
+async function submitAddCustomer(){
+  var name=document.getElementById('newCustName').value.trim();
+  var phone=document.getElementById('newCustPhone').value.trim()||null;
+  var planId=document.getElementById('newCustPlan').value||null;
+  if(!name){toast('Name is required','error');return;}
+  var row={name:name,whatsapp:phone,status:'active',is_legacy:false};
+  if(planId){
+    var p=PLANS[planId];
+    row.plan_id=planId;row.plan_name=p.name;row.price=p.price;
+    row.expiry_date=new Date(Date.now()+p.hours*3600000).toISOString();
+  }
+  var{error}=await supabase.from('customers').insert(row);
+  if(error){toast('Failed: '+error.message,'error');return;}
+  toast('Customer created!','success');
+  closeModal('addCustomerModal');
+  loadCustomers();
 }
 
 function exportCustomers(){
