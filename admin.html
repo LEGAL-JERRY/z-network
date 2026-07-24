@@ -1329,9 +1329,14 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <input class="form-input" type="text" id="newCustName" placeholder="e.g. John Doe"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Phone (optional)</label>
-        <input class="form-input" type="tel" id="newCustPhone" placeholder="+234…"/>
-      </div>
+              <label class="form-label">Phone Number</label>
+              <input class="form-input" type="tel" id="newCustPhone" placeholder="08012345678"/>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Current Voucher</label>
+              <input class="form-input" type="text" id="newCustVoucher" placeholder="Enter current voucher"/>
+         </div>
       <div class="form-group">
         <label class="form-label">Plan (optional)</label>
         <select class="form-input" id="newCustPlan">
@@ -1343,6 +1348,14 @@ textarea.form-input{height:auto;padding:12px 14px;}
           <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly Plan</option>
         </select>
       </div>
+       <div class="form-group">
+  <label class="form-label">When was this plan activated?</label>
+  <input
+    class="form-input"
+    type="datetime-local"
+    id="newCustActivatedAt"
+  />
+</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('addCustomerModal')">Cancel</button>
@@ -2047,25 +2060,78 @@ function renewalReminderPlaceholder(id){
 function openAddCustomerModal(){
   document.getElementById('newCustName').value='';
   document.getElementById('newCustPhone').value='';
+  document.getElementById('newCustVoucher').value='';
   document.getElementById('newCustPlan').value='';
+  document.getElementById('newCustActivatedAt').value='';
   openModal('addCustomerModal');
 }
 
 async function submitAddCustomer(){
+
   var name=document.getElementById('newCustName').value.trim();
+
   var phone=document.getElementById('newCustPhone').value.trim()||null;
+
+  var voucher=document.getElementById('newCustVoucher').value.trim()||null;
+
   var planId=document.getElementById('newCustPlan').value||null;
-  if(!name){toast('Name is required','error');return;}
-  var row={name:name,whatsapp:phone,status:'active',is_legacy:false};
-  if(planId){
-    var p=PLANS[planId];
-    row.plan_id=planId;row.plan_name=p.name;row.price=p.price;
-    row.expiry_date=new Date(Date.now()+p.hours*3600000).toISOString();
+
+  var activatedAt=document.getElementById('newCustActivatedAt').value||null;
+
+  if(!name){
+    toast('Name is required','error');
+    return;
   }
-  var{error}=await supabase.from('customers').insert(row);
-  if(error){toast('Failed: '+error.message,'error');return;}
+
+  if(!voucher){
+    toast('Current voucher is required','error');
+    return;
+  }
+
+  if(!planId){
+    toast('Plan is required','error');
+    return;
+  }
+
+  if(!activatedAt){
+    toast('Activation date is required','error');
+    return;
+  }
+
+  var p=PLANS[planId];
+
+  var activationDate=new Date(activatedAt);
+
+  var expiryDate=new Date(
+    activationDate.getTime()+p.hours*3600000
+  );
+
+  var row={
+    name:name,
+    whatsapp:phone,
+    voucher_code:voucher,
+    plan_id:planId,
+    plan_name:p.name,
+    price:p.price,
+    activated_at:activationDate.toISOString(),
+    expiry_date:expiryDate.toISOString(),
+    status:'active',
+    is_legacy:true
+  };
+
+  var{error}=await supabase
+    .from('customers')
+    .insert(row);
+
+  if(error){
+    toast('Failed: '+error.message,'error');
+    return;
+  }
+
   toast('Customer created!','success');
+
   closeModal('addCustomerModal');
+
   loadCustomers();
 }
 
