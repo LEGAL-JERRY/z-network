@@ -1838,8 +1838,14 @@ var _cPageSize=20;
 
 async function loadCustomers(){
   _custLoaded=true;
-  document.getElementById('cTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
-  var{data}=await supabase.from('customers').select('*').order('created_at',{ascending:false});
+  document.getElementById('cListBody').innerHTML='<div style="text-align:center;padding:32px;"><div class="spinner"></div></div>';
+  var{data,error}=await supabase.from('customers').select('*').order('created_at',{ascending:false});
+  if(error){
+    console.error('loadCustomers error:',error);
+    document.getElementById('cListBody').innerHTML='<div style="text-align:center;padding:28px;color:var(--red);font-size:0.82rem;">Couldn\'t load customers: '+error.message+'</div>';
+    toast('Customer load failed: '+error.message,'error');
+    return;
+  }
   _allCustomers=data||[];
   filterCustomers();
 }
