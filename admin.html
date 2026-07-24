@@ -373,7 +373,20 @@ body.dark .nav-item.active{color:var(--accent-dark);}
 .v-table tbody tr:nth-child(even){background:color-mix(in srgb, var(--bg-card2) 45%, transparent);}
 .v-table tbody tr:hover{background:var(--accent-glow);}
 .v-table tbody tr:last-child td{border-bottom:none;}
-
+.cust-list-row{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;
+}
+.cust-list-row:last-child{border-bottom:none;}
+.cust-list-row:hover{background:var(--accent-glow);}
+.cust-list-cl{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:0.85rem;color:var(--text);min-width:70px;}
+.cust-list-tags{display:flex;gap:6px;flex:1;flex-wrap:wrap;}
+.cust-list-tag{
+  padding:4px 9px;border-radius:99px;font-size:0.68rem;font-weight:700;
+  background:var(--bg-card2);color:var(--text-muted);border:1px solid var(--border);
+}
+.cust-list-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.cust-list-countdown{font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:700;color:var(--text);}
 .badge{
   display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:99px;
   font-size:0.68rem;font-weight:700;
@@ -777,21 +790,11 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <button class="btn btn-outline btn-sm" id="vRefreshBtn" onclick="loadVouchers()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
     </div>
 
-    <div class="card" style="padding:0;overflow:hidden;">
-      <div class="table-scroll">
-        <table class="v-table" id="vTable">
-          <thead>
-            <tr>
-              <th>Code</th><th>Plan</th><th>Status</th>
-              <th>Channel</th><th>Used At</th><th>Expires</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="vTableBody">
-            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
-          </tbody>
-        </table>
+  <div class="card" style="padding:0;overflow:hidden;">
+      <div id="cListBody">
+        <div style="text-align:center;padding:32px;"><div class="spinner"></div></div>
       </div>
-      <div class="pagination" id="vPagination"></div>
+      <div class="pagination" id="cPagination"></div>
     </div>
   </section>
 
@@ -1865,25 +1868,32 @@ function renderCustomersPage(){
   var start=(_cPage-1)*_cPageSize;
   var page=_filteredCustomers.slice(start,start+_cPageSize);
   if(!page.length){
-    document.getElementById('cTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No customers found.</td></tr>';
+    document.getElementById('cListBody').innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">No customers found.</div>';
     document.getElementById('cPagination').innerHTML='';
     return;
   }
-  document.getElementById('cTableBody').innerHTML=page.map(function(c){
-    var badgeCls=c.status==='active'?'badge-green':c.status==='expired'?'badge-gray':'badge-amber';
-    return'<tr onclick="openCustomerDetail(\''+c.id+'\')">'+
-      '<td data-label="Customer #"><strong>'+(c.customer_number||'—')+'</strong></td>'+
-      '<td data-label="Name">'+(c.name||'<span style=\"color:var(--text-muted)\">(no name)</span>')+'</td>'+
-      '<td data-label="Phone">'+(c.whatsapp||'—')+'</td>'+
-      '<td data-label="Plan">'+(c.plan_name||'—')+'</td>'+
-      '<td data-label="Status"><span class="badge '+badgeCls+'">'+c.status+'</span></td>'+
-      '<td data-label="Expires"><span class="countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span></td>'+
-      '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openCustomerDetail(\''+c.id+'\')">View</button></td>'+
-    '</tr>';
+  document.getElementById('cListBody').innerHTML=page.map(function(c){
+    var isActiveNow=c.expiry_date?(new Date(c.expiry_date).getTime()>Date.now()):false;
+    var statusCls=isActiveNow?'badge-green':'badge-gray';
+    var statusTxt=isActiveNow?'Active':'Inactive';
+    return'<div class="cust-list-row" onclick="openCustomerDetail(\''+c.id+'\')">'+
+      '<div class="cust-list-cl">'+(c.customer_number||'—')+'</div>'+
+      '<div class="cust-list-tags">'+
+        '<span class="cust-list-tag">💳 Buy Plan</span>'+
+        '<span class="cust-list-tag">🐢 Slow Down</span>'+
+        '<span class="cust-list-tag">⚠️ Low Warning</span>'+
+      '</div>'+
+      '<div class="cust-list-right">'+
+        '<span class="badge '+statusCls+'">'+statusTxt+'</span>'+
+        '<span class="cust-list-countdown countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span>'+
+      '</div>'+
+    '</div>';
   }).join('');
   renderPagination('cPagination',_filteredCustomers.length,_cPage,_cPageSize,function(p){_cPage=p;renderCustomersPage();});
 }
 
+
+   
 function openCustomerDetail(id){
   var c=_allCustomers.find(function(x){return x.id===id;});
   if(!c)return;
