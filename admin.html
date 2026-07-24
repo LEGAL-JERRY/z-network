@@ -1181,10 +1181,24 @@ textarea.form-input{height:auto;padding:12px 14px;}
       </div>
     </div>
 
+    <!-- Blackout Control -->
+    <div class="settings-section">
+      <div class="settings-section-title">Blackout Control</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label" id="outageStatusLabel">No active blackout</div>
+            <div class="settings-row-sub" id="outageStatusSub">—</div>
+          </div>
+          <button class="btn btn-red btn-sm" id="startOutageBtn" onclick="startBlackout()">Start Blackout</button>
+          <button class="btn btn-green btn-sm" id="restoreOutageBtn" style="display:none;" onclick="restoreBlackout()">Restore Power</button>
+        </div>
+      </div>
+    </div>
+
     <!-- About -->
     <div class="settings-section">
       <div class="settings-section-title">About</div>
-      <div class="card settings-card">
         <div class="settings-row">
           <div class="settings-row-label">Version</div>
           <div style="font-size:0.83rem;color:var(--text-muted);">v1.1.0</div>
@@ -1546,7 +1560,8 @@ function navigate(id,el){
   document.getElementById('section-'+id).classList.add('active');
   document.getElementById('topbarTitle').textContent=SECTION_TITLES[id]||id;
   document.querySelectorAll('[data-section="'+id+'"]').forEach(function(n){n.classList.add('active');});
-  if(id==='overview')loadOverview();
+  if(id==='overview')
+     loadOverview();
   else if(id==='vouchers'){if(!_vouchersLoaded)loadVouchers();}
   else if(id==='customers'){if(!_custLoaded)loadCustomers();}
   else if(id==='cashsale')loadCashSalePlans();
@@ -2472,7 +2487,76 @@ function downloadCSV(rows,filename){
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
+var _activeOutage=null;
+
+async function checkActiveOutage(){
+  var{data}=await supabase.from('outage_events').select('*').is('resolved_at',null).order('started_at',{ascending:false}).limit(1);
+  _activeOutage=(data&&data[0])||null;
+  var startBtn=document.getElementById('startOutageBtn');
+  var restoreBtn=document.getElementById('restoreOutageBtn');
+  var label=document.getElementById('outageStatusLabel');
+  var sub=document.getElementById('outageStatusSub');
+  if(!startBtn)return; // section not on this page load yet
+  if(_activeOutage){
+    label.textContent='⚠️ Blackout in progress';
+    sub.textContent='Started '+fmtDate(_activeOutage.started_at);
+    startBtn.style.display='none';restoreBtn.style.display='';
+  }else{
+    label.textContent='No active blackout';
+    sub.textContent='—';
+    startBtn.style.display='';restoreBtn.style.display='none';
+  }
+}
+
+async function startBlackout(){
+  var ok=await showConfirm('Start Blackout','Mark power as OUT right now? This starts the outage timer.','ic-warn');
+  if(!ok)return;
+  var{error}=await supabase.from('outage_events').insert({started_at:new Date().toISOString()});
+  if(error){toast('Failed: '+error.message,'error');return;}
+  toast('Blackout started','success');
+  checkActiveOutage();
+}
+
+async function restoreBlackout(){
+  if(!_activeOutage)return;
+  var resolvedAt=new Date();
+  var startedAt=new Date(_activeOutage.started_at);
+  var durationMin=Math.round((resolvedAt-startedAt)/60000);
+  var hrs=(durationMin/60).toFixed(1);
+
+  if(durationMin<300){
+    var okShort=await showConfirm('Restore Power','Outage lasted '+hrs+'h — under the 5h threshold. No credit applied. Close this event?','ic-warn');
+    if(!okShort)return;
+    await supabase.from('outage_events').update({resolved_at:resolvedAt.toISOString(),duration_minutes:durationMin,applied:false,dismissed:true}).eq('id',_activeOutage.id);
+    toast('Outage closed, no credit applied','success');
+    checkActiveOutage();
+    return;
+  }
+
+  var{data:affected}=await supabase.from('customers').select('id,expiry_date').eq('status','active').gt('expiry_date',_activeOutage.started_at);
+  var count=(affected||[]).length;
+
+  var apply=await showConfirm('Apply Blackout Credit?','Outage lasted '+hrs+'h. Add '+hrs+'h to expiry of '+count+' active customers?','ic-warn');
+  if(!apply){
+    await supabase.from('outage_events').update({resolved_at:resolvedAt.toISOString(),duration_minutes:durationMin,applied:false,dismissed:true}).eq('id',_activeOutage.id);
+    toast('Outage closed, credit discarded','success');
+    checkActiveOutage();
+    return;
+  }
+
+  var updates=(affected||[]).map(function(c){
+    var newExpiry=new Date(new Date(c.expiry_date).getTime()+durationMin*60000).toISOString();
+    return supabase.from('customers').update({expiry_date:newExpiry}).eq('id',c.id);
+  });
+  await Promise.all(updates);
+
+  await supabase.from('outage_events').update({resolved_at:resolvedAt.toISOString(),duration_minutes:durationMin,applied:true,affected_count:count}).eq('id',_activeOutage.id);
+  toast('Credited '+count+' customers with '+hrs+'h','success');
+  checkActiveOutage();
+}
+
 loadOverview();
+checkActiveOutage();
 </script>
 </body>
 </html>
