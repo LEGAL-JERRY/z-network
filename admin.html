@@ -624,10 +624,13 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="nav-item active" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-overview"></span> Overview
     </div>
-    <div class="nav-item" data-section="vouchers" onclick="navigate('vouchers',this)" tabindex="0" role="button">
-      <span class="nav-icon" data-icon="ic-voucher"></span> Vouchers
+    <div class="nav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
+      <span class="nav-icon">🎟️</span> Vouchers
     </div>
-    <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)" tabindex="0" role="button">
+    <div class="nav-item" data-section="customers" onclick="navigate('customers',this)">
+      <span class="nav-icon">👤</span> Customers
+    </div>
+    <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
       <span class="nav-icon" data-icon="ic-cash"></span> Cash Sale
     </div>
     <div class="nav-item" data-section="expiry" onclick="navigate('expiry',this)" tabindex="0" role="button">
@@ -789,6 +792,48 @@ textarea.form-input{height:auto;padding:12px 14px;}
         </table>
       </div>
       <div class="pagination" id="vPagination"></div>
+    </div>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section class="section" id="section-customers">
+    <div class="section-title">Customers</div>
+    <div class="section-sub">Permanent customer identities linked to voucher sales</div>
+
+    <div class="filters-row">
+      <input class="filter-input" type="text" id="cSearch" placeholder="Search name or phone…" oninput="filterCustomers()"/>
+      <select class="filter-select" id="cStatus" onchange="filterCustomers()">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="expired">Expired</option>
+        <option value="grace_period">Grace Period</option>
+        <option value="suspended">Suspended</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select class="filter-select" id="cLegacy" onchange="filterCustomers()">
+        <option value="">All Sources</option>
+        <option value="new">New Sale</option>
+        <option value="legacy">Legacy (Backfilled)</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="loadCustomers()">↻ Refresh</button>
+      <button class="btn btn-outline btn-sm" onclick="exportCustomers()">📥 Export CSV</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="voucher-wrap">
+        <table class="v-table" id="cTable">
+          <thead>
+            <tr>
+              <th>Customer #</th><th>Name</th><th>Phone</th>
+              <th>Plan</th><th>Status</th><th>Expires</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="cTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="cPagination"></div>
     </div>
   </section>
 
@@ -1189,6 +1234,19 @@ textarea.form-input{height:auto;padding:12px 14px;}
   </div>
 </div>
 
+<!-- Customer Detail Modal -->
+<div class="modal-backdrop" id="cDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Customer Details</span>
+      <button class="modal-close" onclick="closeModal('cDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="cDetailBody"></div>
+    <div class="modal-footer" id="cDetailFooter"></div>
+  </div>
+</div>
+
+<!-- Add Vouchers Modal -->
 <div class="modal-backdrop" id="addVouchersModal">
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Add Vouchers</span><button class="modal-close" onclick="closeModal('addVouchersModal')">✕</button></div>
@@ -1421,7 +1479,7 @@ document.addEventListener('keydown',function(e){
 ══════════════════════════════════════════════════════════════ */
 var currentSection='overview';
 var SECTION_TITLES={
-  overview:'Overview',vouchers:'Vouchers',cashsale:'Cash Sale',expiry:'Expiry Watch',
+  overview:'Overview',vouchers:'Vouchers',customers:'Customers',cashsale:'Cash Sale',
   saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
 };
 function navigate(id,el){
@@ -1434,6 +1492,7 @@ function navigate(id,el){
   document.querySelectorAll('[data-section="'+id+'"]').forEach(function(n){n.classList.add('active');});
   if(id==='overview')loadOverview();
   else if(id==='vouchers'){if(!_vouchersLoaded)loadVouchers();}
+  else if(id==='customers'){if(!_custLoaded)loadCustomers();}
   else if(id==='cashsale')loadCashSalePlans();
   else if(id==='expiry')loadExpiryData();
   else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
@@ -1707,6 +1766,97 @@ function exportAllVouchers(){
       return{code:v.code,plan:getPlanName(v.plan_id),status:v.is_used?'used':'unused',sold_by:v.sold_by||'',used_at:v.used_at||'',expires:getExpiry(v.used_at,v.plan_id),ref:v.transaction_reference||''};
     }),'all_vouchers.csv');
   });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CASH SALE
+══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   CUSTOMERS
+══════════════════════════════════════════════════════════════ */
+var _allCustomers=[];
+var _filteredCustomers=[];
+var _custLoaded=false;
+var _cPage=1;
+var _cPageSize=20;
+
+async function loadCustomers(){
+  _custLoaded=true;
+  document.getElementById('cTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  var{data}=await supabase.from('customers').select('*').order('created_at',{ascending:false});
+  _allCustomers=data||[];
+  filterCustomers();
+}
+
+function filterCustomers(){
+  var search=document.getElementById('cSearch').value.toLowerCase();
+  var status=document.getElementById('cStatus').value;
+  var legacy=document.getElementById('cLegacy').value;
+  _filteredCustomers=_allCustomers.filter(function(c){
+    if(search){
+      var n=(c.name||'').toLowerCase();
+      var p=(c.whatsapp||'').toLowerCase();
+      if(!n.includes(search)&&!p.includes(search))return false;
+    }
+    if(status&&c.status!==status)return false;
+    if(legacy==='new'&&c.is_legacy)return false;
+    if(legacy==='legacy'&&!c.is_legacy)return false;
+    return true;
+  });
+  _cPage=1;
+  renderCustomersPage();
+}
+
+function renderCustomersPage(){
+  var start=(_cPage-1)*_cPageSize;
+  var page=_filteredCustomers.slice(start,start+_cPageSize);
+  if(!page.length){
+    document.getElementById('cTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No customers found.</td></tr>';
+    document.getElementById('cPagination').innerHTML='';
+    return;
+  }
+  document.getElementById('cTableBody').innerHTML=page.map(function(c){
+    var badgeCls=c.status==='active'?'badge-green':c.status==='expired'?'badge-gray':'badge-amber';
+    return'<tr onclick="openCustomerDetail(\''+c.id+'\')">'+
+      '<td data-label="Customer #"><strong>'+(c.customer_number||'—')+'</strong></td>'+
+      '<td data-label="Name">'+(c.name||'<span style=\"color:var(--text-muted)\">(no name)</span>')+'</td>'+
+      '<td data-label="Phone">'+(c.whatsapp||'—')+'</td>'+
+      '<td data-label="Plan">'+(c.plan_name||'—')+'</td>'+
+      '<td data-label="Status"><span class="badge '+badgeCls+'">'+c.status+'</span></td>'+
+      '<td data-label="Expires">'+(c.expiry_date?fmtDate(c.expiry_date):'—')+'</td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openCustomerDetail(\''+c.id+'\')">View</button></td>'+
+    '</tr>';
+  }).join('');
+  renderPagination('cPagination',_filteredCustomers.length,_cPage,_cPageSize,function(p){_cPage=p;renderCustomersPage();});
+}
+
+function openCustomerDetail(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c)return;
+  document.getElementById('cDetailBody').innerHTML=
+    '<div class="detail-row"><span class="detail-label">Customer #</span><span class="detail-val" style="font-size:1.1rem;font-weight:800;">'+(c.customer_number||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Name</span><span class="detail-val">'+(c.name||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-val">'+(c.whatsapp||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Plan</span><span class="detail-val">'+(c.plan_name||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Price</span><span class="detail-val">'+(c.price?fmtMoney(c.price):'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-val">'+c.status+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Voucher Code</span><span class="detail-val">'+(c.voucher_code||'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val">'+(c.expiry_date?fmtDate(c.expiry_date):'—')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Source</span><span class="detail-val">'+(c.is_legacy?'Legacy (backfilled)':'New Sale')+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-val">'+fmtDate(c.created_at)+'</span></div>';
+  var footer='';
+  if(c.whatsapp)footer+='<button class="btn btn-outline" onclick="copyToClipboard(\''+c.whatsapp+'\',\'Phone copied!\')">📋 Copy Phone</button>';
+  document.getElementById('cDetailFooter').innerHTML=footer;
+  openModal('cDetailModal');
+}
+
+function exportCustomers(){
+  var data=_filteredCustomers.map(function(c){
+    return{customer_number:c.customer_number,name:c.name||'',phone:c.whatsapp||'',
+      plan:c.plan_name||'',price:c.price||'',status:c.status,voucher_code:c.voucher_code||'',
+      expiry_date:c.expiry_date||'',is_legacy:c.is_legacy,created_at:c.created_at};
+  });
+  downloadCSV(data,'customers_export.csv');
 }
 
 /* ══════════════════════════════════════════════════════════════
