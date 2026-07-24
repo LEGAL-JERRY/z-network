@@ -1453,7 +1453,7 @@ setInterval(function(){
   document.querySelectorAll('.countdown[data-expiry]').forEach(function(el){
     el.textContent=getCountdown(el.getAttribute('data-expiry'));
   });
-},1000);}
+},1000);
 function timeUntil(d){
   var diff=(new Date(d).getTime()-Date.now())/1000;
   if(diff<=0)return'Now';
