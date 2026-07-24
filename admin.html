@@ -571,12 +571,10 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
 
 <!-- Auth check -->
 <script>
-  var _SUPABASE_URL='https://yohndnmwvgcwadkytmix.supabase.co';
-  var _SUPABASE_ANON='YOUR_ANON_KEY'; // same key used below
-  var _authClient=window.supabase.createClient(_SUPABASE_URL,_SUPABASE_ANON);
-  (async function(){
-    var{data:{session}}=await _authClient.auth.getSession();
-    if(!session) window.location.replace('admin-login.html');
+  (function(){
+    if(!sessionStorage.getItem('zn_admin')){
+      window.location.replace('admin-login.html');
+    }
   })();
   (function(){
     if(localStorage.getItem('zn_theme')==='dark'){
@@ -587,7 +585,6 @@ body.dark .toast { box-shadow: 8px 8px 0 rgba(255,255,255,0.2); }
       });
     }
   })();
-   
 </script>
 
 <body>
@@ -1397,10 +1394,13 @@ function toggleDark(){
   if(_chartInstance)rebuildChart();
 }
 function logout(){
-  showConfirm('Log Out','Are you sure you want to log out of the admin dashboard?','🔒').then(async function(ok){
-    if(ok){await supabase.auth.signOut();window.location.href='admin-login.html';}
+  showConfirm('Log Out','Are you sure you want to log out of the admin dashboard?','🔒').then(function(ok){
+    if(ok){
+      sessionStorage.removeItem('zn_admin');
+      window.location.href='admin-login.html';
+    }
   });
-}
+}}
 
 /* ══════════════════════════════════════════════════════════════
    CLOCK
