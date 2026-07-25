@@ -2241,20 +2241,15 @@ async function confirmBuyPlan(planId){
   if(e3){toast('Customer update failed: '+e3.message,'error');return;}
 
   // 4. Router: switch profile AND clear disabled=yes so kick-suspended stops targeting them.
+ // 4. Router: 'resume' handles disabled=no AND profile switch in one poller-supported command.
   var{error:e4}=await supabase.from('router_commands').insert({
     router_id:PRODUCTION_ROUTER_ID,
-    command_type:'change_profile',
+    command_type:'resume',
     payload:{username:currentUsername,param:profileName},
     status:'pending'
   });
-  var{error:e6}=await supabase.from('router_commands').insert({
-    router_id:PRODUCTION_ROUTER_ID,
-    command_type:'enable',
-    payload:{username:currentUsername,param:''},
-    status:'pending'
-  });
-  if(e4||e6){toast('Saved, but a router command failed to queue: '+((e4&&e4.message)||(e6&&e6.message)),'error');}
-  else{toast((isRenewal?'Renewed ':'Purchased ')+p.name+' — speed & access update within 1 min','success');}
+  if(e4){toast('Saved, but router command failed to queue: '+e4.message,'error');}
+  else{toast((isRenewal?'Renewed ':'Purchased ')+p.name+' — access updates within 1 min','success');}
 
   closeModal('buyPlanModal');
   loadCustomers();
