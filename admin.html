@@ -2098,7 +2098,7 @@ var page=sortedCustomers.slice(start,start+_cPageSize);
     '<button class="cust-list-action" onclick="event.stopPropagation();pauseSubscription(\''+c.id+'\')">'+
       '⏸ Pause Sub'+
     '</button>'+
-    '<button class="cust-list-action" onclick="event.stopPropagation();">'+
+   '<button class="cust-list-action" onclick="event.stopPropagation();buyPlanPlaceholder(\''+c.id+'\')">'+
       '▶ Resume Sub'+
     '</button>'+
   '</div>'+
@@ -2108,8 +2108,7 @@ var page=sortedCustomers.slice(start,start+_cPageSize);
 }
 
 
-   
-function openCustomerDetail(id){
+async function openCustomerDetail(id){
   var c=_allCustomers.find(function(x){return x.id===id;});
   if(!c)return;
   document.getElementById('cDetailBody').innerHTML=
@@ -2122,7 +2121,22 @@ function openCustomerDetail(id){
     '<div class="detail-row"><span class="detail-label">Voucher Code</span><span class="detail-val">'+(c.voucher_code||'—')+'</span></div>'+
 '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span></div>'+
     '<div class="detail-row"><span class="detail-label">Source</span><span class="detail-val">'+(c.is_legacy?'Legacy (backfilled)':'New Sale')+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-val">'+fmtDate(c.created_at)+'</span></div>';
+    '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-val">'+fmtDate(c.created_at)+'</span></div>'+
+    '<div style="margin-top:16px;"><div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px;">Renewal History</div>'+
+    '<div id="custRenewalHistory" style="font-size:0.82rem;color:var(--text-muted);">Loading…</div></div>';
+
+supabase.from('sub_renewals').select('*').eq('customer_id',id).order('created_at',{ascending:false}).then(function(r){
+  var rows=r.data||[];
+  var el=document.getElementById('custRenewalHistory');
+  if(!el)return;
+  if(!rows.length){el.textContent='No renewals recorded yet.';return;}
+  el.innerHTML=rows.map(function(row){
+    return'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">'+
+      '<span>'+row.plan_name+' — '+fmtMoney(row.amount)+'</span>'+
+      '<span style="color:var(--text-muted);">'+fmtDate(row.created_at)+'</span></div>';
+  }).join('');
+});
+
 var footer='<div style="display:flex;gap:8px;width:100%;">'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="buyPlanPlaceholder(\''+c.id+'\')">💳 Buy Plan</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="speedTogglePlaceholder(\''+c.id+'\')">🐢 Slow Down</button>'+
@@ -2172,11 +2186,19 @@ async function confirmBuyPlan(planId){
   var profileName=PLAN_ROUTER_PROFILE[planId];
   if(!profileName){toast('No router profile mapped for this plan','error');return;}
 
-  var ok=await showConfirm('Confirm Purchase',(c.name||c.voucher_code)+' — '+p.name+' ('+fmtMoney(p.price)+'). Deducts stock, logs revenue, updates their live speed.','ic-warn');
+  var isRenewal=c.status==='suspended';
+  var ok=await showConfirm(
+    isRenewal?'Confirm Renewal':'Confirm Purchase',
+    (c.name||c.voucher_code)+' — '+p.name+' ('+fmtMoney(p.price)+'). Deducts stock, logs revenue, updates their live speed'+(isRenewal?', re-enables their connection.':'.'),
+    'ic-warn'
+  );
   if(!ok)return;
 
   var currentUsername=c.voucher_code;
+  var expiryBefore=c.expiry_date||null;
 
+  // 1. Deduct real stock — this voucher's code is never shown to the customer,
+  //    it exists purely as the stock/revenue depletion record.
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',planId).eq('is_used',false).limit(1).single();
   if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
@@ -2192,6 +2214,23 @@ async function confirmBuyPlan(planId){
   if(e2){toast('Voucher update failed: '+e2.message,'error');return;}
 
   var expiryDate=new Date(Date.now()+p.hours*3600000).toISOString();
+
+  // 2. The real, customer-facing track record — tied to their permanent code.
+  var{error:e5}=await supabase.from('sub_renewals').insert({
+    customer_id:id,
+    voucher_code:currentUsername,
+    consumed_voucher_id:voucher.id,
+    plan_id:planId,
+    plan_name:p.name,
+    amount:p.price,
+    channel:'cash',
+    transaction_reference:ref,
+    expiry_before:expiryBefore,
+    expiry_after:expiryDate
+  });
+  if(e5){toast('Purchase saved, but renewal record failed to log: '+e5.message,'error');}
+
+  // 3. Update the customer — their voucher_code is untouched.
   var{error:e3}=await supabase.from('customers').update({
     plan_id:planId,
     plan_name:p.name,
@@ -2201,14 +2240,21 @@ async function confirmBuyPlan(planId){
   }).eq('id',id);
   if(e3){toast('Customer update failed: '+e3.message,'error');return;}
 
+  // 4. Router: switch profile AND clear disabled=yes so kick-suspended stops targeting them.
   var{error:e4}=await supabase.from('router_commands').insert({
     router_id:PRODUCTION_ROUTER_ID,
     command_type:'change_profile',
     payload:{username:currentUsername,param:profileName},
     status:'pending'
   });
-  if(e4){toast('Purchase saved, but router command failed to queue: '+e4.message,'error');}
-  else{toast('Purchased '+p.name+' — speed updates within 1 min','success');}
+  var{error:e6}=await supabase.from('router_commands').insert({
+    router_id:PRODUCTION_ROUTER_ID,
+    command_type:'enable',
+    payload:{username:currentUsername,param:''},
+    status:'pending'
+  });
+  if(e4||e6){toast('Saved, but a router command failed to queue: '+((e4&&e4.message)||(e6&&e6.message)),'error');}
+  else{toast((isRenewal?'Renewed ':'Purchased ')+p.name+' — speed & access update within 1 min','success');}
 
   closeModal('buyPlanModal');
   loadCustomers();
