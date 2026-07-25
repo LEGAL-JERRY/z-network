@@ -2259,12 +2259,16 @@ async function confirmBuyPlan(planId){
   if(!profileName){toast('No router profile mapped for this plan','error');return;}
 
   var isRenewal=c.status==='suspended';
+
+  // open the tab synchronously, before any await, or the browser blocks the popup later
+  var waTab=c.whatsapp?window.open('','_blank'):null;
+
   var ok=await showConfirm(
     isRenewal?'Confirm Renewal':'Confirm Purchase',
     (c.name||c.voucher_code)+' — '+p.name+' ('+fmtMoney(p.price)+'). Deducts stock, logs revenue, updates their live speed'+(isRenewal?', re-enables their connection.':'.'),
     'ic-warn'
-  );
-  if(!ok)return;
+);
+  if(!ok){if(waTab)waTab.close();return;}
 
   var currentUsername=c.voucher_code;
   var expiryBefore=c.expiry_date||null;
@@ -2273,7 +2277,7 @@ async function confirmBuyPlan(planId){
   //    it exists purely as the stock/revenue depletion record.
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',planId).eq('is_used',false).limit(1).single();
-  if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
+  if(e1||!voucher){toast('No vouchers available for this plan','error');if(waTab)waTab.close();return;}
 
   var ref='RENEW-'+Date.now();
   var{error:e2}=await supabase.from('vouchers').update({
@@ -2310,7 +2314,7 @@ async function confirmBuyPlan(planId){
     expiry_date:expiryDate,
     status:'active'
   }).eq('id',id);
-  if(e3){toast('Customer update failed: '+e3.message,'error');return;}
+  if(e3){toast('Customer update failed: '+e3.message,'error');if(waTab)waTab.close();return;}
 
   // 4. Router: switch profile AND clear disabled=yes so kick-suspended stops targeting them.
  // 4. Router: 'resume' handles disabled=no AND profile switch in one poller-supported command.
@@ -2320,8 +2324,23 @@ async function confirmBuyPlan(planId){
     payload:{username:currentUsername,param:profileName},
     status:'pending'
   });
-  if(e4){toast('Saved, but router command failed to queue: '+e4.message,'error');}
+if(e4){toast('Saved, but router command failed to queue: '+e4.message,'error');}
   else{toast((isRenewal?'Renewed ':'Purchased ')+p.name+' — access updates within 1 min','success');}
+
+  if(c.whatsapp){
+    var name=c.name||'there';
+    var expiryStr=new Date(expiryDate).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    var msg='Hi '+name+' 👋\n\n'+
+      (isRenewal?'Your plan has been *renewed* on '+NET_NAME+'! ✅':'Your new plan is active on '+NET_NAME+'! ✅')+'\n\n'+
+      '📦 Plan: *'+p.name+'*\n'+
+      '💰 Amount: '+fmtMoney(p.price)+'\n'+
+      '⏰ Valid until: *'+expiryStr+'*\n\n'+
+      'You\'re back online — enjoy! 🌐';
+    var waUrl='https://wa.me/'+c.whatsapp.replace(/[^0-9]/g,'').replace(/^0/,'234')+'?text='+encodeURIComponent(msg);
+    if(waTab){waTab.location.href=waUrl;}else{window.open(waUrl,'_blank');}
+  }else if(waTab){
+    waTab.close();
+  }
 
   closeModal('buyPlanModal');
   loadCustomers();
@@ -2586,7 +2605,7 @@ async function completeCashSale(){
   if(!_cashSelectedPlan){toast('No plan selected','error');return;}
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
-  if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
+ if(e2){toast('Voucher update failed: '+e2.message,'error');if(waTab)waTab.close();return;}
   var name=document.getElementById('customerName').value.trim()||null;
 var phone=document.getElementById('customerPhone').value.trim()||null;
 
