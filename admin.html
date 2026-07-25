@@ -399,6 +399,11 @@ body.dark .nav-item.active{color:var(--accent-dark);}
 .cust-row-darkgreen{
   border-left-color:var(--green);
 }
+.cust-row-removed{
+  background:var(--bg-card2);
+  border-left-color:var(--text-muted);
+  opacity:0.55;
+}
 
 .cust-list-row:last-child{
   border-bottom:none;
@@ -2060,6 +2065,7 @@ function filterCustomers(){
       var p=(c.whatsapp||'').toLowerCase();
       if(!n.includes(search)&&!p.includes(search))return false;
     }
+    if(!status&&c.status==='cancelled')return false; // hide removed customers unless explicitly filtered for
     if(status&&c.status!==status)return false;
     if(legacy==='new'&&c.is_legacy)return false;
     if(legacy==='legacy'&&!c.is_legacy)return false;
@@ -2072,6 +2078,7 @@ function filterCustomers(){
 var ALMOST_EXPIRED_HOURS=6;
 
 function getCustRowStatus(c){
+  if(c.status==='cancelled')return{cls:'cust-row-removed',label:'Removed',weight:4};
   if(c.status==='suspended')return{cls:'cust-row-red',label:'Paused',weight:3};
   var expiryMs=c.expiry_date?new Date(c.expiry_date).getTime():null;
   if(expiryMs===null)return{cls:'',label:'No plan',weight:2};
