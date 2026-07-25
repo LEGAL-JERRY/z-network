@@ -2151,7 +2151,7 @@ async function changeCustomerProfile(id,profileName){
 }
 
 function speedTogglePlaceholder(id){
-  changeCustomerProfile(id,'monthly');
+  changeCustomerProfile(id,'throttled');
 }
 function sendWarningMessage(id){
   var c=_allCustomers.find(function(x){return x.id===id;});
