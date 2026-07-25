@@ -1425,6 +1425,23 @@ textarea.form-input{height:auto;padding:12px 14px;}
   </div>
 </div>
 
+   <!-- Buy Plan Modal -->
+<div class="modal-backdrop" id="buyPlanModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Choose a Plan</span>
+      <button class="modal-close" onclick="closeModal('buyPlanModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:14px;" id="buyPlanCustomerName">—</p>
+      <div class="plan-grid" id="buyPlanGrid"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('buyPlanModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Customer Detail Modal -->
 <div class="modal-backdrop" id="cDetailModal">
   <div class="modal">
@@ -1571,6 +1588,15 @@ var PLANS = {
   '6ce23b1a-bdb4-4118-958a-bcd4d637fb96': { name:'Half-Week Plan', price:1000, hours:84  },
   '08dbcc38-34fa-4251-a667-f989d26d625e': { name:'Weekly Plan',    price:2000, hours:168 },
   '925f31d8-6a56-450b-aca0-5b165e336642': { name:'Monthly Plan',   price:6000, hours:720 },
+};
+
+// plan_id -> actual RouterOS hotspot profile name (must match /ip hotspot user profile print exactly)
+var PLAN_ROUTER_PROFILE = {
+  '31fd47b9-fa74-4da3-a390-9e450ca3923c': 'daily',
+  'cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae': '2day',
+  '6ce23b1a-bdb4-4118-958a-bcd4d637fb96': 'halfweek',
+  '08dbcc38-34fa-4251-a667-f989d26d625e': 'weekly',
+  '925f31d8-6a56-450b-aca0-5b165e336642': 'monthly',
 };
 
 var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -2111,8 +2137,82 @@ function removeCustomerPlaceholder(id){
     if(ok)toast('Remove From System — coming soon','error');
   });
 }
-function buyPlanPlaceholder(id){
-  toast('Buy Plan — coming soon','success');
+var _buyPlanCustomerId=null;
+
+async function buyPlanPlaceholder(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  _buyPlanCustomerId=id;
+  document.getElementById('buyPlanCustomerName').textContent='For: '+(c.name||c.voucher_code||'—');
+  document.getElementById('buyPlanGrid').innerHTML='<div class="spinner"></div>';
+  openModal('buyPlanModal');
+
+  var{data:unused}=await supabase.from('vouchers').select('plan_id').eq('is_used',false);
+  var stock={};Object.keys(PLANS).forEach(function(pid){stock[pid]=0;});
+  (unused||[]).forEach(function(v){if(stock[v.plan_id]!==undefined)stock[v.plan_id]++;});
+
+  document.getElementById('buyPlanGrid').innerHTML=Object.keys(PLANS).map(function(pid){
+    var p=PLANS[pid];var n=stock[pid];var disabled=n===0?'disabled':'';
+    return'<div class="plan-card '+disabled+'" onclick="confirmBuyPlan(\''+pid+'\')" tabindex="0" role="button">'+
+      '<div class="plan-card-name">'+p.name+'</div>'+
+      '<div class="plan-card-price">'+fmtMoney(p.price)+'</div>'+
+      '<div class="plan-card-dur">'+p.hours+'hrs access</div>'+
+      '<div class="plan-card-stock">'+(n>0?n+' in stock':'Out of stock')+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function confirmBuyPlan(planId){
+  var id=_buyPlanCustomerId;
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.voucher_code){toast('No voucher code on file — cannot update their live connection','error');return;}
+
+  var p=PLANS[planId];
+  var profileName=PLAN_ROUTER_PROFILE[planId];
+  if(!profileName){toast('No router profile mapped for this plan','error');return;}
+
+  var ok=await showConfirm('Confirm Purchase',(c.name||c.voucher_code)+' — '+p.name+' ('+fmtMoney(p.price)+'). Deducts stock, logs revenue, updates their live speed.','ic-warn');
+  if(!ok)return;
+
+  var currentUsername=c.voucher_code;
+
+  var{data:voucher,error:e1}=await supabase.from('vouchers')
+    .select('id,code').eq('plan_id',planId).eq('is_used',false).limit(1).single();
+  if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
+
+  var ref='RENEW-'+Date.now();
+  var{error:e2}=await supabase.from('vouchers').update({
+    is_used:true,
+    used_at:new Date().toISOString(),
+    sold_by:'cash',
+    transaction_reference:ref,
+    phone:c.whatsapp||null
+  }).eq('id',voucher.id);
+  if(e2){toast('Voucher update failed: '+e2.message,'error');return;}
+
+  var expiryDate=new Date(Date.now()+p.hours*3600000).toISOString();
+  var{error:e3}=await supabase.from('customers').update({
+    plan_id:planId,
+    plan_name:p.name,
+    price:p.price,
+    expiry_date:expiryDate,
+    status:'active'
+  }).eq('id',id);
+  if(e3){toast('Customer update failed: '+e3.message,'error');return;}
+
+  var{error:e4}=await supabase.from('router_commands').insert({
+    router_id:PRODUCTION_ROUTER_ID,
+    command_type:'change_profile',
+    payload:{username:currentUsername,param:profileName},
+    status:'pending'
+  });
+  if(e4){toast('Purchase saved, but router command failed to queue: '+e4.message,'error');}
+  else{toast('Purchased '+p.name+' — speed updates within 1 min','success');}
+
+  closeModal('buyPlanModal');
+  loadCustomers();
+  if(document.getElementById('cDetailModal').classList.contains('show'))openCustomerDetail(id);
 }
 var TEST_ROUTER_ID='9e4fcdb6-699e-426a-ab4c-32110eb5ae4b'; // sandbox test router only
 
