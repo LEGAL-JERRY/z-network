@@ -379,8 +379,25 @@ body.dark .nav-item.active{color:var(--accent-dark);}
   gap:14px;
   padding:14px 16px;
   border-bottom:1px solid var(--border);
-  transition:background 0.1s;
+  border-left:4px solid transparent;
+  transition:background 0.15s,border-color 0.15s;
   min-width:0;
+}
+.cust-row-red{
+  background:var(--red-glow);
+  border-left-color:var(--red);
+}
+.cust-row-red:hover{background:var(--red-glow);filter:brightness(1.08);}
+.cust-row-yellow{
+  background:var(--amber-glow);
+  border-left-color:var(--amber);
+}
+.cust-row-lightgreen{
+  background:rgba(53,194,133,0.06);
+  border-left-color:#6EE7B0;
+}
+.cust-row-darkgreen{
+  border-left-color:var(--green);
 }
 
 .cust-list-row:last-child{
@@ -2052,8 +2069,25 @@ function filterCustomers(){
   renderCustomersPage();
 }
 
+var ALMOST_EXPIRED_HOURS=6;
+
+function getCustRowStatus(c){
+  if(c.status==='suspended')return{cls:'cust-row-red',label:'Paused',weight:3};
+  var expiryMs=c.expiry_date?new Date(c.expiry_date).getTime():null;
+  if(expiryMs===null)return{cls:'',label:'No plan',weight:2};
+  var now=Date.now();
+  if(expiryMs<=now)return{cls:'cust-row-yellow',label:'Expired',weight:1};
+  var hoursLeft=(expiryMs-now)/3600000;
+  if(hoursLeft<=ALMOST_EXPIRED_HOURS)return{cls:'cust-row-lightgreen',label:'Expiring Soon',weight:0};
+  return{cls:'cust-row-darkgreen',label:'Active',weight:0};
+}
+
 function renderCustomersPage(){
  var sortedCustomers=_filteredCustomers.slice().sort(function(a,b){
+  var aStatus=getCustRowStatus(a);
+  var bStatus=getCustRowStatus(b);
+  if(aStatus.weight!==bStatus.weight)return bStatus.weight-aStatus.weight;
+
   var aExpiry=a.expiry_date
     ? new Date(a.expiry_date).getTime()
     : Infinity;
@@ -2072,11 +2106,12 @@ var page=sortedCustomers.slice(start,start+_cPageSize);
     document.getElementById('cPagination').innerHTML='';
     return;
   }
-  document.getElementById('cListBody').innerHTML=page.map(function(c){
-    var isActiveNow=c.expiry_date?(new Date(c.expiry_date).getTime()>Date.now()):false;
-    var statusCls=isActiveNow?'badge-green':'badge-gray';
-    var statusTxt=isActiveNow?'Active':'Inactive';
-    return'<div class="cust-list-row" onclick="openCustomerDetail(\''+c.id+'\')">'+
+document.getElementById('cListBody').innerHTML=page.map(function(c){
+    var rowStatus=getCustRowStatus(c);
+    var badgeMap={'cust-row-red':'badge-red','cust-row-yellow':'badge-amber','cust-row-lightgreen':'badge-green','cust-row-darkgreen':'badge-green','':'badge-gray'};
+    var statusCls=badgeMap[rowStatus.cls];
+    var statusTxt=rowStatus.label;
+    return'<div class="cust-list-row '+rowStatus.cls+'" onclick="openCustomerDetail(\''+c.id+'\')">'+
   '<div class="cust-list-cl">'+
     (c.customer_number||'—')+
   '</div>'+
