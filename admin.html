@@ -2095,7 +2095,7 @@ var page=sortedCustomers.slice(start,start+_cPageSize);
     getCountdown(c.expiry_date)+
   '</span>'+
   '<div class="cust-list-actions">'+
-    '<button class="cust-list-action" onclick="event.stopPropagation();">'+
+    '<button class="cust-list-action" onclick="event.stopPropagation();pauseSubscription(\''+c.id+'\')">'+
       '⏸ Pause Sub'+
     '</button>'+
     '<button class="cust-list-action" onclick="event.stopPropagation();">'+
@@ -2214,8 +2214,45 @@ async function confirmBuyPlan(planId){
   loadCustomers();
   if(document.getElementById('cDetailModal').classList.contains('show'))openCustomerDetail(id);
 }
+
+
+
+   async function pauseSubscription(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.voucher_code){toast('No voucher code on file for this customer','error');return;}
+
+  var ok=await showConfirm('Pause Subscription','Kick '+(c.name||c.voucher_code)+' off the network and free their voucher? They will need to buy again to reconnect.','ic-warn');
+  if(!ok)return;
+
+  var{error:e1}=await supabase.from('router_commands').insert({
+    router_id:PRODUCTION_ROUTER_ID,
+    command_type:'suspend',
+    payload:{username:c.voucher_code,param:''},
+    status:'pending'
+  });
+  if(e1){toast('Failed to queue suspend: '+e1.message,'error');return;}
+
+  var{error:e2}=await supabase.from('customers').update({status:'suspended'}).eq('id',id);
+  if(e2){toast('Suspend queued, but status update failed: '+e2.message,'error');}
+
+  var{data:matchingVoucher}=await supabase.from('vouchers').select('id').eq('code',c.voucher_code).limit(1).single();
+  if(matchingVoucher){
+    await supabase.from('vouchers').update({is_used:false,used_at:null,sold_by:null,transaction_reference:null}).eq('id',matchingVoucher.id);
+    toast('Paused — voucher freed, kick queued (~1 min)','success');
+  }else{
+    toast('Paused — kick queued (~1 min). No matching voucher found to free.','success');
+  }
+
+  loadCustomers();
+}
+
+
+   
 var TEST_ROUTER_ID='9e4fcdb6-699e-426a-ab4c-32110eb5ae4b'; // sandbox test router only
 
+
+   
 async function changeCustomerProfile(id,profileName){
   var c=_allCustomers.find(function(x){return x.id===id;});
   if(!c){toast('Customer not found','error');return;}
