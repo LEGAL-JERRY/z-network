@@ -2111,8 +2111,47 @@ function removeCustomerPlaceholder(id){
 function buyPlanPlaceholder(id){
   toast('Buy Plan — coming soon','success');
 }
+var TEST_ROUTER_ID='9e4fcdb6-699e-426a-ab4c-32110eb5ae4b'; // sandbox test router only
+
+async function changeCustomerProfile(id,profileName){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.voucher_code){toast('No voucher code on file for this customer','error');return;}
+
+  var{error}=await supabase.from('router_commands').insert({
+    router_id:TEST_ROUTER_ID,
+    command_type:'change_profile',
+    payload:{username:c.voucher_code,param:profileName},
+    status:'pending'
+  });
+
+  if(error){toast('Command failed to queue: '+error.message,'error');return;}
+  toast('Profile change queued for '+c.voucher_code+' — waiting for router to poll','success');
+}
+
+var PRODUCTION_ROUTER_ID='d0ded7d7-503d-40ec-845d-c8a5fc368d11';
+
+async function changeCustomerProfile(id,profileName){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.voucher_code){toast('No voucher code on file for this customer','error');return;}
+
+  var ok=await showConfirm('Change Profile','Switch '+(c.name||c.voucher_code)+' ('+c.voucher_code+') to profile "'+profileName+'"? This affects their live connection.','ic-warn');
+  if(!ok)return;
+
+  var{error}=await supabase.from('router_commands').insert({
+    router_id:PRODUCTION_ROUTER_ID,
+    command_type:'change_profile',
+    payload:{username:c.voucher_code,param:profileName},
+    status:'pending'
+  });
+
+  if(error){toast('Command failed to queue: '+error.message,'error');return;}
+  toast('Profile change queued for '+c.voucher_code+' — router has not run this yet','success');
+}
+
 function speedTogglePlaceholder(id){
-  toast('Slow Down — coming soon','success');
+  changeCustomerProfile(id,'monthly');
 }
 function sendWarningMessage(id){
   var c=_allCustomers.find(function(x){return x.id===id;});
