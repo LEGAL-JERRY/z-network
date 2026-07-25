@@ -2057,8 +2057,8 @@ var page=sortedCustomers.slice(start,start+_cPageSize);
   '<div class="cust-list-status">'+
     '<span class="badge '+statusCls+'">'+statusTxt+'</span>'+
   '</div>'+
-  '<button class="cust-list-action cust-list-warning" onclick="event.stopPropagation();">'+
-    '⚠️ Send Warning 3hrs'+
+ '<button class="cust-list-action cust-list-warning" onclick="event.stopPropagation();sendWarningMessage(\''+c.id+'\')">'+
+    '⚠️ Send Warning'+
   '</button>'+
   '<span class="cust-list-countdown countdown mono" data-expiry="'+
     (c.expiry_date||'')+
@@ -2097,7 +2097,7 @@ function openCustomerDetail(id){
 var footer='<div style="display:flex;gap:8px;width:100%;">'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="buyPlanPlaceholder(\''+c.id+'\')">💳 Buy Plan</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="speedTogglePlaceholder(\''+c.id+'\')">🐢 Slow Down</button>'+
-    '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="renewalReminderPlaceholder(\''+c.id+'\')">⚠️ Low Warning</button>'+
+    '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="sendWarningMessage(\''+c.id+'\')">⚠️ Send Warning</button>'+
     '</div>';
   document.getElementById('cDetailFooter').innerHTML=footer;
   openModal('cDetailModal');
@@ -2114,8 +2114,31 @@ function buyPlanPlaceholder(id){
 function speedTogglePlaceholder(id){
   toast('Slow Down — coming soon','success');
 }
-function renewalReminderPlaceholder(id){
-  toast('Low Warning — coming soon','success');
+function sendWarningMessage(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.whatsapp){toast('No WhatsApp number on file for this customer','error');return;}
+  if(!c.expiry_date){toast('No expiry date on file for this customer','error');return;}
+
+  var name=c.name||'there';
+  var planName=c.plan_name||'your plan';
+  var isExpired=new Date(c.expiry_date).getTime()<=Date.now();
+  var expiryStr=new Date(c.expiry_date).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  var urgencyLine=isExpired
+    ? '⚠️ Your plan *expired* '+timeAgo(c.expiry_date)+'.'
+    : '⏰ Expires: *'+expiryStr+'*\n⚠️ Time left: *'+getCountdown(c.expiry_date)+'*';
+
+  var msg='Hi '+name+' 👋\n\n'+
+    'This is a reminder from '+NET_NAME+'.\n\n'+
+    'Your *'+planName+'* is '+(isExpired?'no longer active.':'about to run out.')+'\n\n'+
+    urgencyLine+'\n\n'+
+    'Renew now to stay connected without interruption — reply here anytime. 🌐';
+
+  var phone=c.whatsapp.replace(/[^0-9]/g,'');
+  if(phone.startsWith('0'))phone='234'+phone.substring(1);
+
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
 function openAddCustomerModal(){
