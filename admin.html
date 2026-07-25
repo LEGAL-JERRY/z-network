@@ -2172,19 +2172,42 @@ supabase.from('sub_renewals').select('*').eq('customer_id',id).order('created_at
   }).join('');
 });
 
-var footer='<div style="display:flex;gap:8px;width:100%;">'+
+var footer='<div style="display:flex;gap:8px;width:100%;flex-wrap:wrap;">'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="buyPlanPlaceholder(\''+c.id+'\')">💳 Buy Plan</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="speedTogglePlaceholder(\''+c.id+'\')">🐢 Slow Down</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="sendWarningMessage(\''+c.id+'\')">⚠️ Send Warning</button>'+
+    '<button class="btn btn-red btn-sm" style="flex:1 1 100%;" onclick="removeCustomer(\''+c.id+'\')">🗑️ Remove Customer</button>'+
     '</div>';
   document.getElementById('cDetailFooter').innerHTML=footer;
   openModal('cDetailModal');
 }
 
-function removeCustomerPlaceholder(id){
-  showConfirm('Remove Customer','This feature is a placeholder — no action will be taken yet.','🗑️').then(function(ok){
-    if(ok)toast('Remove From System — coming soon','error');
-  });
+async function removeCustomer(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+
+  var ok=await showConfirm('Remove Customer','Cancel '+(c.name||c.voucher_code)+'\'s subscription? They\'ll be marked cancelled and notified via WhatsApp that their plan has expired.','ic-warn');
+  if(!ok)return;
+
+  var{error}=await supabase.from('customers').update({status:'cancelled'}).eq('id',id);
+  if(error){toast('Failed to remove: '+error.message,'error');return;}
+
+  if(c.whatsapp){
+    var name=c.name||'there';
+    var msg='Hi '+name+' 👋\n\n'+
+      'This is a notice from '+NET_NAME+'.\n\n'+
+      '⚠️ Your plan has *expired* and your subscription has now been closed on our end.\n\n'+
+      'If you\'d like to reconnect, just reply here anytime to set up a new plan. 🌐';
+    var phone=c.whatsapp.replace(/[^0-9]/g,'');
+    if(phone.startsWith('0'))phone='234'+phone.substring(1);
+    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+  }else{
+    toast('Customer removed, but no WhatsApp number on file to notify them','error');
+  }
+
+  toast('Customer removed','success');
+  closeModal('cDetailModal');
+  loadCustomers();
 }
 var _buyPlanCustomerId=null;
 
