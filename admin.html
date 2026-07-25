@@ -1594,15 +1594,18 @@ function getExpiry(used_at,plan_id){
 function getCountdown(expiryIso){
   if(!expiryIso)return'—';
   var diff=new Date(expiryIso).getTime()-Date.now();
-  if(diff<=0)return'Expired';
-  var d=Math.floor(diff/86400000);
-  var h=Math.floor((diff%86400000)/3600000);
-  var m=Math.floor((diff%3600000)/60000);
-  var s=Math.floor((diff%60000)/1000);
-  if(d>0)return d+'d '+h+'h '+m+'m';
-  if(h>0)return h+'h '+m+'m';
-  if(m>0)return m+'m '+s+'s';
-  return s+'s';
+  var neg=diff<=0;
+  var abs=Math.abs(diff);
+  var d=Math.floor(abs/86400000);
+  var h=Math.floor((abs%86400000)/3600000);
+  var m=Math.floor((abs%3600000)/60000);
+  var s=Math.floor((abs%60000)/1000);
+  var str;
+  if(d>0)str=d+'d '+h+'h '+m+'m';
+  else if(h>0)str=h+'h '+m+'m';
+  else if(m>0)str=m+'m '+s+'s';
+  else str=s+'s';
+  return neg?('-'+str):str;
 }
 setInterval(function(){
   document.querySelectorAll('.countdown[data-expiry]').forEach(function(el){
