@@ -2196,8 +2196,14 @@ async function removeCustomer(id){
   var ok=await showConfirm('Remove Customer','Cancel '+(c.name||c.voucher_code)+'\'s subscription? They\'ll be marked cancelled and notified via WhatsApp that their plan has expired.','ic-warn');
   if(!ok)return;
 
+var waTab=c.whatsapp?window.open('','_blank'):null; // open synchronously NOW, before any await, or the browser blocks it
+
   var{error}=await supabase.from('customers').update({status:'cancelled'}).eq('id',id);
-  if(error){toast('Failed to remove: '+error.message,'error');return;}
+  if(error){
+    toast('Failed to remove: '+error.message,'error');
+    if(waTab)waTab.close();
+    return;
+  }
 
   if(c.whatsapp){
     var name=c.name||'there';
@@ -2207,7 +2213,8 @@ async function removeCustomer(id){
       'If you\'d like to reconnect, just reply here anytime to set up a new plan. 🌐';
     var phone=c.whatsapp.replace(/[^0-9]/g,'');
     if(phone.startsWith('0'))phone='234'+phone.substring(1);
-    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+    var waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+    if(waTab){waTab.location.href=waUrl;}else{window.open(waUrl,'_blank');}
   }else{
     toast('Customer removed, but no WhatsApp number on file to notify them','error');
   }
