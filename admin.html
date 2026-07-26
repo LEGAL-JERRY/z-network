@@ -2183,6 +2183,7 @@ var footer='<div style="display:flex;gap:8px;width:100%;flex-wrap:wrap;">'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="buyPlanPlaceholder(\''+c.id+'\')">💳 Buy Plan</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="speedTogglePlaceholder(\''+c.id+'\')">🐢 Slow Down</button>'+
     '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="sendWarningMessage(\''+c.id+'\')">⚠️ Send Warning</button>'+
+    '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="sendPortalLink(\''+c.id+'\')">🔗 Send Portal Link</button>'+
     '<button class="btn btn-red btn-sm" style="flex:1 1 100%;" onclick="removeCustomer(\''+c.id+'\')">🗑️ Remove Customer</button>'+
     '</div>';
   document.getElementById('cDetailFooter').innerHTML=footer;
@@ -2449,6 +2450,27 @@ function sendWarningMessage(id){
   var phone=c.whatsapp.replace(/[^0-9]/g,'');
   if(phone.startsWith('0'))phone='234'+phone.substring(1);
 
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+
+   var PORTAL_BASE_URL='https://z-network-beta.vercel.app';
+
+function sendPortalLink(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c){toast('Customer not found','error');return;}
+  if(!c.whatsapp){toast('No WhatsApp number on file for this customer','error');return;}
+  if(!c.access_token){toast('No portal link generated for this customer yet','error');return;}
+
+  var link=PORTAL_BASE_URL+'/portal.html?t='+c.access_token;
+  var name=c.name||'there';
+  var msg='Hi '+name+' 👋\n\n'+
+    'Here\'s your personal '+NET_NAME+' link — check your remaining time anytime, no login needed:\n\n'+
+    link+'\n\n'+
+    '📌 Tip: Pin this chat so you can find it fast later!';
+
+  var phone=c.whatsapp.replace(/[^0-9]/g,'');
+  if(phone.startsWith('0'))phone='234'+phone.substring(1);
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
 
