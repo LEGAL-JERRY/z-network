@@ -99,13 +99,9 @@ function renderCustomer(){
       '<div class="error" id="pinError">Incorrect PIN.</div>'+
       '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
       '<button class="btn btn-outline" onclick="unlockAdmin()">Unlock</button>'+
-      '<div id="adminActions" style="display:none;margin-top:14px;">'+
-        '<button class="btn '+(isPaused?'btn-green':'btn-red')+'" id="pauseBtn" onclick="doPause()">'+
-          (isPaused?'▶ Continue Subscription':'⏸ Pause Subscription')+
-        '</button>'+
-        (isPaused?'<button class="btn btn-outline" disabled>Continue <span class="placeholder-tag">PLACEHOLDER</span></button>':'')+
-      '</div>'+
-    '</div>';
+   '<div id="adminActions" style="display:none;margin-top:14px;">'+
+        (isPaused?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
+      '</div>';
 
   if(!isPaused && c.expiry_date){
     setInterval(function(){
@@ -127,6 +123,7 @@ async function unlockAdmin(){
   var{data,error}=await supabase.rpc('rpc_verify_portal_pin',{p_pin:pin});
   if(error||!data){errEl.classList.add('show');return;}
   document.getElementById('adminActions').style.display='block';
+  if(_customer.status==='suspended')renderContinuePicker();
   document.getElementById('pinInput').style.display='none';
   document.querySelector('#adminPanel .btn-outline').style.display='none';
   window._portalPin=pin; // held in memory only for this session's action call, never stored
@@ -146,6 +143,51 @@ async function doPause(){
   document.getElementById('adminActions').style.display='block';
 }
 
+
+  var PLANS_CACHE=null;
+async function renderContinuePicker(){
+  var{data}=await supabase.from('plans').select('id,name,amount,duration_hours').order('amount');
+  PLANS_CACHE=data||[];
+  var slot=document.getElementById('continuePickerSlot');
+  if(!slot)return;
+  slot.innerHTML='<div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;">Pick a plan to continue:</div>'+
+    PLANS_CACHE.map(function(p){
+      return'<button class="btn btn-outline" style="text-align:left;" onclick="doContinue(\''+p.id+'\')">'+p.name+' — ₦'+p.amount+' ('+p.duration_hours+'h)</button>';
+    }).join('');
+}
+
+  
+async function doContinue(planId){
+  var plan=PLANS_CACHE.find(function(p){return p.id===planId;});
+  if(!confirm('Continue with '+(plan?plan.name:'this plan')+'?'))return;
+
+  var waTab=window.open('','_blank'); // open synchronously before the await, or it gets blocked
+
+  var{data,error}=await supabase.rpc('rpc_portal_continue',{p_token:TOKEN,p_pin:window._portalPin,p_plan_id:planId});
+  if(error||!data||!data.ok){
+    if(waTab)waTab.close();
+    alert('Failed: '+(data&&data.error?data.error:(error?error.message:'unknown error')));
+    return;
+  }
+
+  if(data.whatsapp){
+    var name=data.name||'there';
+    var expiryStr=new Date(data.expiry_date).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    var msg='Hi '+name+' 👋\n\nYour plan has been *renewed* and you\'re back online! ✅\n\n'+
+      '📦 Plan: *'+data.plan_name+'*\n💰 Amount: ₦'+data.amount+'\n⏰ Valid until: *'+expiryStr+'*\n\nEnjoy! 🌐';
+    var phone=data.whatsapp.replace(/[^0-9]/g,'').replace(/^0/,'234');
+    var waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+    if(waTab){waTab.location.href=waUrl;}else{window.open(waUrl,'_blank');}
+  }else if(waTab){
+    waTab.close();
+  }
+
+  await loadPortal();
+  showAdminLogin();
+  document.getElementById('adminActions').style.display='block';
+}
+
+  
 loadPortal();
 </script>
 </body>
