@@ -7,47 +7,62 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
-  --bg:#f4f7fc;--card:#ffffff;--border:#dde4f0;--text:#1a2236;--muted:#8a97b0;
-  --accent:#1A6FE8;--green:#0E9F5C;--amber:#B4790E;--red:#D23B3B;
-  --shadow:0 8px 40px rgba(26,111,232,0.14);
+  --bg:#f5f7fb;--surface:#fff;--surface-soft:#f8faff;--text:#111827;
+  --muted:#7c879c;--line:#e7ebf2;--accent:#246bfe;--accent-dark:#1554d1;
+  --green:#12a36a;--red:#e05252;--shadow:0 24px 70px rgba(24,45,86,.10);
+  --shadow-soft:0 10px 30px rgba(24,45,86,.06);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);
-  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
-  padding:32px 28px;width:100%;max-width:400px;}
-.logo{font-weight:800;font-size:1.05rem;margin-bottom:4px;}
-.sub{font-size:0.8rem;color:var(--muted);margin-bottom:24px;}
-.name{font-size:1.3rem;font-weight:800;margin-bottom:2px;}
-.plan{font-size:0.85rem;color:var(--muted);margin-bottom:20px;}
-.countdown{font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:800;text-align:center;
-  padding:22px;border-radius:14px;margin-bottom:18px;}
-.countdown.active{background:rgba(14,159,92,0.1);color:var(--green);}
-.countdown.expired{background:rgba(210,59,59,0.1);color:var(--red);}
-.countdown.paused{background:rgba(210,59,59,0.1);color:var(--red);}
-.status-label{text-align:center;font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:24px;}
-.status-label.active{color:var(--green);}
-.status-label.expired{color:var(--red);}
-.status-label.paused{color:var(--red);}
-.btn{width:100%;padding:14px;border-radius:12px;font-size:0.9rem;font-weight:700;border:none;cursor:pointer;margin-top:10px;}
-.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
-.btn-red{background:var(--red);color:#fff;}
-.btn-green{background:var(--green);color:#fff;}
-.btn:disabled{opacity:0.5;cursor:not-allowed;}
-.admin-toggle{text-align:center;margin-top:20px;font-size:0.75rem;color:var(--muted);cursor:pointer;text-decoration:underline;}
-.admin-panel{display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
-.admin-panel.show{display:block;}
-input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;margin-bottom:10px;}
-.error{color:var(--red);font-size:0.8rem;margin-bottom:10px;display:none;}
-.error.show{display:block;}
-.loading,.notfound{text-align:center;padding:40px 0;color:var(--muted);font-size:0.9rem;}
-.placeholder-tag{font-size:0.65rem;background:var(--amber);color:#fff;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:middle;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;background:radial-gradient(circle at 10% 0%,rgba(36,107,254,.08),transparent 30%),radial-gradient(circle at 100% 100%,rgba(18,163,106,.06),transparent 28%),var(--bg);
+  color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;padding:28px 16px;
+}
+button,input{font:inherit}button{cursor:pointer}
+.portal-shell{width:100%;max-width:720px;margin:auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:var(--text);color:#fff;font-size:20px;box-shadow:0 10px 24px rgba(17,24,39,.18)}
+.brand-name{font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.brand-sub{color:var(--muted);font-size:.72rem;margin-top:2px}
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:30px;margin-bottom:16px;overflow:hidden;position:relative}
+.hero::after{content:"";position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(36,107,254,.06);right:-130px;top:-150px;pointer-events:none}
+.hero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;position:relative;z-index:1}
+.eyebrow{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.11em;font-weight:800;margin-bottom:8px}
+.customer-name{font-size:clamp(1.8rem,4vw,2.7rem);letter-spacing:-.06em;font-weight:850;line-height:1}
+.customer-id{color:var(--muted);font-size:.78rem;margin-top:9px}
+.status-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;font-size:.72rem;font-weight:800;white-space:nowrap;background:rgba(18,163,106,.10);color:var(--green)}
+.status-pill.expired,.status-pill.paused{background:rgba(224,82,82,.10);color:var(--red)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.plan-card{margin-top:28px;border:1px solid #dfe7f5;background:linear-gradient(135deg,#f7faff,#fff);border-radius:22px;padding:22px;position:relative;z-index:1}
+.plan-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.plan-label{color:var(--muted);font-size:.72rem;text-transform:uppercase;font-weight:800;letter-spacing:.08em}
+.plan-name{font-size:1.4rem;font-weight:850;letter-spacing:-.04em;margin-top:6px}
+.countdown{font-size:clamp(1.7rem,5vw,2.8rem);font-weight:850;letter-spacing:-.06em;margin-top:24px}
+.countdown.active{color:var(--green)}.countdown.expired,.countdown.paused{color:var(--red)}
+.expiry-label{color:var(--muted);font-size:.75rem;margin-top:4px}
+.quick-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}
+.btn{border:none;border-radius:13px;padding:13px 16px;font-size:.82rem;font-weight:800;transition:.2s ease}
+.btn:hover{transform:translateY(-1px)}.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-dark)}
+.btn-outline{background:#fff;border:1px solid var(--line);color:var(--text)}.btn-red{background:var(--red);color:#fff}.btn-green{background:var(--green);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.section{background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow-soft);padding:22px;margin-bottom:16px}
+.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.section-title{font-size:1rem;font-weight:850;letter-spacing:-.025em}.section-subtitle{color:var(--muted);font-size:.74rem;margin-top:4px}
+.topup-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.topup{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff}
+.topup-name{font-size:.78rem;font-weight:800}.topup-price{font-size:1.2rem;font-weight:850;margin:10px 0 14px}.topup .btn{width:100%;padding:10px;font-size:.72rem}
+.profile-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.profile-item{border:1px solid var(--line);border-radius:15px;padding:14px;background:var(--surface-soft)}.profile-label{color:var(--muted);font-size:.68rem;margin-bottom:5px}.profile-value{font-size:.82rem;font-weight:800}
+.admin-toggle{text-align:center;color:var(--muted);font-size:.72rem;cursor:pointer;text-decoration:underline;margin-top:18px}.admin-panel{display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}.admin-panel.show{display:block}
+input{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;outline:none}input:focus{border-color:var(--accent)}
+.error{display:none;color:var(--red);font-size:.75rem;margin-bottom:10px}.error.show{display:block}
+.footer{text-align:center;color:var(--muted);font-size:.68rem;padding:8px 0 2px}.loading,.notfound{max-width:420px;margin:auto;text-align:center;padding:70px 20px;color:var(--muted)}
+@media(max-width:760px){body{padding:14px 10px}.hero{padding:22px 18px;border-radius:22px}.section{padding:18px;border-radius:19px}.topup-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.hero-head{gap:12px}.status-pill{font-size:.64rem;padding:7px 9px}.customer-name{font-size:2rem}.topup-grid{gap:8px}.topup{padding:13px 11px}.profile-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="card" id="app">
+<main class="portal-shell" id="app">
   <div class="loading">Loading your plan…</div>
-</div>
+</main>
 
 <script>
 var SUPABASE_URL='https://yohndnmwvgcwadkytmix.supabase.co';
@@ -56,6 +71,15 @@ var supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
 
 var params=new URLSearchParams(window.location.search);
 var TOKEN=params.get('t')||'';
+
+// Same plan catalog as admin.html — real product prices, not fake data.
+var PLANS_STATIC=[
+  {name:'Daily',hours:24,price:350},
+  {name:'2-Day',hours:48,price:500},
+  {name:'Half-Week',hours:84,price:1000},
+  {name:'Weekly',hours:168,price:2000},
+  {name:'Monthly',hours:720,price:6000}
+];
 
 function getCountdown(expiryIso){
   if(!expiryIso)return'—';
@@ -85,23 +109,53 @@ function renderCustomer(){
   var isPaused=c.status==='suspended';
   var isExpired=!isPaused && c.expiry_date && new Date(c.expiry_date).getTime()<=Date.now();
   var cls=isPaused?'paused':(isExpired?'expired':'active');
-  var label=isPaused?'⏸ Paused':(isExpired?'⚠ Expired':'✓ Active');
+  var label=isPaused?'Paused':(isExpired?'Expired':'Active');
 
   document.getElementById('app').innerHTML=
-    '<div class="logo">🌐 Z-Network</div>'+
-    '<div class="sub">Your connection status</div>'+
-    '<div class="name">'+(c.name||c.customer_number||'—')+'</div>'+
-    '<div class="plan">'+(c.plan_name||'No active plan')+'</div>'+
-    '<div class="countdown '+cls+'">'+(isPaused?'—':getCountdown(c.expiry_date))+'</div>'+
-    '<div class="status-label '+cls+'">'+label+'</div>'+
+    '<div class="topbar"><div class="brand"><div class="brand-mark">⌁</div><div><div class="brand-name">Z-Network</div><div class="brand-sub">Customer portal</div></div></div></div>'+
+
+    '<section class="hero">'+
+      '<div class="hero-head">'+
+        '<div><div class="eyebrow">Welcome back</div><div class="customer-name">'+(c.name||'—')+'</div>'+
+        '<div class="customer-id">Customer ID · '+(c.customer_number||'—')+'</div></div>'+
+        '<div class="status-pill '+cls+'"><span class="status-dot"></span>'+label+'</div>'+
+      '</div>'+
+      '<div class="plan-card">'+
+        '<div class="plan-top"><div><div class="plan-label">Current plan</div><div class="plan-name">'+(c.plan_name||'No active plan')+'</div></div></div>'+
+        '<div class="countdown '+cls+'">'+(isPaused?'—':getCountdown(c.expiry_date))+'</div>'+
+        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isExpired?'Your plan has expired':'Time remaining on your current subscription'))+'</div>'+
+        '<div class="quick-actions"><button class="btn btn-primary" onclick="document.getElementById(\'topupSection\').scrollIntoView({behavior:\'smooth\'})">View plans</button></div>'+
+      '</div>'+
+    '</section>'+
+
+    '<section class="section" id="topupSection">'+
+      '<div class="section-heading"><div><div class="section-title">Available plans</div>'+
+      '<div class="section-subtitle">Self-service top-up is coming soon — contact us on WhatsApp to renew for now</div></div></div>'+
+      '<div class="topup-grid">'+
+        PLANS_STATIC.map(function(p){
+          return'<div class="topup"><div class="topup-name">'+p.name+'</div><div class="topup-price">₦'+p.price.toLocaleString('en-NG')+'</div><button class="btn btn-outline" disabled title="Coming soon">Coming soon</button></div>';
+        }).join('')+
+      '</div>'+
+    '</section>'+
+
+    '<section class="section"><div class="section-heading"><div><div class="section-title">Customer information</div>'+
+      '<div class="section-subtitle">Your account details</div></div></div>'+
+      '<div class="profile-grid">'+
+        '<div class="profile-item"><div class="profile-label">Name</div><div class="profile-value">'+(c.name||'—')+'</div></div>'+
+        '<div class="profile-item"><div class="profile-label">Customer number</div><div class="profile-value">'+(c.customer_number||'—')+'</div></div>'+
+      '</div>'+
+    '</section>'+
+
+    '<div class="footer">Z-Network · Reliable internet, made simple</div>'+
     '<div class="admin-toggle" onclick="showAdminLogin()">Admin? Tap here</div>'+
     '<div class="admin-panel" id="adminPanel">'+
       '<div class="error" id="pinError">Incorrect PIN.</div>'+
       '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
-      '<button class="btn btn-outline" onclick="unlockAdmin()">Unlock</button>'+
-   '<div id="adminActions" style="display:none;margin-top:14px;">'+
-        (isPaused?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
-      '</div>';
+      '<button class="btn btn-outline" style="width:100%" onclick="unlockAdmin()">Unlock</button>'+
+      '<div id="adminActions" style="display:none;margin-top:14px;">'+
+        (isPaused?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
+      '</div>'+
+    '</div>';
 
   if(!isPaused && c.expiry_date){
     setInterval(function(){
@@ -131,10 +185,6 @@ async function unlockAdmin(){
 
 async function doPause(){
   var c=_customer;
-  if(c.status==='suspended'){
-    alert('Continue Subscription is a placeholder — not wired up yet.');
-    return;
-  }
   if(!confirm('Pause this subscription now?'))return;
   var{data,error}=await supabase.rpc('rpc_portal_pause',{p_token:TOKEN,p_pin:window._portalPin});
   if(error||!data){alert('Failed to pause. Please try again.');return;}
@@ -143,8 +193,7 @@ async function doPause(){
   document.getElementById('adminActions').style.display='block';
 }
 
-
-  var PLANS_CACHE=null;
+var PLANS_CACHE=null;
 async function renderContinuePicker(){
   var{data}=await supabase.from('plans').select('id,name,amount,duration_hours').order('amount');
   PLANS_CACHE=data||[];
@@ -152,11 +201,10 @@ async function renderContinuePicker(){
   if(!slot)return;
   slot.innerHTML='<div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;">Pick a plan to continue:</div>'+
     PLANS_CACHE.map(function(p){
-      return'<button class="btn btn-outline" style="text-align:left;" onclick="doContinue(\''+p.id+'\')">'+p.name+' — ₦'+p.amount+' ('+p.duration_hours+'h)</button>';
+      return'<button class="btn btn-outline" style="width:100%;text-align:left;margin-bottom:8px;" onclick="doContinue(\''+p.id+'\')">'+p.name+' — ₦'+p.amount+' ('+p.duration_hours+'h)</button>';
     }).join('');
 }
 
-  
 async function doContinue(planId){
   var plan=PLANS_CACHE.find(function(p){return p.id===planId;});
   if(!confirm('Continue with '+(plan?plan.name:'this plan')+'?'))return;
@@ -187,7 +235,6 @@ async function doContinue(planId){
   document.getElementById('adminActions').style.display='block';
 }
 
-  
 loadPortal();
 </script>
 </body>
