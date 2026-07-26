@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Z-Network — My Plan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#f4f7fc;--card:#ffffff;--border:#dde4f0;--text:#1a2236;--muted:#8a97b0;
+  --accent:#1A6FE8;--green:#0E9F5C;--amber:#B4790E;--red:#D23B3B;
+  --shadow:0 8px 40px rgba(26,111,232,0.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+  padding:32px 28px;width:100%;max-width:400px;}
+.logo{font-weight:800;font-size:1.05rem;margin-bottom:4px;}
+.sub{font-size:0.8rem;color:var(--muted);margin-bottom:24px;}
+.name{font-size:1.3rem;font-weight:800;margin-bottom:2px;}
+.plan{font-size:0.85rem;color:var(--muted);margin-bottom:20px;}
+.countdown{font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:800;text-align:center;
+  padding:22px;border-radius:14px;margin-bottom:18px;}
+.countdown.active{background:rgba(14,159,92,0.1);color:var(--green);}
+.countdown.expired{background:rgba(210,59,59,0.1);color:var(--red);}
+.countdown.paused{background:rgba(210,59,59,0.1);color:var(--red);}
+.status-label{text-align:center;font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:24px;}
+.status-label.active{color:var(--green);}
+.status-label.expired{color:var(--red);}
+.status-label.paused{color:var(--red);}
+.btn{width:100%;padding:14px;border-radius:12px;font-size:0.9rem;font-weight:700;border:none;cursor:pointer;margin-top:10px;}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+.btn-red{background:var(--red);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.admin-toggle{text-align:center;margin-top:20px;font-size:0.75rem;color:var(--muted);cursor:pointer;text-decoration:underline;}
+.admin-panel{display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.admin-panel.show{display:block;}
+input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:0.9rem;margin-bottom:10px;}
+.error{color:var(--red);font-size:0.8rem;margin-bottom:10px;display:none;}
+.error.show{display:block;}
+.loading,.notfound{text-align:center;padding:40px 0;color:var(--muted);font-size:0.9rem;}
+.placeholder-tag{font-size:0.65rem;background:var(--amber);color:#fff;padding:2px 7px;border-radius:99px;margin-left:6px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <div class="loading">Loading your plan…</div>
+</div>
+
+<script>
+var SUPABASE_URL='https://yohndnmwvgcwadkytmix.supabase.co';
+var SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvaG5kbm13dmdjd2Fka3l0bWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDEyODgsImV4cCI6MjA5NDYxNzI4OH0.hkUexJ-AS1GpLJL78F7iXDv5PkwuPbShj2fsGVXuEsg';
+var supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+var params=new URLSearchParams(window.location.search);
+var TOKEN=params.get('t')||'';
+
+function getCountdown(expiryIso){
+  if(!expiryIso)return'—';
+  var diff=new Date(expiryIso).getTime()-Date.now();
+  var neg=diff<=0;var abs=Math.abs(diff);
+  var d=Math.floor(abs/86400000),h=Math.floor((abs%86400000)/3600000),m=Math.floor((abs%3600000)/60000);
+  var str=d>0?(d+'d '+h+'h '+m+'m'):(h>0?(h+'h '+m+'m'):m+'m');
+  return neg?('Expired '+str+' ago'):str;
+}
+
+var _customer=null;
+
+async function loadPortal(){
+  if(!TOKEN){renderNotFound();return;}
+  var{data,error}=await supabase.rpc('rpc_get_customer_by_token',{p_token:TOKEN});
+  if(error||!data||!data.length){renderNotFound();return;}
+  _customer=data[0];
+  renderCustomer();
+}
+
+function renderNotFound(){
+  document.getElementById('app').innerHTML='<div class="notfound">This link isn\'t valid. Please contact Z-Network to get your correct link.</div>';
+}
+
+function renderCustomer(){
+  var c=_customer;
+  var isPaused=c.status==='suspended';
+  var isExpired=!isPaused && c.expiry_date && new Date(c.expiry_date).getTime()<=Date.now();
+  var cls=isPaused?'paused':(isExpired?'expired':'active');
+  var label=isPaused?'⏸ Paused':(isExpired?'⚠ Expired':'✓ Active');
+
+  document.getElementById('app').innerHTML=
+    '<div class="logo">🌐 Z-Network</div>'+
+    '<div class="sub">Your connection status</div>'+
+    '<div class="name">'+(c.name||c.customer_number||'—')+'</div>'+
+    '<div class="plan">'+(c.plan_name||'No active plan')+'</div>'+
+    '<div class="countdown '+cls+'">'+(isPaused?'—':getCountdown(c.expiry_date))+'</div>'+
+    '<div class="status-label '+cls+'">'+label+'</div>'+
+    '<div class="admin-toggle" onclick="showAdminLogin()">Admin? Tap here</div>'+
+    '<div class="admin-panel" id="adminPanel">'+
+      '<div class="error" id="pinError">Incorrect PIN.</div>'+
+      '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
+      '<button class="btn btn-outline" onclick="unlockAdmin()">Unlock</button>'+
+      '<div id="adminActions" style="display:none;margin-top:14px;">'+
+        '<button class="btn '+(isPaused?'btn-green':'btn-red')+'" id="pauseBtn" onclick="doPause()">'+
+          (isPaused?'▶ Continue Subscription':'⏸ Pause Subscription')+
+        '</button>'+
+        (isPaused?'<button class="btn btn-outline" disabled>Continue <span class="placeholder-tag">PLACEHOLDER</span></button>':'')+
+      '</div>'+
+    '</div>';
+
+  if(!isPaused && c.expiry_date){
+    setInterval(function(){
+      var el=document.querySelector('.countdown');
+      if(el)el.textContent=getCountdown(c.expiry_date);
+    },30000);
+  }
+}
+
+function showAdminLogin(){
+  document.getElementById('adminPanel').classList.add('show');
+}
+
+async function unlockAdmin(){
+  var pin=document.getElementById('pinInput').value;
+  var errEl=document.getElementById('pinError');
+  errEl.classList.remove('show');
+  if(!pin){return;}
+  var{data,error}=await supabase.rpc('rpc_verify_portal_pin',{p_pin:pin});
+  if(error||!data){errEl.classList.add('show');return;}
+  document.getElementById('adminActions').style.display='block';
+  document.getElementById('pinInput').style.display='none';
+  document.querySelector('#adminPanel .btn-outline').style.display='none';
+  window._portalPin=pin; // held in memory only for this session's action call, never stored
+}
+
+async function doPause(){
+  var c=_customer;
+  if(c.status==='suspended'){
+    alert('Continue Subscription is a placeholder — not wired up yet.');
+    return;
+  }
+  if(!confirm('Pause this subscription now?'))return;
+  var{data,error}=await supabase.rpc('rpc_portal_pause',{p_token:TOKEN,p_pin:window._portalPin});
+  if(error||!data){alert('Failed to pause. Please try again.');return;}
+  await loadPortal();
+  showAdminLogin();
+  document.getElementById('adminActions').style.display='block';
+}
+
+loadPortal();
+</script>
+</body>
+</html>
