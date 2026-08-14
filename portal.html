@@ -91,12 +91,17 @@ function getCountdown(expiryIso){
 }
 
 var _customer=null;
+var _activeOutage=null;
 
 async function loadPortal(){
   if(!TOKEN){renderNotFound();return;}
   var{data,error}=await supabase.rpc('rpc_get_customer_by_token',{p_token:TOKEN});
   if(error||!data||!data.length){renderNotFound();return;}
   _customer=data[0];
+
+  var{data:outageData}=await supabase.rpc('rpc_get_active_outage');
+  _activeOutage=(outageData&&outageData[0]&&outageData[0].is_active)?outageData[0]:null;
+
   renderCustomer();
 }
 
