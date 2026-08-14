@@ -9,7 +9,7 @@
 :root{
   --bg:#f5f7fb;--surface:#fff;--surface-soft:#f8faff;--text:#111827;
   --muted:#7c879c;--line:#e7ebf2;--accent:#246bfe;--accent-dark:#1554d1;
-  --green:#12a36a;--red:#e05252;--shadow:0 24px 70px rgba(24,45,86,.10);
+  --green:#12a36a;--red:#e05252;--amber:#B4790E;--shadow:0 24px 70px rgba(24,45,86,.10);
   --shadow-soft:0 10px 30px rgba(24,45,86,.06);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -32,6 +32,7 @@ button,input{font:inherit}button{cursor:pointer}
 .customer-id{color:var(--muted);font-size:.78rem;margin-top:9px}
 .status-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;font-size:.72rem;font-weight:800;white-space:nowrap;background:rgba(18,163,106,.10);color:var(--green)}
 .status-pill.expired,.status-pill.paused{background:rgba(224,82,82,.10);color:var(--red)}
+.status-pill.blackout{background:rgba(180,121,14,.10);color:var(--amber)}
 .status-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 .plan-card{margin-top:28px;border:1px solid #dfe7f5;background:linear-gradient(135deg,#f7faff,#fff);border-radius:22px;padding:22px;position:relative;z-index:1}
 .plan-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
@@ -39,6 +40,7 @@ button,input{font:inherit}button{cursor:pointer}
 .plan-name{font-size:1.4rem;font-weight:850;letter-spacing:-.04em;margin-top:6px}
 .countdown{font-size:clamp(1.7rem,5vw,2.8rem);font-weight:850;letter-spacing:-.06em;margin-top:24px}
 .countdown.active{color:var(--green)}.countdown.expired,.countdown.paused{color:var(--red)}
+.countdown.blackout{color:var(--amber)}
 .expiry-label{color:var(--muted);font-size:.75rem;margin-top:4px}
 .quick-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}
 .btn{border:none;border-radius:13px;padding:13px 16px;font-size:.82rem;font-weight:800;transition:.2s ease}
@@ -113,8 +115,9 @@ function renderCustomer(){
   var c=_customer;
   var isPaused=c.status==='suspended';
   var isExpired=!isPaused && c.expiry_date && new Date(c.expiry_date).getTime()<=Date.now();
-  var cls=isPaused?'paused':(isExpired?'expired':'active');
-  var label=isPaused?'Paused':(isExpired?'Expired':'Active');
+  var isBlackout=!isPaused && !!_activeOutage;
+  var cls=isPaused?'paused':(isBlackout?'blackout':(isExpired?'expired':'active'));
+  var label=isPaused?'Paused':(isBlackout?'Power Outage':(isExpired?'Expired':'Active'));
 
   document.getElementById('app').innerHTML=
     '<div class="topbar"><div class="brand"><div class="brand-mark">⌁</div><div><div class="brand-name">Z-Network</div><div class="brand-sub">Customer portal</div></div></div></div>'+
@@ -127,9 +130,9 @@ function renderCustomer(){
       '</div>'+
       '<div class="plan-card">'+
         '<div class="plan-top"><div><div class="plan-label">Current plan</div><div class="plan-name">'+(c.plan_name||'No active plan')+'</div></div></div>'+
-        '<div class="countdown '+cls+'">'+(isPaused?'—':getCountdown(c.expiry_date))+'</div>'+
-        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isExpired?'Your plan has expired':'Time remaining on your current subscription'))+'</div>'+
-        '<div class="quick-actions"><button class="btn btn-primary" onclick="document.getElementById(\'topupSection\').scrollIntoView({behavior:\'smooth\'})">View plans</button></div>'+
+      '<div class="countdown '+cls+'">'+(isPaused?'—':(isBlackout?'⏸':getCountdown(c.expiry_date)))+'</div>'+
+        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isBlackout?'Power is out — your time is paused and will be credited back once restored':(isExpired?'Your plan has expired':'Time remaining on your current subscription')))+'</div>'+
+    '<div class="quick-actions"><button class="btn btn-primary" onclick="document.getElementById(\'topupSection\').scrollIntoView({behavior:\'smooth\'})">View plans</button></div>'+
       '</div>'+
     '</section>'+
 
@@ -162,13 +165,12 @@ function renderCustomer(){
       '</div>'+
     '</div>';
 
-  if(!isPaused && c.expiry_date){
+if(!isPaused && !isBlackout && c.expiry_date){
     setInterval(function(){
       var el=document.querySelector('.countdown');
       if(el)el.textContent=getCountdown(c.expiry_date);
     },30000);
   }
-}
 
 function showAdminLogin(){
   document.getElementById('adminPanel').classList.add('show');
