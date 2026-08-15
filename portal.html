@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Z-Network — My Plan</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
 :root{
   --bg:#f5f7fb;--surface:#fff;--surface-soft:#f8faff;--text:#111827;
@@ -75,13 +77,16 @@ var params=new URLSearchParams(window.location.search);
 var TOKEN=params.get('t')||'';
 
 // Same plan catalog as admin.html — real product prices, not fake data.
-var PLANS_STATIC=[
-  {name:'Daily',hours:24,price:350},
-  {name:'2-Day',hours:48,price:500},
-  {name:'Half-Week',hours:84,price:1000},
-  {name:'Weekly',hours:168,price:2000},
-  {name:'Monthly',hours:720,price:6000}
-];
+var PAYSTACK_PUBLIC_KEY = 'pk_live_ad4252161bf61d466256573cb5b5fd8a4d3bb07a';
+var PAYSTACK_FN_URL = 'https://yohndnmwvgcwadkytmix.supabase.co/functions/v1/paystack-gateway';
+
+var PLANS_LIVE = null;
+async function fetchPlans(){
+  if(PLANS_LIVE) return PLANS_LIVE;
+  var{data}=await supabase.from('plans').select('id,name,amount,duration_hours').order('amount');
+  PLANS_LIVE = data||[];
+  return PLANS_LIVE;
+}
 
 function getCountdown(expiryIso){
   if(!expiryIso)return'—';
@@ -111,8 +116,9 @@ function renderNotFound(){
   document.getElementById('app').innerHTML='<div class="notfound">This link isn\'t valid. Please contact Z-Network to get your correct link.</div>';
 }
 
-function renderCustomer(){
+async function renderCustomer(){
   var c=_customer;
+  var plans = await fetchPlans();
   var isPaused=c.status==='suspended';
   var isExpired=!isPaused && c.expiry_date && new Date(c.expiry_date).getTime()<=Date.now();
   var isBlackout=!isPaused && !!_activeOutage;
@@ -138,12 +144,13 @@ function renderCustomer(){
 
     '<section class="section" id="topupSection">'+
       '<div class="section-heading"><div><div class="section-title">Available plans</div>'+
-      '<div class="section-subtitle">Self-service top-up is coming soon — contact us on WhatsApp to renew for now</div></div></div>'+
+      '<div class="section-subtitle">Pay to renew instantly — no need to contact us</div></div></div>'+
       '<div class="topup-grid">'+
-        PLANS_STATIC.map(function(p){
-          return'<div class="topup"><div class="topup-name">'+p.name+'</div><div class="topup-price">₦'+p.price.toLocaleString('en-NG')+'</div><button class="btn btn-outline" disabled title="Coming soon">Coming soon</button></div>';
+        plans.map(function(p){
+          return'<div class="topup"><div class="topup-name">'+p.name+'</div><div class="topup-price">₦'+Number(p.amount).toLocaleString('en-NG')+'</div><button class="btn btn-primary" id="buy-'+p.id+'" onclick="buyPlan(\''+p.id+'\',\''+p.name+'\','+p.amount+')">Buy Now</button></div>';
         }).join('')+
       '</div>'+
+      '<div id="buyResult" style="margin-top:14px;"></div>'+
     '</section>'+
 
     '<section class="section"><div class="section-heading"><div><div class="section-title">Customer information</div>'+
@@ -241,6 +248,58 @@ async function doContinue(planId){
   await loadPortal();
   showAdminLogin();
   document.getElementById('adminActions').style.display='block';
+}
+  function buyPlan(planId, planName, amountNaira){
+  var btn = document.getElementById('buy-'+planId);
+  var resultEl = document.getElementById('buyResult');
+  var c = _customer;
+
+  var handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: (c.customer_number||'customer')+'@znetwork.local',
+    amount: Math.round(amountNaira*100),
+    currency: 'NGN',
+    metadata: {
+      custom_fields: [
+        {display_name:'Customer', variable_name:'customer_number', value:c.customer_number||''},
+        {display_name:'Plan', variable_name:'plan_name', value:planName}
+      ]
+    },
+    callback: function(response){
+      btn.disabled = true;
+      btn.textContent = 'Confirming…';
+      fetch(PAYSTACK_FN_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ reference: response.reference, plankey: planId, token: TOKEN, mode: 'extend' })
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.success && data.extend && data.extend.ok){
+          var exp = new Date(data.extend.expiry_date).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+          resultEl.innerHTML =
+            '<div style="border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--surface-soft);">'+
+              '<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px;">Payment confirmed — you\'re renewed ✅</div>'+
+              '<div style="font-size:1.1rem;font-weight:850;">'+data.extend.plan_name+' active until</div>'+
+              '<div style="font-size:1.3rem;font-weight:850;margin-top:2px;">'+exp+'</div>'+
+            '</div>';
+          resultEl.scrollIntoView({behavior:'smooth'});
+          loadPortal(); // refresh hero countdown/status to reflect new expiry
+        } else {
+          alert('Payment succeeded but renewal failed: '+(data.message||'unknown error')+'\nYour reference: '+response.reference+' — contact Z-Network with this reference, you will not be charged again.');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Buy Now';
+      })
+      .catch(function(err){
+        alert('Payment succeeded but we could not confirm it automatically. Contact Z-Network with reference: '+response.reference);
+        btn.disabled = false;
+        btn.textContent = 'Buy Now';
+      });
+    },
+    onClose: function(){}
+  });
+  handler.openIframe();
 }
 
 loadPortal();
