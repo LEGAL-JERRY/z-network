@@ -2683,7 +2683,7 @@ async function completeCashSale(){
   if(!_cashSelectedPlan){toast('No plan selected','error');return;}
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
- if(e2){toast('Voucher update failed: '+e2.message,'error');if(waTab)waTab.close();return;}
+  if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
   var name=document.getElementById('customerName').value.trim()||null;
 var phone=document.getElementById('customerPhone').value.trim()||null;
 
