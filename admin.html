@@ -722,9 +722,10 @@ textarea.form-input{height:auto;padding:12px 14px;}
 .totals-bar span{color:var(--text-muted);}
 
 /* ============================================================ BLACKOUT TIMELINE */
-.timeline-scroll{max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:4px;}
-.timeline-block{border-radius:var(--radius-sm);padding:10px 14px;display:flex;flex-direction:column;justify-content:center;color:#fff;flex-shrink:0;}
-.timeline-green{background:var(--green);}
+.timeline-scroll{max-height:520px;overflow-y:auto;display:flex;flex-direction:column;margin-top:14px;}
+.timeline-block{padding:13px 20px;display:flex;flex-direction:column;justify-content:center;color:#fff;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.18);position:relative;}
+.timeline-block:last-child{border-bottom:none;}
+.timeline-block::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(0,0,0,0.15);}.timeline-green{background:var(--green);}
 .timeline-red{background:var(--red);}
 .timeline-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.78rem;font-weight:700;}
 .timeline-outcome{background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:99px;font-size:0.66rem;font-weight:700;}
@@ -1256,9 +1257,9 @@ textarea.form-input{height:auto;padding:12px 14px;}
       </div>
     </div>
 
-    <div class="card stock-card" style="margin-top:20px;">
-      <div class="stock-title"><span data-icon="ic-clock" style="width:15px;height:15px;color:var(--text-muted);"></span> Power Timeline</div>
-      <div class="timeline-scroll" id="blackoutTimeline"><div class="spinner"></div></div>
+   <div class="card" style="margin-top:20px;padding:0;overflow:hidden;">
+      <div class="stock-title" style="padding:20px 20px 0;"><span data-icon="ic-clock" style="width:15px;height:15px;color:var(--text-muted);"></span> Power Timeline</div>
+      <div class="timeline-scroll" id="blackoutTimeline"><div class="spinner" style="margin:28px auto;"></div></div>
     </div>
   </section>
 
