@@ -780,32 +780,34 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <div class="sidebar-logo-sub">Admin</div>
     </div>
   </div>
-  <nav class="sidebar-nav" aria-label="Main navigation">
+ <nav class="sidebar-nav" aria-label="Main navigation">
     <div class="nav-label">Main</div>
-    <div class="nav-item active" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
+    <div class="nav-item active" data-section="voucherhub" onclick="navigate('voucherhub',this)" tabindex="0" role="button">
+      <span class="nav-icon" data-icon="ic-cash"></span> Voucher Sale / New Customer
+    </div>
+    <div class="nav-item" data-section="customers" onclick="navigate('customers',this)" tabindex="0" role="button">
+      <span class="nav-icon">👤</span> Customers
+    </div>
+    <div class="nav-item" data-section="blackouts" onclick="navigate('blackouts',this)" tabindex="0" role="button">
+      <span class="nav-icon" data-icon="ic-warn"></span> Blackouts
+    </div>
+    <div class="nav-label">More</div>
+    <div class="nav-item" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-overview"></span> Overview
     </div>
     <div class="nav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
       <span class="nav-icon">🎟️</span> Vouchers
     </div>
-    <div class="nav-item" data-section="customers" onclick="navigate('customers',this)">
-      <span class="nav-icon">👤</span> Customers
-    </div>
-    <div class="nav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
-      <span class="nav-icon" data-icon="ic-cash"></span> Cash Sale
-    </div>
     <div class="nav-item" data-section="expiry" onclick="navigate('expiry',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-clock"></span> Expiry Watch
       <span class="nav-badge" id="navBadgeExpiry"></span>
     </div>
-    <div class="nav-label">Reports</div>
     <div class="nav-item" data-section="saleslog" onclick="navigate('saleslog',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-list"></span> Sales Log
     </div>
     <div class="nav-item" data-section="analytics" onclick="navigate('analytics',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-chart"></span> Analytics
     </div>
-    <div class="nav-label">System</div>
     <div class="nav-item" data-section="settings" onclick="navigate('settings',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-gear"></span> Settings
     </div>
@@ -843,7 +845,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
 <main class="main">
 
   <!-- OVERVIEW -->
-  <section class="section active" id="section-overview">
+  <section class="section" id="section-overview">
     <div class="section-head">
       <div>
         <div class="section-title">Overview</div>
@@ -989,68 +991,83 @@ textarea.form-input{height:auto;padding:12px 14px;}
     </div>
   </section>
   <!-- CASH SALE -->
-  <section class="section" id="section-cashsale">
+  <!-- VOUCHER SALE / NEW CUSTOMER -->
+  <section class="section active" id="section-voucherhub">
     <div class="section-head">
       <div>
-        <div class="section-title">Cash Sale</div>
-        <div class="section-sub">Assign a voucher for a cash payment</div>
+        <div class="section-title">Voucher Sale / New Customer</div>
+        <div class="section-sub">Renew an existing customer, or sell a walk-in / new customer voucher</div>
       </div>
     </div>
 
-    <div class="step-indicator" id="stepIndicator">
-      <div class="step-dot active" id="stepDot1">1</div>
-      <div class="step-line" id="stepLine1"></div>
-      <div class="step-dot" id="stepDot2">2</div>
-      <div class="step-line" id="stepLine2"></div>
-      <div class="step-dot" id="stepDot3">3</div>
+    <div class="time-tabs">
+      <div class="time-tab active" id="vhTabRenewal" onclick="setVoucherHubTab('renewal')">Renewal</div>
+      <div class="time-tab" id="vhTabNew" onclick="setVoucherHubTab('new')">New / Walk-in Sale</div>
     </div>
 
-    <!-- Step 1: Select Plan -->
-    <div class="cash-step active" id="cashStep1">
-      <div class="card" style="padding:20px;">
-        <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:16px;">Select the plan the customer is paying for:</p>
-        <div class="plan-grid" id="planGrid">
-          <div class="spinner"></div>
-        </div>
+    <div id="vhPaneRenewal">
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="renewalListBody"><div style="text-align:center;padding:32px;"><div class="spinner"></div></div></div>
       </div>
     </div>
 
-    <!-- Step 2: Confirm -->
-    <div class="cash-step" id="cashStep2">
-      <div class="card" style="padding:24px;text-align:center;">
-        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">Confirming sale for:</p>
-        <p style="font-size:1.25rem;font-weight:800;color:var(--text);" id="confirmPlanName">—</p>
-        <p style="font-size:1.7rem;font-weight:900;color:var(--accent);margin:4px 0 20px;" id="confirmPlanPrice">—</p>
-        <div class="form-group" style="text-align:left;">
-          <label class="form-label">Customer Name</label>
-          <input class="form-input" type="text" id="customerName" placeholder="e.g. John Doe"/>
-        </div>
-        <div class="form-group" style="text-align:left;">
-          <label class="form-label">Customer Phone (optional)</label>
-          <input class="form-input" type="tel" id="customerPhone" placeholder="+234…"/>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="cashGoStep(1)">← Back</button>
-          <button class="btn btn-green" onclick="completeCashSale()"><span data-icon="ic-check" style="width:15px;height:15px;"></span>Assign &amp; Complete Sale</button>
+    <div id="vhPaneNew" style="display:none;">
+      <div class="step-indicator" id="stepIndicator">
+        <div class="step-dot active" id="stepDot1">1</div>
+        <div class="step-line" id="stepLine1"></div>
+        <div class="step-dot" id="stepDot2">2</div>
+        <div class="step-line" id="stepLine2"></div>
+        <div class="step-dot" id="stepDot3">3</div>
+      </div>
+
+      <div class="cash-step active" id="cashStep1">
+        <div class="card" style="padding:20px;">
+          <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:16px;">Select the plan the customer is paying for:</p>
+          <div class="plan-grid" id="planGrid"><div class="spinner"></div></div>
         </div>
       </div>
-    </div>
 
-    <!-- Step 3: Done -->
-    <div class="cash-step" id="cashStep3">
-      <div class="card" style="padding:26px;">
-        <div class="voucher-result">
-          <div class="success-icon" data-icon="ic-check"></div>
-          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">Voucher Assigned</p>
-          <p style="font-size:0.95rem;font-weight:700;color:var(--text);" id="resultPlanName">—</p>
-          <div class="voucher-code-display" id="resultCode">—</div>
-          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="copyResultCode()">Copy Code</button>
-            <button class="btn btn-green" onclick="sendViaWhatsApp()"><span data-icon="ic-wa" style="width:15px;height:15px;"></span>Send via WhatsApp</button>
+      <div class="cash-step" id="cashStep2">
+        <div class="card" style="padding:24px;text-align:center;">
+          <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">Confirming sale for:</p>
+          <p style="font-size:1.25rem;font-weight:800;color:var(--text);" id="confirmPlanName">—</p>
+          <p style="font-size:1.7rem;font-weight:900;color:var(--accent);margin:4px 0 20px;" id="confirmPlanPrice">—</p>
+          <div class="form-group" style="text-align:left;">
+            <label class="form-label">Customer Name</label>
+            <input class="form-input" type="text" id="customerName" placeholder="e.g. John Doe"/>
+          </div>
+          <div class="form-group" style="text-align:left;">
+            <label class="form-label">Customer Phone (optional)</label>
+            <input class="form-input" type="tel" id="customerPhone" placeholder="+234…"/>
+          </div>
+          <div class="form-group" style="text-align:left;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);">
+              <input type="checkbox" id="cashCreateCustomer" onchange="setCashCustomerType(this.checked?'new':'regular')"/>
+              Save as customer record (needed for future renewals)
+            </label>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="cashGoStep(1)">← Back</button>
+            <button class="btn btn-green" onclick="completeCashSale()"><span data-icon="ic-check" style="width:15px;height:15px;"></span>Assign &amp; Complete Sale</button>
           </div>
         </div>
-        <div style="text-align:center;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
-          <button class="btn btn-blue" onclick="resetCashSale()"><span data-icon="ic-plus" style="width:15px;height:15px;"></span>Complete Another Sale</button>
+      </div>
+
+      <div class="cash-step" id="cashStep3">
+        <div class="card" style="padding:26px;">
+          <div class="voucher-result">
+            <div class="success-icon" data-icon="ic-check"></div>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;">Voucher Assigned</p>
+            <p style="font-size:0.95rem;font-weight:700;color:var(--text);" id="resultPlanName">—</p>
+            <div class="voucher-code-display" id="resultCode">—</div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-outline" onclick="copyResultCode()">Copy Code</button>
+              <button class="btn btn-green" onclick="sendViaWhatsApp()"><span data-icon="ic-wa" style="width:15px;height:15px;"></span>Send via WhatsApp</button>
+            </div>
+          </div>
+          <div style="text-align:center;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+            <button class="btn btn-blue" onclick="resetCashSale()"><span data-icon="ic-plus" style="width:15px;height:15px;"></span>Complete Another Sale</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1215,6 +1232,47 @@ textarea.form-input{height:auto;padding:12px 14px;}
     </div>
   </section>
 
+   <!-- BLACKOUTS -->
+  <section class="section" id="section-blackouts">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Blackouts</div>
+        <div class="section-sub">Track power outages and apply expiry credit to affected customers</div>
+      </div>
+    </div>
+    <div class="card settings-card">
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <div class="settings-row-label" id="outageStatusLabel">No active blackout</div>
+          <div class="settings-row-sub" id="outageStatusSub">—</div>
+        </div>
+        <button class="btn btn-red btn-sm" id="startOutageBtn" onclick="startBlackout()">Start Blackout</button>
+        <button class="btn btn-green btn-sm" id="restoreOutageBtn" style="display:none;" onclick="restoreBlackout()">Restore Power</button>
+      </div>
+    </div>
+  </section>
+
+   
+   <!-- BLACKOUTS -->
+  <section class="section" id="section-blackouts">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Blackouts</div>
+        <div class="section-sub">Track power outages and apply expiry credit to affected customers</div>
+      </div>
+    </div>
+    <div class="card settings-card">
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <div class="settings-row-label" id="outageStatusLabel">No active blackout</div>
+          <div class="settings-row-sub" id="outageStatusSub">—</div>
+        </div>
+        <button class="btn btn-red btn-sm" id="startOutageBtn" onclick="startBlackout()">Start Blackout</button>
+        <button class="btn btn-green btn-sm" id="restoreOutageBtn" style="display:none;" onclick="restoreBlackout()">Restore Power</button>
+      </div>
+    </div>
+  </section>
+   
   <!-- SETTINGS -->
   <section class="section" id="section-settings">
     <div class="section-head">
@@ -1329,21 +1387,6 @@ textarea.form-input{height:auto;padding:12px 14px;}
       </div>
     </div>
 
-    <!-- Blackout Control -->
-    <div class="settings-section">
-      <div class="settings-section-title">Blackout Control</div>
-      <div class="card settings-card">
-        <div class="settings-row">
-          <div class="settings-row-info">
-            <div class="settings-row-label" id="outageStatusLabel">No active blackout</div>
-            <div class="settings-row-sub" id="outageStatusSub">—</div>
-          </div>
-          <button class="btn btn-red btn-sm" id="startOutageBtn" onclick="startBlackout()">Start Blackout</button>
-          <button class="btn btn-green btn-sm" id="restoreOutageBtn" style="display:none;" onclick="restoreBlackout()">Restore Power</button>
-        </div>
-      </div>
-    </div>
-
     <!-- About -->
     <div class="settings-section">
       <div class="settings-section-title">About</div>
@@ -1366,23 +1409,14 @@ textarea.form-input{height:auto;padding:12px 14px;}
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav" aria-label="Bottom navigation">
-  <div class="bnav-item active" data-section="overview" onclick="navigate('overview',this)">
-    <span class="bnav-icon" data-icon="ic-overview"></span><span>Overview</span>
+  <div class="bnav-item active" data-section="voucherhub" onclick="navigate('voucherhub',this)">
+    <span class="bnav-icon" data-icon="ic-cash"></span><span>Sell</span>
   </div>
-  <div class="bnav-item" data-section="vouchers" onclick="navigate('vouchers',this)">
-    <span class="bnav-icon" data-icon="ic-voucher"></span><span>Vouchers</span>
+  <div class="bnav-item" data-section="customers" onclick="navigate('customers',this)">
+    <span class="bnav-icon">👤</span><span>Customers</span>
   </div>
-  <div class="bnav-item" data-section="cashsale" onclick="navigate('cashsale',this)">
-    <span class="bnav-icon" data-icon="ic-cash"></span><span>Cash</span>
-  </div>
-  <div class="bnav-item" data-section="expiry" onclick="navigate('expiry',this)">
-    <span class="bnav-icon" data-icon="ic-clock"></span><span>Expiry</span>
-  </div>
-  <div class="bnav-item" data-section="saleslog" onclick="navigate('saleslog',this)">
-    <span class="bnav-icon" data-icon="ic-list"></span><span>Sales</span>
-  </div>
-  <div class="bnav-item" data-section="analytics" onclick="navigate('analytics',this)">
-    <span class="bnav-icon" data-icon="ic-chart"></span><span>Stats</span>
+  <div class="bnav-item" data-section="blackouts" onclick="navigate('blackouts',this)">
+    <span class="bnav-icon" data-icon="ic-warn"></span><span>Blackouts</span>
   </div>
 </nav>
 
@@ -1737,9 +1771,10 @@ document.addEventListener('keydown',function(e){
 /* ══════════════════════════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════════════════════════ */
-var currentSection='overview';
+var currentSection='voucherhub';
 var SECTION_TITLES={
-  overview:'Overview',vouchers:'Vouchers',customers:'Customers',cashsale:'Cash Sale',
+  voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
+  overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
   saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
 };
 function navigate(id,el){
@@ -1750,11 +1785,13 @@ function navigate(id,el){
   document.getElementById('section-'+id).classList.add('active');
   document.getElementById('topbarTitle').textContent=SECTION_TITLES[id]||id;
   document.querySelectorAll('[data-section="'+id+'"]').forEach(function(n){n.classList.add('active');});
-  if(id==='overview')
+
+   if(id==='overview')
      loadOverview();
   else if(id==='vouchers'){if(!_vouchersLoaded)loadVouchers();}
   else if(id==='customers'){if(!_custLoaded)loadCustomers();}
-  else if(id==='cashsale')loadCashSalePlans();
+  else if(id==='voucherhub'){loadCashSalePlans();if(!_custLoaded)loadCustomers();renderRenewalList();}
+  else if(id==='blackouts')checkActiveOutage();
   else if(id==='expiry')loadExpiryData();
   else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
   else if(id==='analytics')loadAnalytics();
@@ -2568,18 +2605,37 @@ var _cashSelectedPlan=null;
 var _cashResult=null;
 var _cashCustomerType='regular';
 
-   function setCashCustomerType(type){
-
+function setCashCustomerType(type){
   _cashCustomerType=type;
-
-  var fields=document.getElementById('cashCustomerFields');
-
-  if(type==='new'){
-    fields.style.display='block';
-  }else{
-    fields.style.display='none';
-  }
-
+}
+function setVoucherHubTab(tab){
+  document.getElementById('vhTabRenewal').classList.toggle('active',tab==='renewal');
+  document.getElementById('vhTabNew').classList.toggle('active',tab==='new');
+  document.getElementById('vhPaneRenewal').style.display=tab==='renewal'?'block':'none';
+  document.getElementById('vhPaneNew').style.display=tab==='new'?'block':'none';
+  if(tab==='renewal')renderRenewalList();
+}
+function renderRenewalList(){
+  var body=document.getElementById('renewalListBody');
+  if(!body)return;
+  var list=_allCustomers.filter(function(c){return c.status!=='cancelled'&&c.voucher_code;})
+    .sort(function(a,b){
+      var ae=a.expiry_date?new Date(a.expiry_date).getTime():Infinity;
+      var be=b.expiry_date?new Date(b.expiry_date).getTime():Infinity;
+      return ae-be;
+    });
+  if(!list.length){body.innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">No renewable customers found.</div>';return;}
+  var badgeMap={'cust-row-red':'badge-red','cust-row-yellow':'badge-amber','cust-row-lightgreen':'badge-green','cust-row-darkgreen':'badge-green','':'badge-gray'};
+  body.innerHTML=list.map(function(c){
+    var rs=getCustRowStatus(c);
+    return'<div class="cust-list-row '+rs.cls+'">'+
+      '<div class="cust-list-cl">'+(c.customer_number||'—')+'</div>'+
+      '<div class="cust-list-name">'+(c.name||c.voucher_code)+'</div>'+
+      '<div class="cust-list-status"><span class="badge '+badgeMap[rs.cls]+'">'+rs.label+'</span></div>'+
+      '<span class="cust-list-countdown countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span>'+
+      '<div class="cust-list-actions"><button class="cust-list-action" onclick="buyPlanPlaceholder(\''+c.id+'\')">💳 Renew</button></div>'+
+    '</div>';
+  }).join('');
 }
 
 async function loadCashSalePlans(){
@@ -3193,7 +3249,8 @@ async function restoreBlackout(){
   checkActiveOutage();
 }
 
-loadOverview();
+loadCashSalePlans();
+loadCustomers();
 checkActiveOutage();
 </script>
 </body>
