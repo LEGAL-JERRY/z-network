@@ -2724,10 +2724,12 @@ async function completeCashSale(){
   });
   if(e4)toast('Sale saved, but history log failed: '+e4.message,'error');
 
-  var expiryStr=new Date(expiryDate).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+var expiryStr=new Date(expiryDate).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  var portalLine=newCust.access_token?('\n🔗 Track your time anytime: '+PORTAL_BASE_URL+'/portal.html?t='+newCust.access_token+'\n'):'';
   var welcomeMsg='🎉 Welcome to '+NET_NAME+', '+name+'!\n\n'+
     'Thanks for joining us — you\'re now connected. 🌐\n\n'+
-    '📦 Plan: *'+p.name+'*\n🔑 Your voucher code: *'+voucher.code+'*\n⏰ Valid until: *'+expiryStr+'*\n\n'+
+    '📦 Plan: *'+p.name+'*\n🔑 Your voucher code: *'+voucher.code+'*\n⏰ Valid until: *'+expiryStr+'*\n'+
+    portalLine+'\n'+
     '📶 How to connect:\n1. Join '+NET_NAME+' WiFi\n2. Open your browser\n3. Enter your code as PIN\n4. Tap Connect and enjoy! 🚀\n\n'+
     'Need anything, just reply here — we\'ve got you. 🙌';
   var waPhone=phone.replace(/[^0-9]/g,'');
