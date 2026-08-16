@@ -721,6 +721,16 @@ textarea.form-input{height:auto;padding:12px 14px;}
 .totals-bar strong{font-weight:800;color:var(--text);}
 .totals-bar span{color:var(--text-muted);}
 
+/* ============================================================ BLACKOUT TIMELINE */
+.timeline-scroll{max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:4px;}
+.timeline-block{border-radius:var(--radius-sm);padding:10px 14px;display:flex;flex-direction:column;justify-content:center;color:#fff;flex-shrink:0;}
+.timeline-green{background:var(--green);}
+.timeline-red{background:var(--red);}
+.timeline-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.78rem;font-weight:700;}
+.timeline-outcome{background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:99px;font-size:0.66rem;font-weight:700;}
+.timeline-times{font-size:0.72rem;opacity:0.92;margin-top:2px;font-family:'JetBrains Mono',monospace;}
+.timeline-duration{font-size:0.7rem;opacity:0.85;margin-top:1px;font-weight:700;}
+
 /* Utility */
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 </style>
@@ -1032,20 +1042,15 @@ textarea.form-input{height:auto;padding:12px 14px;}
           <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:6px;">Confirming sale for:</p>
           <p style="font-size:1.25rem;font-weight:800;color:var(--text);" id="confirmPlanName">—</p>
           <p style="font-size:1.7rem;font-weight:900;color:var(--accent);margin:4px 0 20px;" id="confirmPlanPrice">—</p>
-          <div class="form-group" style="text-align:left;">
+         <div class="form-group" style="text-align:left;">
             <label class="form-label">Customer Name</label>
             <input class="form-input" type="text" id="customerName" placeholder="e.g. John Doe"/>
           </div>
           <div class="form-group" style="text-align:left;">
-            <label class="form-label">Customer Phone (optional)</label>
+            <label class="form-label">Customer Phone</label>
             <input class="form-input" type="tel" id="customerPhone" placeholder="+234…"/>
           </div>
-          <div class="form-group" style="text-align:left;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);">
-              <input type="checkbox" id="cashCreateCustomer" onchange="setCashCustomerType(this.checked?'new':'regular')"/>
-              Save as customer record (needed for future renewals)
-            </label>
-          </div>
+          <p style="font-size:0.72rem;color:var(--text-muted);margin-top:-10px;">A customer record and welcome WhatsApp message will be created automatically.</p>
           <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="cashGoStep(1)">← Back</button>
             <button class="btn btn-green" onclick="completeCashSale()"><span data-icon="ic-check" style="width:15px;height:15px;"></span>Assign &amp; Complete Sale</button>
@@ -1240,7 +1245,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <div class="section-sub">Track power outages and apply expiry credit to affected customers</div>
       </div>
     </div>
-    <div class="card settings-card">
+<div class="card settings-card">
       <div class="settings-row">
         <div class="settings-row-info">
           <div class="settings-row-label" id="outageStatusLabel">No active blackout</div>
@@ -1249,6 +1254,11 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <button class="btn btn-red btn-sm" id="startOutageBtn" onclick="startBlackout()">Start Blackout</button>
         <button class="btn btn-green btn-sm" id="restoreOutageBtn" style="display:none;" onclick="restoreBlackout()">Restore Power</button>
       </div>
+    </div>
+
+    <div class="card stock-card" style="margin-top:20px;">
+      <div class="stock-title"><span data-icon="ic-clock" style="width:15px;height:15px;color:var(--text-muted);"></span> Power Timeline</div>
+      <div class="timeline-scroll" id="blackoutTimeline"><div class="spinner"></div></div>
     </div>
   </section>
 
@@ -2605,9 +2615,6 @@ var _cashSelectedPlan=null;
 var _cashResult=null;
 var _cashCustomerType='regular';
 
-function setCashCustomerType(type){
-  _cashCustomerType=type;
-}
 function setVoucherHubTab(tab){
   document.getElementById('vhTabRenewal').classList.toggle('active',tab==='renewal');
   document.getElementById('vhTabNew').classList.toggle('active',tab==='new');
@@ -2681,76 +2688,58 @@ function cashGoStep(n){
 
 async function completeCashSale(){
   if(!_cashSelectedPlan){toast('No plan selected','error');return;}
+  var name=document.getElementById('customerName').value.trim();
+  var phone=document.getElementById('customerPhone').value.trim();
+  if(!name){toast('Customer name is required','error');return;}
+  if(!phone){toast('Customer phone is required','error');return;}
+
   var{data:voucher,error:e1}=await supabase.from('vouchers')
     .select('id,code').eq('plan_id',_cashSelectedPlan).eq('is_used',false).limit(1).single();
   if(e1||!voucher){toast('No vouchers available for this plan','error');return;}
-  var name=document.getElementById('customerName').value.trim()||null;
-var phone=document.getElementById('customerPhone').value.trim()||null;
 
-var ref='CASH-'+Date.now();
+  // open tab synchronously, before any await, or the browser blocks the popup
+  var waTab=window.open('','_blank');
 
-var{error:e2}=await supabase.from('vouchers').update({
-  is_used:true,
-  used_at:new Date().toISOString(),
-  sold_by:'cash',
-  transaction_reference:ref,
-  ...(phone?{phone:phone}:{})
-}).eq('id',voucher.id);
+  var ref='CASH-'+Date.now();
+  var{error:e2}=await supabase.from('vouchers').update({
+    is_used:true,used_at:new Date().toISOString(),sold_by:'cash',
+    transaction_reference:ref,phone:phone
+  }).eq('id',voucher.id);
+  if(e2){toast('Sale failed: '+e2.message,'error');if(waTab)waTab.close();return;}
 
-if(e2){
-  toast('Sale failed: '+e2.message,'error');
-  return;
-}
+  var p=PLANS[_cashSelectedPlan];
+  var expiryDate=new Date(Date.now()+p.hours*3600000).toISOString();
 
-var p=PLANS[_cashSelectedPlan];
+  var{data:newCust,error:e3}=await supabase.from('customers').insert({
+    whatsapp:phone,name:name,plan_id:_cashSelectedPlan,plan_name:p.name,
+    voucher_code:voucher.code,price:p.price,expiry_date:expiryDate,
+    status:'active',is_legacy:false
+  }).select().single();
+  if(e3){toast('Customer creation failed: '+e3.message,'error');if(waTab)waTab.close();return;}
 
-var expiryDate=new Date(
-  Date.now()+p.hours*3600000
-).toISOString();
+  var{error:e4}=await supabase.from('sub_renewals').insert({
+    customer_id:newCust.id,voucher_code:voucher.code,consumed_voucher_id:voucher.id,
+    plan_id:_cashSelectedPlan,plan_name:p.name,amount:p.price,channel:'cash',
+    transaction_reference:ref,expiry_before:null,expiry_after:expiryDate
+  });
+  if(e4)toast('Sale saved, but history log failed: '+e4.message,'error');
 
-/*
-  ONLY create a customer when
-  this sale is intentionally linked
-  to a new customer.
-*/
+  var expiryStr=new Date(expiryDate).toLocaleString('en-NG',{weekday:'long',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  var welcomeMsg='🎉 Welcome to '+NET_NAME+', '+name+'!\n\n'+
+    'Thanks for joining us — you\'re now connected. 🌐\n\n'+
+    '📦 Plan: *'+p.name+'*\n🔑 Your voucher code: *'+voucher.code+'*\n⏰ Valid until: *'+expiryStr+'*\n\n'+
+    '📶 How to connect:\n1. Join '+NET_NAME+' WiFi\n2. Open your browser\n3. Enter your code as PIN\n4. Tap Connect and enjoy! 🚀\n\n'+
+    'Need anything, just reply here — we\'ve got you. 🙌';
+  var waPhone=phone.replace(/[^0-9]/g,'');
+  if(waPhone.startsWith('0'))waPhone='234'+waPhone.substring(1);
+  var waUrl='https://wa.me/'+waPhone+'?text='+encodeURIComponent(welcomeMsg);
+  if(waTab){waTab.location.href=waUrl;}else{window.open(waUrl,'_blank');}
 
-if(_cashCustomerType==='new'){
-
-  if(!name){
-    toast('Customer name is required','error');
-    return;
-  }
-
-  if(!phone){
-    toast('Customer phone is required','error');
-    return;
-  }
-
-  var{error:e3}=await supabase
-    .from('customers')
-    .insert({
-      whatsapp:phone,
-      name:name,
-      plan_id:_cashSelectedPlan,
-      plan_name:p.name,
-      voucher_code:voucher.code,
-      price:p.price,
-      expiry_date:expiryDate,
-      status:'active',
-      is_legacy:false
-    });
-
-  if(e3){
-    toast('Customer creation failed: '+e3.message,'error');
-    return;
-  }
-
-}
   _cashResult={code:voucher.code,plan_id:_cashSelectedPlan};
   document.getElementById('resultPlanName').textContent=p.name;
   document.getElementById('resultCode').textContent=voucher.code.toString().replace(/(.{4})/g,'$1 ').trim();
   cashGoStep(3);
-  toast('Voucher assigned!','success');
+  toast('Voucher assigned & customer created!','success');
 }
 
 function copyResultCode(){copyToClipboard(_cashResult.code,'Code copied!');}
@@ -3190,18 +3179,67 @@ async function checkActiveOutage(){
   var restoreBtn=document.getElementById('restoreOutageBtn');
   var label=document.getElementById('outageStatusLabel');
   var sub=document.getElementById('outageStatusSub');
-  if(!startBtn)return; // section not on this page load yet
-  if(_activeOutage){
-    label.textContent='⚠️ Blackout in progress';
-    sub.textContent='Started '+fmtDate(_activeOutage.started_at);
-    startBtn.style.display='none';restoreBtn.style.display='';
-  }else{
-    label.textContent='No active blackout';
-    sub.textContent='—';
-    startBtn.style.display='';restoreBtn.style.display='none';
+  if(startBtn){
+    if(_activeOutage){
+      label.textContent='⚠️ Blackout in progress';
+      sub.textContent='Started '+fmtDate(_activeOutage.started_at);
+      startBtn.style.display='none';restoreBtn.style.display='';
+    }else{
+      label.textContent='No active blackout';
+      sub.textContent='—';
+      startBtn.style.display='';restoreBtn.style.display='none';
+    }
   }
+  loadBlackoutTimeline();
 }
 
+function fmtTimelineDur(mins){
+  if(mins<60)return Math.round(mins)+'m';
+  var h=mins/60;
+  if(h<24)return h.toFixed(1)+'h';
+  return (h/24).toFixed(1)+'d';
+}
+function timelineBlockHeight(mins){
+  return Math.min(220,Math.max(30,Math.sqrt(Math.max(mins,1))*9));
+}
+function buildOutageSegments(events){
+  var sorted=events.slice().sort(function(a,b){return new Date(a.started_at)-new Date(b.started_at);});
+  var segs=[];
+  var cursor=sorted.length?new Date(sorted[0].started_at):null;
+  sorted.forEach(function(ev){
+    var start=new Date(ev.started_at);
+    var end=ev.resolved_at?new Date(ev.resolved_at):new Date();
+    if(cursor&&start>cursor)segs.push({type:'green',start:cursor,end:start,ongoing:false});
+    segs.push({type:'red',start:start,end:end,ongoing:!ev.resolved_at,applied:ev.applied,dismissed:ev.dismissed,affected_count:ev.affected_count});
+    cursor=end;
+  });
+  if(cursor&&cursor<new Date())segs.push({type:'green',start:cursor,end:new Date(),ongoing:true});
+  return segs.reverse();
+}
+async function loadBlackoutTimeline(){
+  var el=document.getElementById('blackoutTimeline');
+  if(!el)return;
+  el.innerHTML='<div class="spinner"></div>';
+  var{data,error}=await supabase.from('outage_events').select('*').order('started_at',{ascending:true});
+  if(error){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--red);font-size:0.82rem;">Failed to load history: '+error.message+'</div>';return;}
+  var segs=buildOutageSegments(data||[]);
+  if(!segs.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">No power history yet.</div>';return;}
+  el.innerHTML=segs.map(function(s){
+    var mins=(s.end-s.start)/60000;
+    var h=timelineBlockHeight(mins);
+    var label=s.type==='green'?(s.ongoing?'⚡ Power On — ongoing':'⚡ Power On'):(s.ongoing?'⚠️ Blackout — ongoing':'⚠️ Blackout');
+    var outcome='';
+    if(s.type==='red'&&!s.ongoing){
+      if(s.applied)outcome='<span class="timeline-outcome">Credited '+(s.affected_count||0)+'</span>';
+      else if(s.dismissed)outcome='<span class="timeline-outcome">No Credit</span>';
+    }
+    return'<div class="timeline-block timeline-'+s.type+'" style="min-height:'+h+'px;">'+
+      '<div class="timeline-meta"><span>'+label+'</span>'+outcome+'</div>'+
+      '<div class="timeline-times">'+fmtDate(s.start)+' → '+(s.ongoing?'now':fmtDate(s.end))+'</div>'+
+      '<div class="timeline-duration">'+fmtTimelineDur(mins)+'</div>'+
+    '</div>';
+  }).join('');
+}
 async function startBlackout(){
   var ok=await showConfirm('Start Blackout','Mark power as OUT right now? This starts the outage timer.','ic-warn');
   if(!ok)return;
