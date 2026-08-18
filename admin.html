@@ -775,6 +775,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
   <svg id="ic-wa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 01-12.36 7.58L3 20l1.02-5.4A8.5 8.5 0 1121 11.5z"/></svg>
   <svg id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   <svg id="ic-hamburger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+  <svg id="ic-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
 </template>
 
 <!-- ============================================================ SIDEBAR -->
@@ -799,8 +800,11 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="nav-item" data-section="customers" onclick="navigate('customers',this)" tabindex="0" role="button">
       <span class="nav-icon">👤</span> Customers
     </div>
-    <div class="nav-item" data-section="blackouts" onclick="navigate('blackouts',this)" tabindex="0" role="button">
+        <div class="nav-item" data-section="blackouts" onclick="navigate('blackouts',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-warn"></span> Blackouts
+    </div>
+    <div class="nav-item" data-section="accesspoints" onclick="navigate('accesspoints',this)" tabindex="0" role="button">
+      <span class="nav-icon" data-icon="ic-wifi"></span> Access Points
     </div>
     <div class="nav-label">More</div>
     <div class="nav-item" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
@@ -1284,6 +1288,23 @@ textarea.form-input{height:auto;padding:12px 14px;}
     </div>
   </section>
    
+  <!-- ACCESS POINTS -->
+  <section class="section" id="section-accesspoints">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Access Points</div>
+        <div class="section-sub">AP hardware, live online/offline status, and which router each one sits on</div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <button class="btn btn-blue btn-sm" onclick="openAddAPModal()"><span data-icon="ic-plus" style="width:14px;height:14px;"></span>Add Access Point</button>
+      <button class="btn btn-outline btn-sm" onclick="loadAccessPoints()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="apListBody"><div style="text-align:center;padding:32px;"><div class="spinner"></div></div></div>
+    </div>
+  </section>
+
   <!-- SETTINGS -->
   <section class="section" id="section-settings">
     <div class="section-head">
@@ -1613,6 +1634,42 @@ textarea.form-input{height:auto;padding:12px 14px;}
   </div>
 </div>
 
+<div class="modal-backdrop" id="apModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="apModalTitle">Add Access Point</span>
+      <button class="modal-close" onclick="closeModal('apModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="apId"/>
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" type="text" id="apName" placeholder="e.g. Compound 3 — Block A"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">MAC Address</label>
+        <input class="form-input mono" type="text" id="apMac" placeholder="AA:BB:CC:DD:EE:FF"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Router / Hub</label>
+        <select class="form-input" id="apRouter"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="form-input form-textarea" id="apNotes" placeholder="Location, install date, etc."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Admin PIN</label>
+        <input class="form-input" type="password" id="apPin" placeholder="Enter PIN to confirm" inputmode="numeric"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('apModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="submitAP()">Save Access Point</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-backdrop" id="confirmBackdrop">
   <div class="confirm-box">
     <div class="confirm-icon" id="confirmIcon" data-icon="ic-warn"></div>
@@ -1785,6 +1842,7 @@ document.addEventListener('keydown',function(e){
 var currentSection='voucherhub';
 var SECTION_TITLES={
   voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
+  accesspoints:'Access Points',
   overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
   saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
 };
@@ -1803,6 +1861,7 @@ function navigate(id,el){
   else if(id==='customers'){if(!_custLoaded)loadCustomers();}
   else if(id==='voucherhub'){loadCashSalePlans();if(!_custLoaded)loadCustomers();renderRenewalList();}
   else if(id==='blackouts')checkActiveOutage();
+  else if(id==='accesspoints')loadAccessPoints();
   else if(id==='expiry')loadExpiryData();
   else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
   else if(id==='analytics')loadAnalytics();
@@ -3288,6 +3347,127 @@ async function restoreBlackout(){
   await supabase.from('outage_events').update({resolved_at:resolvedAt.toISOString(),duration_minutes:durationMin,applied:true,affected_count:count}).eq('id',_activeOutage.id);
   toast('Credited '+count+' customers with '+hrs+'h','success');
   checkActiveOutage();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ACCESS POINTS
+══════════════════════════════════════════════════════════════ */
+var _allAPs=[];
+var _apLoaded=false;
+var _routersCache=null;
+
+async function getRouters(){
+  if(_routersCache)return _routersCache;
+  var{data,error}=await supabase.from('routers').select('id,name');
+  if(error){toast('Failed to load routers: '+error.message,'error');return[];}
+  _routersCache=data||[];
+  return _routersCache;
+}
+
+async function loadAccessPoints(){
+  _apLoaded=true;
+  document.getElementById('apListBody').innerHTML='<div style="text-align:center;padding:32px;"><div class="spinner"></div></div>';
+  var{data,error}=await supabase.rpc('rpc_get_access_points_status');
+  if(error){
+    document.getElementById('apListBody').innerHTML='<div style="text-align:center;padding:28px;color:var(--red);font-size:0.82rem;">Couldn\'t load access points: '+error.message+'</div>';
+    toast('Access point load failed: '+error.message,'error');
+    return;
+  }
+  _allAPs=data||[];
+  renderAccessPoints();
+}
+
+function renderAccessPoints(){
+  var body=document.getElementById('apListBody');
+  if(!_allAPs.length){
+    body.innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">No access points yet. Add one to get started.</div>';
+    return;
+  }
+  var statusBadge={online:'badge-green',offline:'badge-red',hub_offline:'badge-amber',unknown:'badge-gray'};
+  var statusLabel={online:'Online',offline:'Offline',hub_offline:'Hub Offline',unknown:'Unknown'};
+  body.innerHTML=_allAPs.map(function(ap){
+    var eff=ap.effective_status||ap.status||'unknown';
+    return'<div class="cust-list-row" onclick="openEditAPModal(\''+ap.id+'\')">'+
+      '<div class="cust-list-name">'+(ap.name||'—')+'</div>'+
+      '<div class="cust-list-status"><span class="badge '+(statusBadge[eff]||'badge-gray')+'">'+(statusLabel[eff]||eff)+'</span></div>'+
+      '<span class="cust-list-countdown mono" style="font-size:0.72rem;">'+(ap.mac_address||'—')+'</span>'+
+      '<div class="cust-list-actions">'+
+        '<button class="cust-list-action" onclick="event.stopPropagation();openEditAPModal(\''+ap.id+'\')">✏️ Edit</button>'+
+        '<button class="cust-list-action" onclick="event.stopPropagation();deleteAP(\''+ap.id+'\')">🗑️ Delete</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function openAddAPModal(){
+  document.getElementById('apModalTitle').textContent='Add Access Point';
+  document.getElementById('apId').value='';
+  document.getElementById('apName').value='';
+  document.getElementById('apMac').value='';
+  document.getElementById('apNotes').value='';
+  document.getElementById('apPin').value='';
+  var routers=await getRouters();
+  document.getElementById('apRouter').innerHTML=routers.map(function(r){
+    return'<option value="'+r.id+'">'+(r.name||r.id)+'</option>';
+  }).join('');
+  openModal('apModal');
+}
+
+async function openEditAPModal(id){
+  var ap=_allAPs.find(function(x){return x.id===id;});
+  if(!ap)return;
+  document.getElementById('apModalTitle').textContent='Edit Access Point';
+  document.getElementById('apId').value=ap.id;
+  document.getElementById('apName').value=ap.name||'';
+  document.getElementById('apMac').value=ap.mac_address||'';
+  document.getElementById('apNotes').value=ap.notes||'';
+  document.getElementById('apPin').value='';
+  var routers=await getRouters();
+  document.getElementById('apRouter').innerHTML=routers.map(function(r){
+    return'<option value="'+r.id+'"'+(r.id===ap.router_id?' selected':'')+'>'+(r.name||r.id)+'</option>';
+  }).join('');
+  openModal('apModal');
+}
+
+async function submitAP(){
+  var pin=document.getElementById('apPin').value.trim();
+  var id=document.getElementById('apId').value||null;
+  var name=document.getElementById('apName').value.trim();
+  var mac=document.getElementById('apMac').value.trim();
+  var routerId=document.getElementById('apRouter').value;
+  var notes=document.getElementById('apNotes').value.trim()||null;
+
+  if(!pin){toast('Admin PIN is required','error');return;}
+  if(!name){toast('Name is required','error');return;}
+  if(!mac){toast('MAC address is required','error');return;}
+  if(!routerId){toast('Router is required','error');return;}
+
+  var{data,error}=await supabase.rpc('rpc_admin_ap_upsert',{
+    p_pin:pin,p_id:id,p_name:name,p_mac:mac,p_router_id:routerId,p_notes:notes
+  });
+  if(error||(data&&data.error)){
+    toast('Save failed: '+(data&&data.error?data.error:(error?error.message:'unknown error')),'error');
+    return;
+  }
+  toast(id?'Access point updated':'Access point added','success');
+  closeModal('apModal');
+  loadAccessPoints();
+}
+
+async function deleteAP(id){
+  var ap=_allAPs.find(function(x){return x.id===id;});
+  var ok=await showConfirm('Delete Access Point','Remove '+(ap?ap.name:'this AP')+'? This cannot be undone.','ic-warn');
+  if(!ok)return;
+  var pin=prompt('Enter admin PIN to confirm deletion:');
+  if(!pin)return;
+
+  var{data,error}=await supabase.rpc('rpc_admin_ap_delete',{p_pin:pin,p_id:id});
+  if(error||(data&&data.error)){
+    toast('Delete failed: '+(data&&data.error?data.error:(error?error.message:'unknown error')),'error');
+    return;
+  }
+  toast('Access point deleted','success');
+  loadAccessPoints();
 }
 
 loadCashSalePlans();
