@@ -88,6 +88,13 @@ async function fetchPlans(){
   return PLANS_LIVE;
 }
 
+function getBlackoutCredit(startedAtIso){
+  if(!startedAtIso)return'+0m';
+  var diff=Date.now()-new Date(startedAtIso).getTime();
+  if(diff<0)diff=0;
+  var h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
+  return'+'+(h>0?(h+'h '+m+'m'):(m+'m'));
+}
 function getCountdown(expiryIso){
   if(!expiryIso)return'—';
   var diff=new Date(expiryIso).getTime()-Date.now();
@@ -99,6 +106,7 @@ function getCountdown(expiryIso){
 
 var _customer=null;
 var _activeOutage=null;
+var _isExpired=false;
 
 async function loadPortal(){
   if(!TOKEN){renderNotFound();return;}
@@ -121,6 +129,7 @@ async function renderCustomer(){
   var plans = await fetchPlans();
   var isPaused=c.status==='suspended';
   var isExpired=!isPaused && c.expiry_date && new Date(c.expiry_date).getTime()<=Date.now();
+  _isExpired=isExpired;
   var isBlackout=!isPaused && !!_activeOutage;
   var cls=isPaused?'paused':(isBlackout?'blackout':(isExpired?'expired':'active'));
   var label=isPaused?'Paused':(isBlackout?'Power Outage':(isExpired?'Expired':'Active'));
@@ -136,8 +145,8 @@ async function renderCustomer(){
       '</div>'+
       '<div class="plan-card">'+
         '<div class="plan-top"><div><div class="plan-label">Current plan</div><div class="plan-name">'+(c.plan_name||'No active plan')+'</div></div></div>'+
-      '<div class="countdown '+cls+'">'+(isPaused?'—':(isBlackout?'⏸':getCountdown(c.expiry_date)))+'</div>'+
-        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isBlackout?'Power is out — your time is paused and will be credited back once restored':(isExpired?'Your plan has expired':'Time remaining on your current subscription')))+'</div>'+
+        '<div class="countdown '+cls+'">'+(isPaused?'—':(isBlackout?getBlackoutCredit(_activeOutage.started_at):getCountdown(c.expiry_date)))+'</div>'+
+        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isBlackout?'Power is out — time added back so far, credited once restored':(isExpired?'Your plan has expired':'Time remaining on your current subscription')))+'</div>'+
     '<div class="quick-actions"><button class="btn btn-primary" onclick="document.getElementById(\'topupSection\').scrollIntoView({behavior:\'smooth\'})">View plans</button></div>'+
       '</div>'+
     '</section>'+
@@ -158,6 +167,7 @@ async function renderCustomer(){
       '<div class="profile-grid">'+
         '<div class="profile-item"><div class="profile-label">Name</div><div class="profile-value">'+(c.name||'—')+'</div></div>'+
         '<div class="profile-item"><div class="profile-label">Customer number</div><div class="profile-value">'+(c.customer_number||'—')+'</div></div>'+
+        '<div class="profile-item"><div class="profile-label">Voucher code</div><div class="profile-value mono">'+(c.voucher_code||'—')+'</div></div>'+
       '</div>'+
     '</section>'+
 
@@ -167,8 +177,8 @@ async function renderCustomer(){
       '<div class="error" id="pinError">Incorrect PIN.</div>'+
       '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
       '<button class="btn btn-outline" style="width:100%" onclick="unlockAdmin()">Unlock</button>'+
-      '<div id="adminActions" style="display:none;margin-top:14px;">'+
-        (isPaused?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
+         '<div id="adminActions" style="display:none;margin-top:14px;">'+
+        ((isPaused||isExpired)?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
       '</div>'+
     '</div>';
 
@@ -176,6 +186,11 @@ if(!isPaused && !isBlackout && c.expiry_date){
     setInterval(function(){
       var el=document.querySelector('.countdown');
       if(el)el.textContent=getCountdown(c.expiry_date);
+    },30000);
+  }else if(isBlackout){
+    setInterval(function(){
+      var el=document.querySelector('.countdown');
+      if(el)el.textContent=getBlackoutCredit(_activeOutage.started_at);
     },30000);
   }
 }
@@ -191,8 +206,8 @@ async function unlockAdmin(){
   if(!pin){return;}
   var{data,error}=await supabase.rpc('rpc_verify_portal_pin',{p_pin:pin});
   if(error||!data){errEl.classList.add('show');return;}
-  document.getElementById('adminActions').style.display='block';
-  if(_customer.status==='suspended')renderContinuePicker();
+   document.getElementById('adminActions').style.display='block';
+  if(_customer.status==='suspended'||_isExpired)renderContinuePicker();
   document.getElementById('pinInput').style.display='none';
   document.querySelector('#adminPanel .btn-outline').style.display='none';
   window._portalPin=pin; // held in memory only for this session's action call, never stored
