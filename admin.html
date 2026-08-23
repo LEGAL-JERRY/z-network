@@ -732,6 +732,12 @@ textarea.form-input{height:auto;padding:12px 14px;}
 .timeline-times{font-size:0.72rem;opacity:0.92;margin-top:2px;font-family:'JetBrains Mono',monospace;}
 .timeline-duration{font-size:0.7rem;opacity:0.85;margin-top:1px;font-weight:700;}
 
+.ap-fullscreen{
+  position:fixed !important;inset:0;z-index:999;border-radius:0 !important;
+  width:100vw;height:100vh;
+}
+.ap-fullscreen #apCanvas{height:calc(100vh - 44px) !important;}
+
 /* Utility */
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 </style>
@@ -1302,6 +1308,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
   <button class="btn btn-outline btn-sm" onclick="resetAPView()">⟲ Reset View</button>
   <button class="btn btn-outline btn-sm" onclick="autoArrangeAPs()">✦ Auto-Arrange</button>
   <button class="btn btn-outline btn-sm" onclick="exportAPPositions()"><span data-icon="ic-export" style="width:14px;height:14px;"></span>Export Positions</button>
+  <button class="btn btn-outline btn-sm" id="apFullscreenBtn" onclick="toggleAPFullscreen()">⛶ Fullscreen</button>
 </div>
 <div class="filters-row" style="margin-top:-6px;">
   <input class="filter-input" type="text" id="apSearchInput" placeholder="Search AP name or MAC…" oninput="apSearchJump(this.value)" style="min-width:180px;"/>
@@ -1319,7 +1326,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
   <button class="btn btn-outline btn-sm" onclick="apResetZoom()">⤢ Reset Zoom</button>
 </div>
 <p style="font-size:0.72rem;color:var(--text-muted);margin:-6px 0 12px;">Tip: drag the hub square to reposition it, double-click it to rename. Scroll to zoom, drag empty space to pan. Double-click a connector line to bend it.</p>    <div class="card" style="padding:0;overflow:hidden;position:relative;background:#05070d;border-color:#1a2036;">
-      <canvas id="apCanvas" style="display:block;width:100%;height:480px;touch-action:none;cursor:grab;"></canvas>
+      <canvas id="apCanvas" style="display:block;width:100%;height:82vh;min-height:700px;touch-action:none;cursor:grab;"></canvas>
       <div id="apTooltip" style="position:absolute;display:none;pointer-events:none;background:rgba(10,12,20,0.92);border:1px solid #2a3150;color:#e8ecf7;font-size:0.72rem;font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:5;"></div>
       <div id="apEmptyState" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted);position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;">No access points yet. Add one to light up the map.</div>
       <div style="display:flex;gap:16px;align-items:center;padding:12px 18px;border-top:1px solid #1a2036;font-size:0.7rem;color:#8a91ac;flex-wrap:wrap;">
@@ -3909,6 +3916,21 @@ function resizeAPCanvas(){
   _apCanvas.height=rect.height*dpr;
   _apCtx.setTransform(dpr,0,0,dpr,0,0);
 }
+
+function toggleAPFullscreen(){
+  var card=_apCanvas.closest('.card');
+  var isFs=card.classList.toggle('ap-fullscreen');
+  document.getElementById('apFullscreenBtn').textContent=isFs?'⛶ Exit Fullscreen':'⛶ Fullscreen';
+  document.body.style.overflow=isFs?'hidden':'';
+  resizeAPCanvas();
+  renderAPFrame();
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    var card=_apCanvas&&_apCanvas.closest('.card');
+    if(card&&card.classList.contains('ap-fullscreen'))toggleAPFullscreen();
+  }
+});
 
 function hitTestAP(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
