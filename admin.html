@@ -4058,6 +4058,8 @@ function resetAPView(){
   renderAPFrame();
   toast('Layout reset to default positions (unsaved until you drag again)','success');
 }
+
+async function openAddAPModal(){
   document.getElementById('apModalTitle').textContent='Add Access Point';
   document.getElementById('apId').value='';
   document.getElementById('apName').value='';
