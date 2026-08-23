@@ -4039,11 +4039,10 @@ function renderAPFrame(){
   }
 
   // connector lines
-   // AP nodes — unpinned first, pinned last so pinned always render on top
-  var _apDrawOrder=_apNodes.slice().sort(function(a,b){return(isAPPinned(a.id)?1:0)-(isAPPinned(b.id)?1:0);});
+  var _apDrawOrder=_apNodes.slice().sort(function(a,b){return(a.pinned?1:0)-(b.pinned?1:0);});
   _apDrawOrder.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
-    var pinned=isAPPinned(n.id);
+    var pinned=!!n.pinned;
     var x=n.fx*w,y=n.fy*h;
     var isHover=n.id===_apHoverId;
     var isHighlight=n.id===_apHighlightId;
