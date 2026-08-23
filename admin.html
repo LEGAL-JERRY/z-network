@@ -358,7 +358,7 @@ body.dark .nav-item.active{color:var(--accent-dark);}
   transition:border-color 0.15s;
 }
 .filter-input:focus,.filter-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
-
+.ap-filter-chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);}
 /* ============================================================ VOUCHER / DATA TABLES */
 .table-scroll{overflow-x:auto;overflow-y:auto;max-height:min(560px,60vh);}
 .v-table{width:100%;border-collapse:collapse;font-size:0.84rem;}
@@ -1297,10 +1297,21 @@ textarea.form-input{height:auto;padding:12px 14px;}
       </div>
     </div>
     <div class="filters-row">
-      <button class="btn btn-blue btn-sm" onclick="openAddAPModal()"><span data-icon="ic-plus" style="width:14px;height:14px;"></span>Add Access Point</button>
-      <button class="btn btn-outline btn-sm" onclick="loadAccessPoints()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
-      <button class="btn btn-outline btn-sm" onclick="resetAPView()">⟲ Reset View</button>
-    </div>
+  <button class="btn btn-blue btn-sm" onclick="openAddAPModal()"><span data-icon="ic-plus" style="width:14px;height:14px;"></span>Add Access Point</button>
+  <button class="btn btn-outline btn-sm" onclick="loadAccessPoints()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
+  <button class="btn btn-outline btn-sm" onclick="resetAPView()">⟲ Reset View</button>
+  <button class="btn btn-outline btn-sm" onclick="autoArrangeAPs()">✦ Auto-Arrange</button>
+  <button class="btn btn-outline btn-sm" onclick="exportAPPositions()"><span data-icon="ic-export" style="width:14px;height:14px;"></span>Export Positions</button>
+</div>
+<div class="filters-row" style="margin-top:-6px;">
+  <input class="filter-input" type="text" id="apSearchInput" placeholder="Search AP name or MAC…" oninput="apSearchJump(this.value)" style="min-width:180px;"/>
+  <button class="btn btn-outline btn-sm" id="apSnapBtn" onclick="toggleAPSnap()">▦ Snap: Off</button>
+  <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="online" onclick="toggleAPFilter('online',this)">● Online</button>
+  <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="offline" onclick="toggleAPFilter('offline',this)">● Offline</button>
+  <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="hub_offline" onclick="toggleAPFilter('hub_offline',this)">● Hub Offline</button>
+</div>
+<p style="font-size:0.72rem;color:var(--text-muted);margin:-6px 0 12px;">Tip: double-click a connector line to add a bend point, drag it to reroute, double-click it again to remove.</p>
+
     <div class="card" style="padding:0;overflow:hidden;position:relative;background:#05070d;border-color:#1a2036;">
       <canvas id="apCanvas" style="display:block;width:100%;height:480px;touch-action:none;cursor:grab;"></canvas>
       <div id="apTooltip" style="position:absolute;display:none;pointer-events:none;background:rgba(10,12,20,0.92);border:1px solid #2a3150;color:#e8ecf7;font-size:0.72rem;font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:5;"></div>
@@ -3360,17 +3371,21 @@ async function restoreBlackout(){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   ACCESS POINTS — 2D draggable map
+   ACCESS POINTS — 2D draggable map with tools
 ══════════════════════════════════════════════════════════════ */
 var _allAPs=[];
 var _apLoaded=false;
 var _routersCache=null;
 var _apCanvas=null,_apCtx=null;
-var _apHubs=[];               // [{id,name,fx,fy}] fixed fractional positions
-var _apNodes=[];              // [{id,name,status,hubId,fx,fy}] draggable AP nodes
-var _apDragId=null,_apDragMoved=false,_apDragStartX=0,_apDragStartY=0;
+var _apHubs=[];               // [{id,name,fx,fy}]
+var _apNodes=[];              // [{id,name,mac,status,hubId,fx,fy,waypoints:[{x,y}]}]
+var _apDragId=null,_apDragKind=null,_apDragWpIndex=null,_apDragMoved=false,_apDragStartX=0,_apDragStartY=0;
 var _apHoverId=null;
-var _apSaveTimer=null;
+var _apSaveTimer={};
+var _apSnap=false;
+var _apActiveFilters={online:true,offline:true,hub_offline:true};
+var _apHighlightId=null;
+var _apHighlightUntil=0;
 
 async function getRouters(){
   if(_routersCache)return _routersCache;
@@ -3408,17 +3423,152 @@ function buildAPLayout(routers){
       var hasPos=ap.pos_x!==null&&ap.pos_x!==undefined&&ap.pos_y!==null&&ap.pos_y!==undefined;
       var angle=(j*137.5)*Math.PI/180;
       var radius=0.10+((j%3)*0.03);
+      var wp=[];
+      try{ wp=Array.isArray(ap.waypoints)?ap.waypoints:(ap.waypoints?JSON.parse(ap.waypoints):[]); }catch(e){ wp=[]; }
       _apNodes.push({
         id:ap.id,name:ap.name,mac:ap.mac_address,
         status:ap.effective_status||ap.status||'unknown',
         hubId:hub.id,
         fx:hasPos?ap.pos_x:Math.min(0.96,Math.max(0.04,hub.fx+radius*Math.cos(angle))),
-        fy:hasPos?ap.pos_y:Math.min(0.92,Math.max(0.24,hub.fy+0.30+radius*Math.sin(angle)))
+        fy:hasPos?ap.pos_y:Math.min(0.92,Math.max(0.24,hub.fy+0.30+radius*Math.sin(angle))),
+        waypoints:wp
       });
     });
   });
 }
 
+/* ---------- TOOL 1: search / jump-to ---------- */
+function apSearchJump(q){
+  q=(q||'').trim().toLowerCase();
+  if(!q){_apHighlightId=null;renderAPFrame();return;}
+  var hit=_apNodes.find(function(n){
+    return (n.name||'').toLowerCase().includes(q)||(n.mac||'').toLowerCase().includes(q);
+  });
+  if(hit){
+    _apHighlightId=hit.id;
+    _apHighlightUntil=Date.now()+2600;
+    Object.keys(_apActiveFilters).forEach(function(k){_apActiveFilters[k]=true;});
+    document.querySelectorAll('.ap-filter-chip').forEach(function(b){b.classList.add('active');});
+  }else{
+    _apHighlightId=null;
+  }
+  renderAPFrame();
+}
+
+/* ---------- TOOL 2: snap to grid ---------- */
+var AP_GRID=0.04;
+function toggleAPSnap(){
+  _apSnap=!_apSnap;
+  document.getElementById('apSnapBtn').textContent='▦ Snap: '+(_apSnap?'On':'Off');
+  document.getElementById('apSnapBtn').classList.toggle('active',_apSnap);
+}
+function snapVal(v){return _apSnap?Math.round(v/AP_GRID)*AP_GRID:v;}
+
+/* ---------- TOOL 3: status filter chips ---------- */
+function toggleAPFilter(status,el){
+  _apActiveFilters[status]=!_apActiveFilters[status];
+  el.classList.toggle('active',_apActiveFilters[status]);
+  renderAPFrame();
+}
+
+/* ---------- TOOL 4: auto-arrange ---------- */
+function autoArrangeAPs(){
+  var byHub={};
+  _apNodes.forEach(function(n){(byHub[n.hubId]=byHub[n.hubId]||[]).push(n);});
+  Object.keys(byHub).forEach(function(hid){
+    var hub=_apHubs.find(function(h){return h.id===hid;});
+    if(!hub)return;
+    byHub[hid].forEach(function(n,j){
+      var angle=(j*137.5)*Math.PI/180;
+      var radius=0.10+((j%3)*0.03);
+      n.fx=Math.min(0.96,Math.max(0.04,hub.fx+radius*Math.cos(angle)));
+      n.fy=Math.min(0.92,Math.max(0.24,hub.fy+0.30+radius*Math.sin(angle)));
+      n.waypoints=[];
+      saveAPPosition(n.id,n.fx,n.fy,n.waypoints);
+    });
+  });
+  renderAPFrame();
+  toast('Auto-arranged — positions saved','success');
+}
+
+/* ---------- TOOL 5: export positions ---------- */
+function exportAPPositions(){
+  if(!_apNodes.length){toast('Nothing to export','error');return;}
+  var rows=_apNodes.map(function(n){
+    var hub=_apHubs.find(function(h){return h.id===n.hubId;});
+    return{name:n.name,mac_address:n.mac,hub:(hub?hub.name:''),status:n.status,
+      pos_x:n.fx.toFixed(4),pos_y:n.fy.toFixed(4),waypoints:JSON.stringify(n.waypoints||[])};
+  });
+  downloadCSV(rows,'access_point_positions.csv');
+}
+
+/* ---------- TOOL 6: waypoints (bend points on connector lines) ---------- */
+function distToSegment(px,py,x1,y1,x2,y2){
+  var dx=x2-x1,dy=y2-y1;
+  var len2=dx*dx+dy*dy;
+  var t=len2>0?Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/len2)):0;
+  var cx=x1+t*dx,cy=y1+t*dy;
+  return Math.hypot(px-cx,py-cy);
+}
+function getNodePath(n,hub,w,h){
+  // returns array of {x,y} in screen space: hub -> waypoints -> ap
+  var pts=[{x:hub.fx*w,y:hub.fy*h}];
+  (n.waypoints||[]).forEach(function(p){pts.push({x:p.x*w,y:p.y*h});});
+  pts.push({x:n.fx*w,y:n.fy*h});
+  return pts;
+}
+function hitTestWaypoint(mx,my){
+  var rect=_apCanvas.getBoundingClientRect();
+  var best=null,bestDist=12;
+  _apNodes.forEach(function(n){
+    (n.waypoints||[]).forEach(function(p,idx){
+      var d=Math.hypot(p.x*rect.width-mx,p.y*rect.height-my);
+      if(d<bestDist){bestDist=d;best={nodeId:n.id,index:idx};}
+    });
+  });
+  return best;
+}
+function hitTestLine(mx,my){
+  var rect=_apCanvas.getBoundingClientRect();
+  var w=rect.width,h=rect.height;
+  var best=null,bestDist=7;
+  _apNodes.forEach(function(n){
+    var hub=_apHubs.find(function(hh){return hh.id===n.hubId;});
+    if(!hub)return;
+    var pts=getNodePath(n,hub,w,h);
+    for(var i=0;i<pts.length-1;i++){
+      var d=distToSegment(mx,my,pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);
+      if(d<bestDist){bestDist=d;best={nodeId:n.id,segIndex:i,x:mx/w,y:my/h};}
+    }
+  });
+  return best;
+}
+function apHandleDblClick(mx,my){
+  var wpHit=hitTestWaypoint(mx,my);
+  if(wpHit){
+    var node=_apNodes.find(function(n){return n.id===wpHit.nodeId;});
+    if(node){
+      node.waypoints.splice(wpHit.index,1);
+      saveAPPosition(node.id,node.fx,node.fy,node.waypoints);
+      renderAPFrame();
+      toast('Bend point removed','success');
+    }
+    return;
+  }
+  var lineHit=hitTestLine(mx,my);
+  if(lineHit){
+    var node=_apNodes.find(function(n){return n.id===lineHit.nodeId;});
+    if(node){
+      node.waypoints=node.waypoints||[];
+      node.waypoints.splice(lineHit.segIndex,0,{x:lineHit.x,y:lineHit.y});
+      saveAPPosition(node.id,node.fx,node.fy,node.waypoints);
+      renderAPFrame();
+      toast('Bend point added — drag to reroute','success');
+    }
+  }
+}
+
+/* ---------- canvas plumbing ---------- */
 function initAPCanvas(){
   _apCanvas=document.getElementById('apCanvas');
   if(!_apCanvas)return;
@@ -3428,12 +3578,24 @@ function initAPCanvas(){
   resizeAPCanvas();
   window.addEventListener('resize',function(){resizeAPCanvas();renderAPFrame();});
 
+  _apCanvas.addEventListener('dblclick',function(e){
+    var rect=_apCanvas.getBoundingClientRect();
+    apHandleDblClick(e.clientX-rect.left,e.clientY-rect.top);
+  });
+
   _apCanvas.addEventListener('pointerdown',function(e){
     var rect=_apCanvas.getBoundingClientRect();
     var mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    var wpHit=hitTestWaypoint(mx,my);
+    if(wpHit){
+      _apDragKind='waypoint';_apDragId=wpHit.nodeId;_apDragWpIndex=wpHit.index;_apDragMoved=false;
+      _apDragStartX=e.clientX;_apDragStartY=e.clientY;
+      _apCanvas.setPointerCapture(e.pointerId);
+      return;
+    }
     var hit=hitTestAP(mx,my);
     if(hit){
-      _apDragId=hit.id;_apDragMoved=false;
+      _apDragKind='ap';_apDragId=hit.id;_apDragMoved=false;
       _apDragStartX=e.clientX;_apDragStartY=e.clientY;
       _apCanvas.setPointerCapture(e.pointerId);
       _apCanvas.style.cursor='grabbing';
@@ -3442,12 +3604,22 @@ function initAPCanvas(){
   _apCanvas.addEventListener('pointermove',function(e){
     var rect=_apCanvas.getBoundingClientRect();
     var mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    if(_apDragId){
+    if(_apDragKind==='ap'&&_apDragId){
       if(Math.hypot(e.clientX-_apDragStartX,e.clientY-_apDragStartY)>4)_apDragMoved=true;
       var node=_apNodes.find(function(n){return n.id===_apDragId;});
       if(node){
-        node.fx=Math.min(0.98,Math.max(0.02,mx/rect.width));
-        node.fy=Math.min(0.98,Math.max(0.06,my/rect.height));
+        node.fx=snapVal(Math.min(0.98,Math.max(0.02,mx/rect.width)));
+        node.fy=snapVal(Math.min(0.98,Math.max(0.06,my/rect.height)));
+        renderAPFrame();
+      }
+    }else if(_apDragKind==='waypoint'&&_apDragId!==null){
+      if(Math.hypot(e.clientX-_apDragStartX,e.clientY-_apDragStartY)>4)_apDragMoved=true;
+      var node2=_apNodes.find(function(n){return n.id===_apDragId;});
+      if(node2&&node2.waypoints[_apDragWpIndex]){
+        node2.waypoints[_apDragWpIndex]={
+          x:snapVal(Math.min(0.98,Math.max(0.02,mx/rect.width))),
+          y:snapVal(Math.min(0.98,Math.max(0.06,my/rect.height)))
+        };
         renderAPFrame();
       }
     }else{
@@ -3455,18 +3627,19 @@ function initAPCanvas(){
     }
   });
   ['pointerup','pointerleave'].forEach(function(ev){
-    _apCanvas.addEventListener(ev,function(e){
-      if(_apDragId){
-        var id=_apDragId;
-        var moved=_apDragMoved;
+    _apCanvas.addEventListener(ev,function(){
+      if(_apDragKind==='ap'&&_apDragId){
+        var id=_apDragId,moved=_apDragMoved;
         var node=_apNodes.find(function(n){return n.id===id;});
-        _apDragId=null;_apDragMoved=false;
+        _apDragKind=null;_apDragId=null;_apDragMoved=false;
         _apCanvas.style.cursor='grab';
-        if(moved&&node){
-          saveAPPosition(id,node.fx,node.fy);
-        }else if(!moved){
-          openEditAPModal(id);
-        }
+        if(moved&&node){saveAPPosition(id,node.fx,node.fy,node.waypoints);}
+        else if(!moved){openEditAPModal(id);}
+      }else if(_apDragKind==='waypoint'&&_apDragId!==null){
+        var id2=_apDragId;
+        var node2=_apNodes.find(function(n){return n.id===id2;});
+        _apDragKind=null;_apDragId=null;_apDragWpIndex=null;_apDragMoved=false;
+        if(node2)saveAPPosition(id2,node2.fx,node2.fy,node2.waypoints);
       }
     });
   });
@@ -3474,10 +3647,10 @@ function initAPCanvas(){
   requestAnimationFrame(apRenderLoop);
 }
 
-function saveAPPosition(id,fx,fy){
-  clearTimeout(_apSaveTimer);
-  _apSaveTimer=setTimeout(function(){
-    supabase.from('access_points').update({pos_x:fx,pos_y:fy}).eq('id',id).then(function(r){
+function saveAPPosition(id,fx,fy,waypoints){
+  clearTimeout(_apSaveTimer[id]);
+  _apSaveTimer[id]=setTimeout(function(){
+    supabase.from('access_points').update({pos_x:fx,pos_y:fy,waypoints:waypoints||[]}).eq('id',id).then(function(r){
       if(r.error)toast('Position save failed: '+r.error.message,'error');
     });
   },250);
@@ -3496,6 +3669,7 @@ function hitTestAP(mx,my){
   var rect=_apCanvas.getBoundingClientRect();
   var best=null,bestDist=16;
   _apNodes.forEach(function(n){
+    if(!_apActiveFilters[n.status])return;
     var d=Math.hypot(n.fx*rect.width-mx,n.fy*rect.height-my);
     if(d<bestDist){bestDist=d;best=n;}
   });
@@ -3523,21 +3697,29 @@ function renderAPFrame(){
   var ctx=_apCtx,w=rect.width,h=rect.height;
   ctx.fillStyle='#05070d';ctx.fillRect(0,0,w,h);
 
-  // faint grid
   ctx.strokeStyle='rgba(120,140,220,0.06)';ctx.lineWidth=1;
   for(var gx=0;gx<w;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,h);ctx.stroke();}
   for(var gy=0;gy<h;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(w,gy);ctx.stroke();}
 
-  // connector lines hub -> ap
+  if(_apHighlightId&&Date.now()>_apHighlightUntil)_apHighlightId=null;
+
+  // connector lines (with waypoint bends)
   _apNodes.forEach(function(n){
+    if(!_apActiveFilters[n.status])return;
     var hub=_apHubs.find(function(hh){return hh.id===n.hubId;});
     if(!hub)return;
+    var pts=getNodePath(n,hub,w,h);
     ctx.strokeStyle='rgba(120,140,220,0.28)';
     ctx.lineWidth=1;
     ctx.beginPath();
-    ctx.moveTo(hub.fx*w,hub.fy*h);
-    ctx.lineTo(n.fx*w,n.fy*h);
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
     ctx.stroke();
+    // waypoint handles
+    (n.waypoints||[]).forEach(function(p){
+      ctx.fillStyle='rgba(160,180,255,0.9)';
+      ctx.beginPath();ctx.arc(p.x*w,p.y*h,3.5,0,7);ctx.fill();
+    });
   });
 
   // hubs
@@ -3557,10 +3739,18 @@ function renderAPFrame(){
 
   // AP nodes
   _apNodes.forEach(function(n){
+    if(!_apActiveFilters[n.status])return;
     var x=n.fx*w,y=n.fy*h;
-    var isHover=n.id===_apHoverId||n.id===_apDragId;
-    var r=isHover?9:7;
+    var isHover=n.id===_apHoverId;
+    var isHighlight=n.id===_apHighlightId;
+    var r=isHover||isHighlight?9:7;
     var color=n.status==='online'?'#ffffff':(n.status==='hub_offline'?'#e0a63b':'#e0524f');
+    if(isHighlight){
+      var pulse=0.5+0.5*Math.sin(Date.now()/150);
+      ctx.strokeStyle='rgba(76,147,255,'+pulse.toFixed(2)+')';
+      ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(x,y,r+7,0,7);ctx.stroke();
+    }
     if(n.status==='online'){
       var g=ctx.createRadialGradient(x,y,0,x,y,r*3.2);
       g.addColorStop(0,'rgba(255,255,255,0.35)');
@@ -3578,6 +3768,7 @@ function renderAPFrame(){
 }
 
 function apRenderLoop(){
+  if(_apHighlightId)renderAPFrame();
   requestAnimationFrame(apRenderLoop);
 }
 
@@ -3586,7 +3777,6 @@ function resetAPView(){
   renderAPFrame();
   toast('Layout reset to default positions (unsaved until you drag again)','success');
 }
-
 async function openAddAPModal(){
   document.getElementById('apModalTitle').textContent='Add Access Point';
   document.getElementById('apId').value='';
