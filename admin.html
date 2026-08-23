@@ -1310,9 +1310,15 @@ textarea.form-input{height:auto;padding:12px 14px;}
   <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="offline" onclick="toggleAPFilter('offline',this)">● Offline</button>
   <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="hub_offline" onclick="toggleAPFilter('hub_offline',this)">● Hub Offline</button>
 </div>
-<p style="font-size:0.72rem;color:var(--text-muted);margin:-6px 0 12px;">Tip: double-click a connector line to add a bend point, drag it to reroute, double-click it again to remove.</p>
-
-    <div class="card" style="padding:0;overflow:hidden;position:relative;background:#05070d;border-color:#1a2036;">
+<div class="filters-row" style="margin-top:-6px;">
+  <button class="btn btn-outline btn-sm" id="apRectBtn" onclick="toggleShapeDrawMode('rect',this)">▭ Add Rectangle</button>
+  <button class="btn btn-outline btn-sm" id="apSquareBtn" onclick="toggleShapeDrawMode('square',this)">▢ Add Square</button>
+  <span style="width:1px;background:#1a2036;align-self:stretch;"></span>
+  <button class="btn btn-outline btn-sm" onclick="apZoomBy(1.25)">＋ Zoom In</button>
+  <button class="btn btn-outline btn-sm" onclick="apZoomBy(0.8)">－ Zoom Out</button>
+  <button class="btn btn-outline btn-sm" onclick="apResetZoom()">⤢ Reset Zoom</button>
+</div>
+<p style="font-size:0.72rem;color:var(--text-muted);margin:-6px 0 12px;">Tip: drag the hub square to reposition it, double-click it to rename. Scroll to zoom, drag empty space to pan. Double-click a connector line to bend it.</p>    <div class="card" style="padding:0;overflow:hidden;position:relative;background:#05070d;border-color:#1a2036;">
       <canvas id="apCanvas" style="display:block;width:100%;height:480px;touch-action:none;cursor:grab;"></canvas>
       <div id="apTooltip" style="position:absolute;display:none;pointer-events:none;background:rgba(10,12,20,0.92);border:1px solid #2a3150;color:#e8ecf7;font-size:0.72rem;font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:5;"></div>
       <div id="apEmptyState" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted);position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;">No access points yet. Add one to light up the map.</div>
@@ -3377,8 +3383,9 @@ var _allAPs=[];
 var _apLoaded=false;
 var _routersCache=null;
 var _apCanvas=null,_apCtx=null;
-var _apHubs=[];               // [{id,name,fx,fy}]
-var _apNodes=[];              // [{id,name,mac,status,hubId,fx,fy,waypoints:[{x,y}]}]
+var _apHubs=[];
+var _apNodes=[];
+var _apShapes=[];
 var _apDragId=null,_apDragKind=null,_apDragWpIndex=null,_apDragMoved=false,_apDragStartX=0,_apDragStartY=0;
 var _apHoverId=null;
 var _apSaveTimer={};
@@ -3387,9 +3394,27 @@ var _apActiveFilters={online:true,offline:true,hub_offline:true};
 var _apHighlightId=null;
 var _apHighlightUntil=0;
 
+// NEW: view (zoom/pan)
+var _apView={zoom:1,panX:0,panY:0};
+var _apPanning=false,_apPanStart={sx:0,sy:0,panX:0,panY:0};
+
+// NEW: hub drag
+var _apHubDragId=null,_apHubDragMoved=false;
+
+// NEW: shapes
+var _apShapeDrawMode=null;     // 'rect' | 'square' | null
+var _apShapeDrawing=null;      // {x0,y0,x1,y1} normalized, while dragging out a new shape
+var _apShapeDragId=null,_apShapeDragKind=null; // kind: 'move' | 'resize'
+var _apShapeDragOffset={x:0,y:0};
+var _apSelectedShapeId=null;
+
+function toLogical(mx,my){
+  return{x:(mx-_apView.panX)/_apView.zoom, y:(my-_apView.panY)/_apView.zoom};
+}
+
 async function getRouters(){
   if(_routersCache)return _routersCache;
-  var{data,error}=await supabase.from('routers').select('id,name');
+  var{data,error}=await supabase.from('routers').select('id,name,pos_x,pos_y');
   if(error){toast('Failed to load routers: '+error.message,'error');return[];}
   _routersCache=data||[];
   return _routersCache;
@@ -3402,10 +3427,17 @@ async function loadAccessPoints(){
   _allAPs=data||[];
   var routers=await getRouters();
   buildAPLayout(routers);
+  await loadMapShapes();
   initAPCanvas();
   document.getElementById('apCountLabel').textContent=_allAPs.length+' access point'+(_allAPs.length!==1?'s':'')+' across '+_apHubs.length+' hub'+(_apHubs.length!==1?'s':'');
   document.getElementById('apEmptyState').style.display=_allAPs.length?'none':'flex';
   renderAPFrame();
+}
+
+async function loadMapShapes(){
+  var{data,error}=await supabase.from('map_shapes').select('*');
+  if(error){toast('Failed to load shapes: '+error.message,'error');_apShapes=[];return;}
+  _apShapes=(data||[]).map(function(s){return{id:s.id,kind:s.kind,x:s.x,y:s.y,w:s.w,h:s.h,label:s.label||''};});
 }
 
 function buildAPLayout(routers){
@@ -3414,7 +3446,13 @@ function buildAPLayout(routers){
   var hubIds=Object.keys(byRouter);
   _apHubs=hubIds.map(function(rid,i){
     var r=routers.find(function(x){return x.id===rid;});
-    return{id:rid,name:(r&&r.name)||'Hub',fx:(hubIds.length===1)?0.5:(0.12+i*(0.76/Math.max(1,hubIds.length-1))),fy:0.14};
+    var hasPos=r&&r.pos_x!==null&&r.pos_x!==undefined&&r.pos_y!==null&&r.pos_y!==undefined;
+    return{
+      id:rid,
+      name:(r&&r.name)||'Hub',
+      fx:hasPos?r.pos_x:((hubIds.length===1)?0.5:(0.12+i*(0.76/Math.max(1,hubIds.length-1)))),
+      fy:hasPos?r.pos_y:0.14
+    };
   });
   _apNodes=[];
   _apHubs.forEach(function(hub){
@@ -3437,7 +3475,7 @@ function buildAPLayout(routers){
   });
 }
 
-/* ---------- TOOL 1: search / jump-to ---------- */
+/* ---------- search / jump-to ---------- */
 function apSearchJump(q){
   q=(q||'').trim().toLowerCase();
   if(!q){_apHighlightId=null;renderAPFrame();return;}
@@ -3455,7 +3493,7 @@ function apSearchJump(q){
   renderAPFrame();
 }
 
-/* ---------- TOOL 2: snap to grid ---------- */
+/* ---------- snap to grid ---------- */
 var AP_GRID=0.04;
 function toggleAPSnap(){
   _apSnap=!_apSnap;
@@ -3464,14 +3502,14 @@ function toggleAPSnap(){
 }
 function snapVal(v){return _apSnap?Math.round(v/AP_GRID)*AP_GRID:v;}
 
-/* ---------- TOOL 3: status filter chips ---------- */
+/* ---------- status filter chips ---------- */
 function toggleAPFilter(status,el){
   _apActiveFilters[status]=!_apActiveFilters[status];
   el.classList.toggle('active',_apActiveFilters[status]);
   renderAPFrame();
 }
 
-/* ---------- TOOL 4: auto-arrange ---------- */
+/* ---------- auto-arrange ---------- */
 function autoArrangeAPs(){
   var byHub={};
   _apNodes.forEach(function(n){(byHub[n.hubId]=byHub[n.hubId]||[]).push(n);});
@@ -3491,7 +3529,7 @@ function autoArrangeAPs(){
   toast('Auto-arranged — positions saved','success');
 }
 
-/* ---------- TOOL 5: export positions ---------- */
+/* ---------- export positions ---------- */
 function exportAPPositions(){
   if(!_apNodes.length){toast('Nothing to export','error');return;}
   var rows=_apNodes.map(function(n){
@@ -3502,7 +3540,7 @@ function exportAPPositions(){
   downloadCSV(rows,'access_point_positions.csv');
 }
 
-/* ---------- TOOL 6: waypoints (bend points on connector lines) ---------- */
+/* ---------- waypoints (bend points on connector lines) ---------- */
 function distToSegment(px,py,x1,y1,x2,y2){
   var dx=x2-x1,dy=y2-y1;
   var len2=dx*dx+dy*dy;
@@ -3511,24 +3549,23 @@ function distToSegment(px,py,x1,y1,x2,y2){
   return Math.hypot(px-cx,py-cy);
 }
 function getNodePath(n,hub,w,h){
-  // returns array of {x,y} in screen space: hub -> waypoints -> ap
   var pts=[{x:hub.fx*w,y:hub.fy*h}];
   (n.waypoints||[]).forEach(function(p){pts.push({x:p.x*w,y:p.y*h});});
   pts.push({x:n.fx*w,y:n.fy*h});
   return pts;
 }
-function hitTestWaypoint(mx,my){
+function hitTestWaypoint(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
   var best=null,bestDist=12;
   _apNodes.forEach(function(n){
     (n.waypoints||[]).forEach(function(p,idx){
-      var d=Math.hypot(p.x*rect.width-mx,p.y*rect.height-my);
+      var d=Math.hypot(p.x*rect.width-lx,p.y*rect.height-ly);
       if(d<bestDist){bestDist=d;best={nodeId:n.id,index:idx};}
     });
   });
   return best;
 }
-function hitTestLine(mx,my){
+function hitTestLine(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
   var w=rect.width,h=rect.height;
   var best=null,bestDist=7;
@@ -3537,14 +3574,17 @@ function hitTestLine(mx,my){
     if(!hub)return;
     var pts=getNodePath(n,hub,w,h);
     for(var i=0;i<pts.length-1;i++){
-      var d=distToSegment(mx,my,pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);
-      if(d<bestDist){bestDist=d;best={nodeId:n.id,segIndex:i,x:mx/w,y:my/h};}
+      var d=distToSegment(lx,ly,pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);
+      if(d<bestDist){bestDist=d;best={nodeId:n.id,segIndex:i,x:lx/w,y:ly/h};}
     }
   });
   return best;
 }
-function apHandleDblClick(mx,my){
-  var wpHit=hitTestWaypoint(mx,my);
+function apHandleDblClick(lx,ly){
+  var hubHit=hitTestHub(lx,ly);
+  if(hubHit){renameHub(hubHit.id);return;}
+
+  var wpHit=hitTestWaypoint(lx,ly);
   if(wpHit){
     var node=_apNodes.find(function(n){return n.id===wpHit.nodeId;});
     if(node){
@@ -3555,17 +3595,128 @@ function apHandleDblClick(mx,my){
     }
     return;
   }
-  var lineHit=hitTestLine(mx,my);
+  var lineHit=hitTestLine(lx,ly);
   if(lineHit){
-    var node=_apNodes.find(function(n){return n.id===lineHit.nodeId;});
-    if(node){
-      node.waypoints=node.waypoints||[];
-      node.waypoints.splice(lineHit.segIndex,0,{x:lineHit.x,y:lineHit.y});
-      saveAPPosition(node.id,node.fx,node.fy,node.waypoints);
+    var node2=_apNodes.find(function(n){return n.id===lineHit.nodeId;});
+    if(node2){
+      node2.waypoints=node2.waypoints||[];
+      node2.waypoints.splice(lineHit.segIndex,0,{x:lineHit.x,y:lineHit.y});
+      saveAPPosition(node2.id,node2.fx,node2.fy,node2.waypoints);
       renderAPFrame();
       toast('Bend point added — drag to reroute','success');
     }
   }
+}
+
+/* ---------- hub drag + rename ---------- */
+function hitTestHub(lx,ly){
+  var rect=_apCanvas.getBoundingClientRect();
+  var best=null,bestDist=16;
+  _apHubs.forEach(function(hub){
+    var d=Math.hypot(hub.fx*rect.width-lx,hub.fy*rect.height-ly);
+    if(d<bestDist){bestDist=d;best=hub;}
+  });
+  return best;
+}
+function saveHubPosition(id,fx,fy){
+  clearTimeout(_apSaveTimer['hub_'+id]);
+  _apSaveTimer['hub_'+id]=setTimeout(function(){
+    supabase.from('routers').update({pos_x:fx,pos_y:fy}).eq('id',id).then(function(r){
+      if(r.error)toast('Hub position save failed: '+r.error.message,'error');
+    });
+  },250);
+}
+async function renameHub(id){
+  var hub=_apHubs.find(function(h){return h.id===id;});
+  if(!hub)return;
+  var name=prompt('Rename hub:',hub.name);
+  if(name===null)return;
+  name=name.trim();
+  if(!name){toast('Name cannot be empty','error');return;}
+  var{error}=await supabase.from('routers').update({name:name}).eq('id',id);
+  if(error){toast('Rename failed: '+error.message,'error');return;}
+  hub.name=name;
+  var cached=(_routersCache||[]).find(function(r){return r.id===id;});
+  if(cached)cached.name=name;
+  toast('Hub renamed to "'+name+'"','success');
+  renderAPFrame();
+}
+
+/* ---------- zoom / pan ---------- */
+function apZoomBy(factor,cx,cy){
+  var rect=_apCanvas.getBoundingClientRect();
+  var mx=cx!==undefined?cx:rect.width/2;
+  var my=cy!==undefined?cy:rect.height/2;
+  var wx=(mx-_apView.panX)/_apView.zoom, wy=(my-_apView.panY)/_apView.zoom;
+  var newZoom=Math.min(4,Math.max(0.4,_apView.zoom*factor));
+  _apView.panX=mx-wx*newZoom;
+  _apView.panY=my-wy*newZoom;
+  _apView.zoom=newZoom;
+  renderAPFrame();
+}
+function apResetZoom(){
+  _apView={zoom:1,panX:0,panY:0};
+  renderAPFrame();
+}
+
+/* ---------- shape tool ---------- */
+function toggleShapeDrawMode(kind,el){
+  var wasActive=_apShapeDrawMode===kind;
+  document.getElementById('apRectBtn').classList.remove('active');
+  document.getElementById('apSquareBtn').classList.remove('active');
+  _apShapeDrawMode=wasActive?null:kind;
+  if(_apShapeDrawMode)el.classList.add('active');
+  _apCanvas.style.cursor=_apShapeDrawMode?'crosshair':'grab';
+}
+function hitTestShape(lx,ly){
+  var rect=_apCanvas.getBoundingClientRect();
+  var w=rect.width,h=rect.height;
+  for(var i=_apShapes.length-1;i>=0;i--){
+    var s=_apShapes[i];
+    var sx=s.x*w,sy=s.y*h,sw=s.w*w,sh=s.h*h;
+    if(s.id===_apSelectedShapeId&&Math.hypot(lx-(sx+sw),ly-sy)<10)return{id:s.id,kind:'delete'};
+    if(Math.hypot(lx-(sx+sw),ly-(sy+sh))<10)return{id:s.id,kind:'resize'};
+    if(lx>=sx&&lx<=sx+sw&&ly>=sy&&ly<=sy+sh)return{id:s.id,kind:'move',offX:lx-sx,offY:ly-sy};
+  }
+  return null;
+}
+function saveShapePosition(s){
+  clearTimeout(_apSaveTimer['shape_'+s.id]);
+  _apSaveTimer['shape_'+s.id]=setTimeout(function(){
+    supabase.from('map_shapes').update({x:s.x,y:s.y,w:s.w,h:s.h}).eq('id',s.id).then(function(r){
+      if(r.error)toast('Shape save failed: '+r.error.message,'error');
+    });
+  },250);
+}
+async function deleteShape(id){
+  _apShapes=_apShapes.filter(function(s){return s.id!==id;});
+  _apSelectedShapeId=null;
+  renderAPFrame();
+  var{error}=await supabase.from('map_shapes').delete().eq('id',id);
+  if(error)toast('Delete failed: '+error.message,'error');
+  else toast('Shape deleted','success');
+}
+async function finalizeShapeDraw(){
+  var d=_apShapeDrawing;
+  _apShapeDrawing=null;
+  if(!d)return;
+  var x=Math.min(d.x0,d.x1), y=Math.min(d.y0,d.y1);
+  var w=Math.abs(d.x1-d.x0), h=Math.abs(d.y1-d.y0);
+  if(_apShapeDrawMode==='square'){var m=Math.max(w,h);w=m;h=m;}
+  if(w<0.01||h<0.01){toggleShapeDrawModeOff();renderAPFrame();return;}
+  var label=prompt('Label for this box (optional):','')||'';
+  var{data,error}=await supabase.from('map_shapes').insert({kind:_apShapeDrawMode,x:x,y:y,w:w,h:h,label:label}).select().single();
+  toggleShapeDrawModeOff();
+  if(error){toast('Failed to save shape: '+error.message,'error');renderAPFrame();return;}
+  _apShapes.push({id:data.id,kind:data.kind,x:data.x,y:data.y,w:data.w,h:data.h,label:data.label||''});
+  toast((data.kind==='square'?'Square':'Rectangle')+' added','success');
+  renderAPFrame();
+}
+function toggleShapeDrawModeOff(){
+  _apShapeDrawMode=null;
+  document.getElementById('apRectBtn').classList.remove('active');
+  document.getElementById('apSquareBtn').classList.remove('active');
+  _apCanvas.style.cursor='grab';
 }
 
 /* ---------- canvas plumbing ---------- */
@@ -3578,38 +3729,110 @@ function initAPCanvas(){
   resizeAPCanvas();
   window.addEventListener('resize',function(){resizeAPCanvas();renderAPFrame();});
 
+  _apCanvas.addEventListener('wheel',function(e){
+    e.preventDefault();
+    var rect=_apCanvas.getBoundingClientRect();
+    apZoomBy(e.deltaY<0?1.1:0.9,e.clientX-rect.left,e.clientY-rect.top);
+  },{passive:false});
+
   _apCanvas.addEventListener('dblclick',function(e){
     var rect=_apCanvas.getBoundingClientRect();
-    apHandleDblClick(e.clientX-rect.left,e.clientY-rect.top);
+    var l=toLogical(e.clientX-rect.left,e.clientY-rect.top);
+    apHandleDblClick(l.x,l.y);
   });
 
   _apCanvas.addEventListener('pointerdown',function(e){
     var rect=_apCanvas.getBoundingClientRect();
     var mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    var wpHit=hitTestWaypoint(mx,my);
+    var l=toLogical(mx,my);
+
+    if(_apShapeDrawMode){
+      _apShapeDrawing={x0:l.x/rect.width,y0:l.y/rect.height,x1:l.x/rect.width,y1:l.y/rect.height};
+      _apCanvas.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    var shapeHit=hitTestShape(l.x,l.y);
+    if(shapeHit){
+      if(shapeHit.kind==='delete'){deleteShape(shapeHit.id);return;}
+      _apSelectedShapeId=shapeHit.id;
+      _apShapeDragId=shapeHit.id;_apShapeDragKind=shapeHit.kind;_apDragMoved=false;
+      if(shapeHit.kind==='move')_apShapeDragOffset={x:shapeHit.offX,y:shapeHit.offY};
+      _apDragStartX=e.clientX;_apDragStartY=e.clientY;
+      _apCanvas.setPointerCapture(e.pointerId);
+      renderAPFrame();
+      return;
+    }
+
+    var wpHit=hitTestWaypoint(l.x,l.y);
     if(wpHit){
       _apDragKind='waypoint';_apDragId=wpHit.nodeId;_apDragWpIndex=wpHit.index;_apDragMoved=false;
       _apDragStartX=e.clientX;_apDragStartY=e.clientY;
       _apCanvas.setPointerCapture(e.pointerId);
       return;
     }
-    var hit=hitTestAP(mx,my);
+
+    var hubHit=hitTestHub(l.x,l.y);
+    if(hubHit){
+      _apHubDragId=hubHit.id;_apHubDragMoved=false;
+      _apDragStartX=e.clientX;_apDragStartY=e.clientY;
+      _apCanvas.setPointerCapture(e.pointerId);
+      _apCanvas.style.cursor='grabbing';
+      return;
+    }
+
+    var hit=hitTestAP(l.x,l.y);
     if(hit){
       _apDragKind='ap';_apDragId=hit.id;_apDragMoved=false;
       _apDragStartX=e.clientX;_apDragStartY=e.clientY;
       _apCanvas.setPointerCapture(e.pointerId);
       _apCanvas.style.cursor='grabbing';
+      return;
     }
+
+    // nothing hit — pan the canvas
+    _apPanning=true;
+    _apPanStart={sx:e.clientX,sy:e.clientY,panX:_apView.panX,panY:_apView.panY};
+    _apCanvas.setPointerCapture(e.pointerId);
+    _apCanvas.style.cursor='grabbing';
   });
+
   _apCanvas.addEventListener('pointermove',function(e){
     var rect=_apCanvas.getBoundingClientRect();
     var mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    if(_apDragKind==='ap'&&_apDragId){
+    var l=toLogical(mx,my);
+
+    if(_apShapeDrawing){
+      _apShapeDrawing.x1=l.x/rect.width;
+      _apShapeDrawing.y1=l.y/rect.height;
+      renderAPFrame();
+    }else if(_apShapeDragId){
+      var s=_apShapes.find(function(x){return x.id===_apShapeDragId;});
+      if(s){
+        if(_apShapeDragKind==='move'){
+          s.x=snapVal(Math.min(1-s.w,Math.max(0,(l.x-_apShapeDragOffset.x)/rect.width)));
+          s.y=snapVal(Math.min(1-s.h,Math.max(0,(l.y-_apShapeDragOffset.y)/rect.height)));
+        }else if(_apShapeDragKind==='resize'){
+          s.w=Math.max(0.02,Math.min(1-s.x,l.x/rect.width-s.x));
+          s.h=Math.max(0.02,Math.min(1-s.y,l.y/rect.height-s.y));
+          if(s.kind==='square'){var m=Math.max(s.w,s.h);s.w=m;s.h=m;}
+        }
+        renderAPFrame();
+      }
+    }else if(_apHubDragId){
+      if(Math.hypot(e.clientX-_apDragStartX,e.clientY-_apDragStartY)>4)_apHubDragMoved=true;
+      var hub=_apHubs.find(function(h){return h.id===_apHubDragId;});
+      if(hub){
+        hub.fx=snapVal(Math.min(0.98,Math.max(0.02,l.x/rect.width)));
+        hub.fy=snapVal(Math.min(0.98,Math.max(0.04,l.y/rect.height)));
+        renderAPFrame();
+      }
+    }else if(_apDragKind==='ap'&&_apDragId){
       if(Math.hypot(e.clientX-_apDragStartX,e.clientY-_apDragStartY)>4)_apDragMoved=true;
       var node=_apNodes.find(function(n){return n.id===_apDragId;});
       if(node){
-        node.fx=snapVal(Math.min(0.98,Math.max(0.02,mx/rect.width)));
-        node.fy=snapVal(Math.min(0.98,Math.max(0.06,my/rect.height)));
+        node.fx=snapVal(Math.min(0.98,Math.max(0.02,l.x/rect.width)));
+        node.fy=snapVal(Math.min(0.98,Math.max(0.06,l.y/rect.height)));
         renderAPFrame();
       }
     }else if(_apDragKind==='waypoint'&&_apDragId!==null){
@@ -3617,30 +3840,52 @@ function initAPCanvas(){
       var node2=_apNodes.find(function(n){return n.id===_apDragId;});
       if(node2&&node2.waypoints[_apDragWpIndex]){
         node2.waypoints[_apDragWpIndex]={
-          x:snapVal(Math.min(0.98,Math.max(0.02,mx/rect.width))),
-          y:snapVal(Math.min(0.98,Math.max(0.06,my/rect.height)))
+          x:snapVal(Math.min(0.98,Math.max(0.02,l.x/rect.width))),
+          y:snapVal(Math.min(0.98,Math.max(0.06,l.y/rect.height)))
         };
         renderAPFrame();
       }
+    }else if(_apPanning){
+      _apView.panX=_apPanStart.panX+(e.clientX-_apPanStart.sx);
+      _apView.panY=_apPanStart.panY+(e.clientY-_apPanStart.sy);
+      renderAPFrame();
     }else{
-      hitTestHover(mx,my);
+      hitTestHover(l.x,l.y,mx,my);
     }
   });
+
   ['pointerup','pointerleave'].forEach(function(ev){
     _apCanvas.addEventListener(ev,function(){
+      if(_apShapeDrawing){finalizeShapeDraw();return;}
+      if(_apShapeDragId){
+        var s=_apShapes.find(function(x){return x.id===_apShapeDragId;});
+        _apShapeDragId=null;_apShapeDragKind=null;
+        if(s)saveShapePosition(s);
+        return;
+      }
+      if(_apHubDragId){
+        var id=_apHubDragId,moved=_apHubDragMoved;
+        var hub=_apHubs.find(function(h){return h.id===id;});
+        _apHubDragId=null;_apHubDragMoved=false;
+        _apCanvas.style.cursor='grab';
+        if(moved&&hub)saveHubPosition(id,hub.fx,hub.fy);
+        return;
+      }
       if(_apDragKind==='ap'&&_apDragId){
-        var id=_apDragId,moved=_apDragMoved;
-        var node=_apNodes.find(function(n){return n.id===id;});
+        var apid=_apDragId,apmoved=_apDragMoved;
+        var node=_apNodes.find(function(n){return n.id===apid;});
         _apDragKind=null;_apDragId=null;_apDragMoved=false;
         _apCanvas.style.cursor='grab';
-        if(moved&&node){saveAPPosition(id,node.fx,node.fy,node.waypoints);}
-        else if(!moved){openEditAPModal(id);}
+        if(apmoved&&node){saveAPPosition(apid,node.fx,node.fy,node.waypoints);}
+        else if(!apmoved){openEditAPModal(apid);}
       }else if(_apDragKind==='waypoint'&&_apDragId!==null){
-        var id2=_apDragId;
-        var node2=_apNodes.find(function(n){return n.id===id2;});
+        var wid=_apDragId;
+        var node2=_apNodes.find(function(n){return n.id===wid;});
         _apDragKind=null;_apDragId=null;_apDragWpIndex=null;_apDragMoved=false;
-        if(node2)saveAPPosition(id2,node2.fx,node2.fy,node2.waypoints);
+        if(node2)saveAPPosition(wid,node2.fx,node2.fy,node2.waypoints);
       }
+      _apPanning=false;
+      _apCanvas.style.cursor=_apShapeDrawMode?'crosshair':'grab';
     });
   });
 
@@ -3665,28 +3910,28 @@ function resizeAPCanvas(){
   _apCtx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-function hitTestAP(mx,my){
+function hitTestAP(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
   var best=null,bestDist=16;
   _apNodes.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
-    var d=Math.hypot(n.fx*rect.width-mx,n.fy*rect.height-my);
+    var d=Math.hypot(n.fx*rect.width-lx,n.fy*rect.height-ly);
     if(d<bestDist){bestDist=d;best=n;}
   });
   return best;
 }
-function hitTestHover(mx,my){
-  var hit=hitTestAP(mx,my);
+function hitTestHover(lx,ly,screenMx,screenMy){
+  var hit=hitTestAP(lx,ly);
   var tip=document.getElementById('apTooltip');
   if(hit){
     _apHoverId=hit.id;
     tip.style.display='block';
-    tip.style.left=mx+14+'px';tip.style.top=my+10+'px';
+    tip.style.left=screenMx+14+'px';tip.style.top=screenMy+10+'px';
     tip.textContent=hit.name+' — '+hit.status.replace('_',' ');
     _apCanvas.style.cursor='grab';
   }else{
     _apHoverId=null;tip.style.display='none';
-    _apCanvas.style.cursor='default';
+    _apCanvas.style.cursor=_apShapeDrawMode?'crosshair':'default';
   }
   renderAPFrame();
 }
@@ -3701,9 +3946,43 @@ function renderAPFrame(){
   for(var gx=0;gx<w;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,h);ctx.stroke();}
   for(var gy=0;gy<h;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(w,gy);ctx.stroke();}
 
+  ctx.save();
+  ctx.translate(_apView.panX,_apView.panY);
+  ctx.scale(_apView.zoom,_apView.zoom);
+
   if(_apHighlightId&&Date.now()>_apHighlightUntil)_apHighlightId=null;
 
-  // connector lines (with waypoint bends)
+  // shapes (under everything)
+  _apShapes.forEach(function(s){
+    var x=s.x*w,y=s.y*h,sw=s.w*w,sh=s.h*h;
+    var selected=s.id===_apSelectedShapeId;
+    ctx.fillStyle='rgba(76,147,255,0.10)';
+    ctx.strokeStyle=selected?'rgba(255,255,255,0.9)':'rgba(120,160,255,0.55)';
+    ctx.lineWidth=selected?2:1.3;
+    ctx.fillRect(x,y,sw,sh);
+    ctx.strokeRect(x,y,sw,sh);
+    if(s.label){
+      ctx.fillStyle='rgba(220,230,255,0.85)';ctx.font='11px sans-serif';
+      ctx.fillText(s.label,x+6,y+16);
+    }
+    ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.beginPath();ctx.arc(x+sw,y+sh,4,0,7);ctx.fill();
+    if(selected){
+      ctx.fillStyle='rgba(224,82,82,0.9)';
+      ctx.beginPath();ctx.arc(x+sw,y,7,0,7);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='700 10px sans-serif';ctx.textAlign='center';
+      ctx.fillText('×',x+sw,y+3.5);ctx.textAlign='left';
+    }
+  });
+  if(_apShapeDrawing){
+    var d=_apShapeDrawing;
+    var dx=Math.min(d.x0,d.x1)*w,dy=Math.min(d.y0,d.y1)*h;
+    var dw=Math.abs(d.x1-d.x0)*w,dh=Math.abs(d.y1-d.y0)*h;
+    ctx.fillStyle='rgba(76,147,255,0.15)';ctx.strokeStyle='rgba(76,147,255,0.9)';
+    ctx.setLineDash([4,3]);ctx.fillRect(dx,dy,dw,dh);ctx.strokeRect(dx,dy,dw,dh);ctx.setLineDash([]);
+  }
+
+  // connector lines
   _apNodes.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
     var hub=_apHubs.find(function(hh){return hh.id===n.hubId;});
@@ -3715,7 +3994,6 @@ function renderAPFrame(){
     ctx.moveTo(pts[0].x,pts[0].y);
     for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
     ctx.stroke();
-    // waypoint handles
     (n.waypoints||[]).forEach(function(p){
       ctx.fillStyle='rgba(160,180,255,0.9)';
       ctx.beginPath();ctx.arc(p.x*w,p.y*h,3.5,0,7);ctx.fill();
@@ -3765,6 +4043,8 @@ function renderAPFrame(){
     ctx.fillText(n.name,x,y+r+14);
     ctx.textAlign='left';
   });
+
+  ctx.restore();
 }
 
 function apRenderLoop(){
@@ -3774,10 +4054,10 @@ function apRenderLoop(){
 
 function resetAPView(){
   buildAPLayout(_routersCache||[]);
+  _apView={zoom:1,panX:0,panY:0};
   renderAPFrame();
   toast('Layout reset to default positions (unsaved until you drag again)','success');
 }
-async function openAddAPModal(){
   document.getElementById('apModalTitle').textContent='Add Access Point';
   document.getElementById('apId').value='';
   document.getElementById('apName').value='';
