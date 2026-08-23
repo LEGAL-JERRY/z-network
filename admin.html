@@ -1698,6 +1698,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
     </div>
     <div class="modal-footer">
       <button class="btn btn-red" id="apDeleteBtn" style="display:none;margin-right:auto;" onclick="deleteAP(document.getElementById('apId').value)">Delete</button>
+      <button class="btn btn-outline" id="apPinBtn" style="display:none;" onclick="togglePinAP(document.getElementById('apId').value)">📌 Pin</button>
       <button class="btn btn-outline" onclick="closeModal('apModal')">Cancel</button>
       <button class="btn btn-blue" onclick="submitAP()">Save Access Point</button>
     </div>
@@ -3400,6 +3401,18 @@ var _apSnap=false;
 var _apActiveFilters={online:true,offline:true,hub_offline:true};
 var _apHighlightId=null;
 var _apHighlightUntil=0;
+var _apPinnedIds=new Set(JSON.parse(localStorage.getItem('zn_ap_pinned')||'[]'));
+
+function isAPPinned(id){return _apPinnedIds.has(id);}
+function togglePinAP(id){
+  if(_apPinnedIds.has(id))_apPinnedIds.delete(id);
+  else _apPinnedIds.add(id);
+  localStorage.setItem('zn_ap_pinned',JSON.stringify(Array.from(_apPinnedIds)));
+  renderAPFrame();
+  var btn=document.getElementById('apPinBtn');
+  if(btn)btn.textContent=_apPinnedIds.has(id)?'📌 Unpin':'📌 Pin';
+  toast(_apPinnedIds.has(id)?'Pinned — stays on top':'Unpinned','success');
+}
 
 // NEW: view (zoom/pan)
 var _apView={zoom:1,panX:0,panY:0};
@@ -3738,8 +3751,14 @@ function initAPCanvas(){
 
   _apCanvas.addEventListener('wheel',function(e){
     e.preventDefault();
-    var rect=_apCanvas.getBoundingClientRect();
-    apZoomBy(e.deltaY<0?1.1:0.9,e.clientX-rect.left,e.clientY-rect.top);
+    if(e.ctrlKey||e.metaKey){
+      var rect=_apCanvas.getBoundingClientRect();
+      apZoomBy(e.deltaY<0?1.1:0.9,e.clientX-rect.left,e.clientY-rect.top);
+    }else{
+      _apView.panY-=e.deltaY;
+      _apView.panX-=e.deltaX;
+      renderAPFrame();
+    }
   },{passive:false});
 
   _apCanvas.addEventListener('dblclick',function(e){
@@ -3935,10 +3954,11 @@ document.addEventListener('keydown',function(e){
 function hitTestAP(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
   var best=null,bestDist=16;
-  _apNodes.forEach(function(n){
+  var ordered=_apNodes.slice().sort(function(a,b){return(isAPPinned(a.id)?1:0)-(isAPPinned(b.id)?1:0);});
+  ordered.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
     var d=Math.hypot(n.fx*rect.width-lx,n.fy*rect.height-ly);
-    if(d<bestDist){bestDist=d;best=n;}
+    if(d<=bestDist){bestDist=d;best=n;}
   });
   return best;
 }
@@ -4005,21 +4025,40 @@ function renderAPFrame(){
   }
 
   // connector lines
-  _apNodes.forEach(function(n){
+   // AP nodes — unpinned first, pinned last so pinned always render on top
+  var _apDrawOrder=_apNodes.slice().sort(function(a,b){return(isAPPinned(a.id)?1:0)-(isAPPinned(b.id)?1:0);});
+  _apDrawOrder.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
-    var hub=_apHubs.find(function(hh){return hh.id===n.hubId;});
-    if(!hub)return;
-    var pts=getNodePath(n,hub,w,h);
-    ctx.strokeStyle='rgba(120,140,220,0.28)';
-    ctx.lineWidth=1;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x,pts[0].y);
-    for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
-    ctx.stroke();
-    (n.waypoints||[]).forEach(function(p){
-      ctx.fillStyle='rgba(160,180,255,0.9)';
-      ctx.beginPath();ctx.arc(p.x*w,p.y*h,3.5,0,7);ctx.fill();
-    });
+    var pinned=isAPPinned(n.id);
+    var x=n.fx*w,y=n.fy*h;
+    var isHover=n.id===_apHoverId;
+    var isHighlight=n.id===_apHighlightId;
+    var r=isHover||isHighlight||pinned?9:7;
+    var color=n.status==='online'?'#ffffff':(n.status==='hub_offline'?'#e0a63b':'#e0524f');
+    if(isHighlight){
+      var pulse=0.5+0.5*Math.sin(Date.now()/150);
+      ctx.strokeStyle='rgba(76,147,255,'+pulse.toFixed(2)+')';
+      ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(x,y,r+7,0,7);ctx.stroke();
+    }
+    if(n.status==='online'){
+      var g=ctx.createRadialGradient(x,y,0,x,y,r*3.2);
+      g.addColorStop(0,'rgba(255,255,255,0.35)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*3.2,0,7);ctx.fill();
+    }
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+    ctx.strokeStyle=pinned?'rgba(255,209,102,0.95)':'rgba(255,255,255,0.5)';
+    ctx.lineWidth=pinned?2.5:1.5;ctx.stroke();
+    if(pinned){
+      ctx.fillStyle='#ffd166';ctx.font='700 10px sans-serif';ctx.textAlign='center';
+      ctx.fillText('📌',x,y-r-6);
+    }
+    ctx.fillStyle='rgba(230,235,250,0.9)';ctx.font='11px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(n.name,x,y+r+14);
+    ctx.textAlign='left';
   });
 
   // hubs
@@ -4105,7 +4144,9 @@ async function openEditAPModal(id){
   document.getElementById('apMac').value=ap.mac_address||'';
   document.getElementById('apNotes').value=ap.notes||'';
   document.getElementById('apPin').value='';
-  document.getElementById('apDeleteBtn').style.display='';
+  var pinBtn=document.getElementById('apPinBtn');
+  pinBtn.style.display='';
+  pinBtn.textContent=isAPPinned(ap.id)?'📌 Unpin':'📌 Pin';
   var routers=await getRouters();
   document.getElementById('apRouter').innerHTML=routers.map(function(r){
     return'<option value="'+r.id+'"'+(r.id===ap.router_id?' selected':'')+'>'+(r.name||r.id)+'</option>';
