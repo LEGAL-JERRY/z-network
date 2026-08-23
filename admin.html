@@ -1309,11 +1309,13 @@ textarea.form-input{height:auto;padding:12px 14px;}
   <button class="btn btn-outline btn-sm" onclick="autoArrangeAPs()">✦ Auto-Arrange</button>
   <button class="btn btn-outline btn-sm" onclick="exportAPPositions()"><span data-icon="ic-export" style="width:14px;height:14px;"></span>Export Positions</button>
   <button class="btn btn-outline btn-sm" id="apFullscreenBtn" onclick="toggleAPFullscreen()">⛶ Fullscreen</button>
+  <button class="btn btn-outline btn-sm" onclick="pasteAPFromClipboard()">📋 Paste New</button>
 </div>
 <div class="filters-row" style="margin-top:-6px;">
   <input class="filter-input" type="text" id="apSearchInput" placeholder="Search AP name or MAC…" oninput="apSearchJump(this.value)" style="min-width:180px;"/>
-  <button class="btn btn-outline btn-sm" id="apSnapBtn" onclick="toggleAPSnap()">▦ Snap: Off</button>
-  <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="online" onclick="toggleAPFilter('online',this)">● Online</button>
+   <button class="btn btn-outline btn-sm" id="apSnapBtn" onclick="toggleAPSnap()">▦ Snap: Off</button>
+  <button class="btn btn-outline btn-sm active" id="apBroadcastBtn" onclick="toggleAPBroadcast()">📡 Broadcast: On</button>
+   <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="online" onclick="toggleAPFilter('online',this)">● Online</button>
   <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="offline" onclick="toggleAPFilter('offline',this)">● Offline</button>
   <button class="btn btn-outline btn-sm ap-filter-chip active" data-status="hub_offline" onclick="toggleAPFilter('hub_offline',this)">● Hub Offline</button>
 </div>
@@ -1699,7 +1701,8 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="modal-footer">
       <button class="btn btn-red" id="apDeleteBtn" style="display:none;margin-right:auto;" onclick="deleteAP(document.getElementById('apId').value)">Delete</button>
       <button class="btn btn-outline" id="apPinBtn" style="display:none;" onclick="togglePinAP(document.getElementById('apId').value)">📌 Pin</button>
-      <button class="btn btn-outline" onclick="closeModal('apModal')">Cancel</button>
+      <button class="btn btn-outline" id="apCopyBtn" style="display:none;" onclick="copyAPToClipboard(document.getElementById('apId').value)">📋 Copy</button>
+       <button class="btn btn-outline" onclick="closeModal('apModal')">Cancel</button>
       <button class="btn btn-blue" onclick="submitAP()">Save Access Point</button>
     </div>
   </div>
@@ -3401,19 +3404,23 @@ var _apSnap=false;
 var _apActiveFilters={online:true,offline:true,hub_offline:true};
 var _apHighlightId=null;
 var _apHighlightUntil=0;
-var _apPinnedIds=new Set(JSON.parse(localStorage.getItem('zn_ap_pinned')||'[]'));
+var _apClipboard=null;
+var _apBroadcastOn=true;
 
-function isAPPinned(id){return _apPinnedIds.has(id);}
-function togglePinAP(id){
-  if(_apPinnedIds.has(id))_apPinnedIds.delete(id);
-  else _apPinnedIds.add(id);
-  localStorage.setItem('zn_ap_pinned',JSON.stringify(Array.from(_apPinnedIds)));
-  renderAPFrame();
+async function togglePinAP(id){
+  var node=_apNodes.find(function(n){return n.id===id;});
+  if(!node)return;
+  var newVal=!node.pinned;
+  var{error}=await supabase.from('access_points').update({pinned:newVal}).eq('id',id);
+  if(error){toast('Pin update failed: '+error.message,'error');return;}
+  node.pinned=newVal;
+  var apRec=_allAPs.find(function(a){return a.id===id;});
+  if(apRec)apRec.pinned=newVal;
   var btn=document.getElementById('apPinBtn');
-  if(btn)btn.textContent=_apPinnedIds.has(id)?'📌 Unpin':'📌 Pin';
-  toast(_apPinnedIds.has(id)?'Pinned — stays on top':'Unpinned','success');
+  if(btn)btn.textContent=newVal?'📌 Unpin':'📌 Pin';
+  toast(newVal?'Pinned permanently — stays on top':'Unpinned','success');
+  renderAPFrame();
 }
-
 // NEW: view (zoom/pan)
 var _apView={zoom:1,panX:0,panY:0};
 var _apPanning=false,_apPanStart={sx:0,sy:0,panX:0,panY:0};
@@ -3445,6 +3452,12 @@ async function loadAccessPoints(){
   var{data,error}=await supabase.rpc('rpc_get_access_points_status');
   if(error){toast('Access point load failed: '+error.message,'error');return;}
   _allAPs=data||[];
+  var{data:pinData}=await supabase.from('access_points').select('id,pinned');
+  if(pinData){
+    var pinMap={};
+    pinData.forEach(function(p){pinMap[p.id]=p.pinned;});
+    _allAPs.forEach(function(a){a.pinned=!!pinMap[a.id];});
+  }
   var routers=await getRouters();
   buildAPLayout(routers);
   await loadMapShapes();
@@ -3483,9 +3496,10 @@ function buildAPLayout(routers){
       var radius=0.10+((j%3)*0.03);
       var wp=[];
       try{ wp=Array.isArray(ap.waypoints)?ap.waypoints:(ap.waypoints?JSON.parse(ap.waypoints):[]); }catch(e){ wp=[]; }
-      _apNodes.push({
+         _apNodes.push({
         id:ap.id,name:ap.name,mac:ap.mac_address,
         status:ap.effective_status||ap.status||'unknown',
+        pinned:!!ap.pinned,
         hubId:hub.id,
         fx:hasPos?ap.pos_x:Math.min(0.96,Math.max(0.04,hub.fx+radius*Math.cos(angle))),
         fy:hasPos?ap.pos_y:Math.min(0.92,Math.max(0.24,hub.fy+0.30+radius*Math.sin(angle))),
@@ -3954,7 +3968,7 @@ document.addEventListener('keydown',function(e){
 function hitTestAP(lx,ly){
   var rect=_apCanvas.getBoundingClientRect();
   var best=null,bestDist=16;
-  var ordered=_apNodes.slice().sort(function(a,b){return(isAPPinned(a.id)?1:0)-(isAPPinned(b.id)?1:0);});
+  var ordered=_apNodes.slice().sort(function(a,b){return(a.pinned?1:0)-(b.pinned?1:0);});
   ordered.forEach(function(n){
     if(!_apActiveFilters[n.status])return;
     var d=Math.hypot(n.fx*rect.width-lx,n.fy*rect.height-ly);
@@ -4041,11 +4055,22 @@ function renderAPFrame(){
       ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(x,y,r+7,0,7);ctx.stroke();
     }
-    if(n.status==='online'){
+       if(n.status==='online'){
       var g=ctx.createRadialGradient(x,y,0,x,y,r*3.2);
       g.addColorStop(0,'rgba(255,255,255,0.35)');
       g.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*3.2,0,7);ctx.fill();
+    }
+    if(_apBroadcastOn&&n.status==='online'){
+      var period=2200;
+      for(var ringI=0;ringI<3;ringI++){
+        var tPhase=((Date.now()+ringI*(period/3))%period)/period;
+        var ringR=r+tPhase*34;
+        var alpha=(1-tPhase)*0.45;
+        ctx.strokeStyle='rgba(255,255,255,'+alpha.toFixed(2)+')';
+        ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.arc(x,y,ringR,0,7);ctx.stroke();
+      }
     }
     ctx.fillStyle=color;
     ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
@@ -4109,15 +4134,21 @@ function renderAPFrame(){
 }
 
 function apRenderLoop(){
-  if(_apHighlightId)renderAPFrame();
+  if(_apBroadcastOn||_apHighlightId)renderAPFrame();
   requestAnimationFrame(apRenderLoop);
+}
+function toggleAPBroadcast(){
+  _apBroadcastOn=!_apBroadcastOn;
+  var btn=document.getElementById('apBroadcastBtn');
+  btn.classList.toggle('active',_apBroadcastOn);
+  btn.textContent=_apBroadcastOn?'📡 Broadcast: On':'📡 Broadcast: Off';
+  renderAPFrame();
 }
 
 function resetAPView(){
-  buildAPLayout(_routersCache||[]);
   _apView={zoom:1,panX:0,panY:0};
   renderAPFrame();
-  toast('Layout reset to default positions (unsaved until you drag again)','success');
+  toast('View recentered — positions and connections untouched','success');
 }
 
 async function openAddAPModal(){
@@ -4146,7 +4177,8 @@ async function openEditAPModal(id){
   document.getElementById('apPin').value='';
   var pinBtn=document.getElementById('apPinBtn');
   pinBtn.style.display='';
-  pinBtn.textContent=isAPPinned(ap.id)?'📌 Unpin':'📌 Pin';
+  pinBtn.textContent=ap.pinned?'📌 Unpin':'📌 Pin';
+  document.getElementById('apCopyBtn').style.display='';
   var routers=await getRouters();
   document.getElementById('apRouter').innerHTML=routers.map(function(r){
     return'<option value="'+r.id+'"'+(r.id===ap.router_id?' selected':'')+'>'+(r.name||r.id)+'</option>';
@@ -4193,6 +4225,27 @@ async function submitAP(){
   toast(id?'Access point updated':'Access point added','success');
   closeModal('apModal');
   loadAccessPoints();
+}
+   function copyAPToClipboard(id){
+  var ap=_allAPs.find(function(x){return x.id===id;});
+  if(!ap){toast('AP not found','error');return;}
+  _apClipboard={name:ap.name,notes:ap.notes||'',router_id:ap.router_id};
+  navigator.clipboard.writeText(JSON.stringify(_apClipboard)).catch(function(){});
+  toast('Copied "'+ap.name+'" — use Paste New to duplicate','success');
+}
+
+async function pasteAPFromClipboard(){
+  var src=_apClipboard;
+  if(!src){
+    try{ src=JSON.parse(await navigator.clipboard.readText()); }
+    catch(e){ toast('Nothing to paste — copy an access point first','error'); return; }
+  }
+  await openAddAPModal();
+  document.getElementById('apName').value=(src.name||'')+' (copy)';
+  document.getElementById('apNotes').value=src.notes||'';
+  document.getElementById('apMac').value='';
+  if(src.router_id)document.getElementById('apRouter').value=src.router_id;
+  toast('Enter a unique MAC address and your PIN to save the duplicate','success');
 }
 
 async function deleteAP(id){
