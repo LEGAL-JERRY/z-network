@@ -128,6 +128,18 @@ dst-path="hb.txt"
 /ip hotspot active remove [find user=$uname]
 :set status "completed"
 }
+:if ($ctype = "reboot") do={
+:do {
+/system script remove [find name="znet-reboot-script"]
+} on-error={}
+/system script add name="znet-reboot-script" comment="Z-Network: remote reboot queued via admin dashboard" source=":system reboot"
+
+:do {
+/system scheduler remove [find name="znet-reboot-once"]
+} on-error={}
+/system scheduler add name="znet-reboot-once" start-time=([/system clock get time] + 2s) interval=0 on-event="/system script run znet-reboot-script"
+:set status "completed"
+}
 } on-error={
 :set status "failed"
 :set errmsg "hotspot-user-not-found-or-command-error"
