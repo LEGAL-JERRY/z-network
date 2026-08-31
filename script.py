@@ -1,187 +1,698 @@
-# ==== CONFIG ====
+# ============================================================
+# Z-NETWORK POLLER
+# MikroTik <-> Supabase command/heartbeat system
+#
+# Supported commands:
+#   throttle
+#   suspend
+#   resume
+#   change_profile
+#   reboot
+#
+# IMPORTANT:
+# The reboot command reboots THIS MIKROTIK.
+# ============================================================
+
+
+# ============================================================
+# CONFIG
+# ============================================================
+
 :local supabaseUrl "https://yohndnmwvgcwadkytmix.supabase.co"
 :local anonKey "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvaG5kbm13dmdjd2Fka3l0bWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDEyODgsImV4cCI6MjA5NDYxNzI4OH0.hkUexJ-AS1GpLJL78F7iXDv5PkwuPbShj2fsGVXuEsg"
 :local routerId "d0ded7d7-503d-40ec-845d-c8a5fc368d11"
 :local routerToken "be97a8cf6ae7c2a123461de4f91d61f074d9fc81308f622ed5829e98fb6f3310"
 
-# ==== RECOVER STUCK COMMANDS ====
+
+# ============================================================
+# HELPER: LOG PREFIX
+# ============================================================
+
+:local logPrefix "znetwork-poll"
+
+
+# ============================================================
+# 1. RECOVER STUCK COMMANDS
+# ============================================================
+
 :do {
-/tool fetch url="$supabaseUrl/rest/v1/rpc/rpc_recover_stuck_commands" \
-http-method=post \
-http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
-http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\"}" \
-dst-path="recover.txt"
-:local recoverResult [/file get recover.txt contents]
-:if ($recoverResult != "0") do={
-:log warning ("znetwork-poll: recovered stuck rows, result=" . $recoverResult)
-}
+
+    /tool fetch \
+        url="$supabaseUrl/rest/v1/rpc/rpc_recover_stuck_commands" \
+        http-method=post \
+        http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
+        http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\"}" \
+        dst-path="recover.txt"
+
+    :local recoverResult [/file get recover.txt contents]
+
+    :log warning ("$logPrefix: recovered stuck rows, result=" . $recoverResult)
+
 } on-error={
-:log warning "znetwork-poll: recover-stuck call threw error (non-fatal, continuing)"
+
+    :log warning "$logPrefix: recover-stuck call failed (non-fatal)"
+
 }
 
-# ==== FETCH PENDING COMMANDS ====
+
+# ============================================================
+# 2. FETCH PENDING COMMANDS
+# ============================================================
+
 :local fetchOk false
 :local raw ""
+
 :for i from=1 to=2 do={
-:if ($fetchOk = false) do={
-:do {
-:local fr [/tool fetch url="$supabaseUrl/rest/v1/rpc/rpc_get_pending_commands" \
-http-method=post \
-http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
-http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\"}" \
-dst-path="cmds.txt" as-value]
-:if (($fr->"status") = "finished") do={
-:set fetchOk true
-} else={
-:log warning ("znetwork-poll: fetch attempt $i status=" . ($fr->"status"))
-:delay 2
+
+    :if ($fetchOk = false) do={
+
+        :do {
+
+            :local fr [/tool fetch \
+                url="$supabaseUrl/rest/v1/rpc/rpc_get_pending_commands" \
+                http-method=post \
+                http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
+                http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\"}" \
+                dst-path="cmds.txt" \
+                as-value]
+
+            :if (($fr->"status") = "finished") do={
+
+                :set fetchOk true
+
+                :log warning "$logPrefix: command fetch successful"
+
+            } else={
+
+                :log warning ("$logPrefix: fetch attempt " . $i . " status=" . ($fr->"status"))
+
+                :delay 2s
+
+            }
+
+        } on-error={
+
+            :log warning ("$logPrefix: fetch attempt " . $i . " threw error")
+
+            :delay 2s
+
+        }
+
+    }
+
 }
-} on-error={
-:log warning "znetwork-poll: fetch attempt $i threw error"
-:delay 2
-}
-}
-}
+
+
+# ============================================================
+# 3. STOP IF FETCH FAILED
+# ============================================================
 
 :if ($fetchOk = false) do={
-:log warning "znetwork-poll: giving up, could not fetch pending commands"
+
+    :log warning "$logPrefix: giving up, could not fetch pending commands"
+
 } else={
-# ==== COLLECT SEEN MACS (from hotspot host table — includes idle/recently-seen) ====
-:local macList ""
-:foreach h in=[/ip hotspot host find] do={
-:local hmac [/ip hotspot host get $h mac-address]
-:if ($macList = "") do={
-:set macList $hmac
-} else={
-:set macList ($macList . "|" . $hmac)
-}
-}
-:log warning ("znetwork-poll: seen macs=" . $macList)
 
-# ==== HEARTBEAT (always fires on a successful poll, even with 0 pending) ====
-:do {
-/tool fetch url="$supabaseUrl/rest/v1/rpc/rpc_router_heartbeat" \
-http-method=post \
-http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
-http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\",\"p_seen_macs\":\"$macList\"}" \
-dst-path="hb.txt"
-:local hbResult [/file get hb.txt contents]
-:log warning ("znetwork-poll: heartbeat response=" . $hbResult)
-} on-error={
-:log warning "znetwork-poll: heartbeat call threw error (non-fatal, continuing)"
-}
 
-:local raw [/file get cmds.txt contents]
-:set raw [:pick $raw 1 ([:len $raw]-1)]
-:log warning ("znetwork-poll: RAW=[" . $raw . "]")
+    # ========================================================
+    # 4. COLLECT SEEN MAC ADDRESSES
+    # ========================================================
 
-:if ([:len $raw] > 0) do={
-# separator is the 2 literal chars: backslash + n
-:local sep "\\n"
-:local sepLen [:len $sep]
-:local raw2 ($raw . $sep)
-:local rawLen [:len $raw2]
-:local buf ""
-:local idx 0
+    :local macList ""
 
-:while ($idx < $rawLen) do={
-:local isSep false
-:if (($idx + $sepLen) <= $rawLen) do={
-:local window [:pick $raw2 $idx ($idx+$sepLen)]
-:if ($window = $sep) do={:set isSep true}
-}
-:if ($isSep = true) do={
-:if ([:len $buf] >= 20) do={
-:local p1 [:find $buf "|"]
-:if ($p1 > 0) do={
-:local rest1 [:pick $buf ($p1+1) [:len $buf]]
-:local p2 [:find $rest1 "|"]
-:if ($p2 > 0) do={
-:local ctype [:pick $rest1 0 $p2]
-:local rest2 [:pick $rest1 ($p2+1) [:len $rest1]]
-:local p3 [:find $rest2 "|"]
-:if ($p3 > 0) do={
-:local id [:pick $buf 0 $p1]
-:local uname [:pick $rest2 0 $p3]
-:local param [:pick $rest2 ($p3+1) [:len $rest2]]
+    :foreach h in=[/ip hotspot host find] do={
 
-:local status "failed"
-:local errmsg ""
+        :local hmac [/ip hotspot host get $h mac-address]
 
-:do {
-:if ($ctype = "throttle") do={
-/ip hotspot user set [find name=$uname] profile=$param
-/ip hotspot active remove [find user=$uname]
-:set status "completed"
-}
-:if ($ctype = "suspend") do={
-/ip hotspot user set [find name=$uname] disabled=yes
-/ip hotspot active remove [find user=$uname]
-:set status "completed"
-}
-:if ($ctype = "resume") do={
-/ip hotspot user set [find name=$uname] disabled=no profile=$param
-:set status "completed"
-}
-:if ($ctype = "change_profile") do={
-/ip hotspot user set [find name=$uname] profile=$param
-/ip hotspot active remove [find user=$uname]
-:set status "completed"
-}
-:if ($ctype = "reboot") do={
-:do {
-/system script remove [find name="znet-reboot-script"]
-} on-error={}
-/system script add name="znet-reboot-script" comment="Z-Network: remote reboot queued via admin dashboard" source=":system reboot"
+        :if ($macList = "") do={
 
-:do {
-/system scheduler remove [find name="znet-reboot-once"]
-} on-error={}
-/system scheduler add name="znet-reboot-once" start-time=([/system clock get time] + 2s) interval=0 on-event="/system script run znet-reboot-script"
-:set status "completed"
-}
-} on-error={
-:set status "failed"
-:set errmsg "hotspot-user-not-found-or-command-error"
-}
+            :set macList $hmac
 
-:local ackOk false
-:for j from=1 to=2 do={
-:if ($ackOk = false) do={
-:do {
-:local ar [/tool fetch url="$supabaseUrl/rest/v1/rpc/rpc_ack_command" \
-http-method=post \
-http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
-http-data="{\"p_command_id\":\"$id\",\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\",\"p_status\":\"$status\",\"p_error\":\"$errmsg\"}" \
-dst-path="ack.txt" as-value]
-:if (($ar->"status") = "finished") do={
-:set ackOk true
-} else={
-:log warning ("znetwork-poll: ack attempt $j for $id status=" . ($ar->"status"))
-:delay 2
-}
-} on-error={
-:log warning "znetwork-poll: ack attempt $j for $id threw error"
-:delay 2
-}
-}
-}
-:if ($ackOk = false) do={
-:log warning ("znetwork-poll: ACK FAILED for $id after retries — row stuck at claimed, needs manual reconcile")
-}
-}
-}
-}
-} else={
-:if ([:len $buf] > 0) do={
-:log warning ("znetwork-poll: skipped malformed line, len=" . [:len $buf])
-}
-}
-:set buf ""
-:set idx ($idx + $sepLen)
-} else={
-:set buf ($buf . [:pick $raw2 $idx ($idx+1)])
-:set idx ($idx + 1)
-}
-}
+        } else={
+
+            :set macList ($macList . "|" . $hmac)
+
+        }
+
+    }
+
+    :log warning ("$logPrefix: seen macs=" . $macList)
+
+
+    # ========================================================
+    # 5. SEND HEARTBEAT
+    # ========================================================
+
+    :do {
+
+        /tool fetch \
+            url="$supabaseUrl/rest/v1/rpc/rpc_router_heartbeat" \
+            http-method=post \
+            http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
+            http-data="{\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\",\"p_seen_macs\":\"$macList\"}" \
+            dst-path="hb.txt"
+
+        :local hbResult [/file get hb.txt contents]
+
+        :log warning ("$logPrefix: heartbeat response=" . $hbResult)
+
+    } on-error={
+
+        :log warning "$logPrefix: heartbeat call failed (non-fatal)"
+
+    }
+
+
+    # ========================================================
+    # 6. READ COMMAND RESPONSE
+    # ========================================================
+
+    :set raw [/file get cmds.txt contents]
+
+
+    # Remove surrounding [ ]
+    :if ([:len $raw] >= 2) do={
+
+        :set raw [:pick $raw 1 ([:len $raw] - 1)]
+
+    }
+
+
+    :log warning ("$logPrefix: RAW=[" . $raw . "]")
+
+
+    # ========================================================
+    # 7. PROCESS COMMANDS
+    # ========================================================
+
+    :if ([:len $raw] > 0) do={
+
+
+        # ----------------------------------------------------
+        # Supabase returns multiple commands separated by:
+        # literal backslash + n
+        # ----------------------------------------------------
+
+        :local sep "\\n"
+        :local sepLen [:len $sep]
+
+        :local raw2 ($raw . $sep)
+        :local rawLen [:len $raw2]
+
+        :local buf ""
+        :local idx 0
+
+
+        # ----------------------------------------------------
+        # Split commands
+        # ----------------------------------------------------
+
+        :while ($idx < $rawLen) do={
+
+            :local isSep false
+
+
+            :if (($idx + $sepLen) <= $rawLen) do={
+
+                :local window [:pick $raw2 $idx ($idx + $sepLen)]
+
+                :if ($window = $sep) do={
+
+                    :set isSep true
+
+                }
+
+            }
+
+
+            # =================================================
+            # END OF COMMAND LINE
+            # =================================================
+
+            :if ($isSep = true) do={
+
+
+                :if ([:len $buf] >= 1) do={
+
+
+                    # =========================================
+                    # PARSE:
+                    #
+                    # id|command|username|parameter
+                    #
+                    # Example:
+                    # UUID|reboot||
+                    #
+                    # IMPORTANT:
+                    # Empty username/parameter is valid.
+                    # =========================================
+
+
+                    :local p1 [:find $buf "|"]
+
+
+                    :if ($p1 != nil) do={
+
+
+                        :local id [:pick $buf 0 $p1]
+
+                        :local rest1 [:pick $buf ($p1 + 1) [:len $buf]]
+
+                        :local p2 [:find $rest1 "|"]
+
+
+                        :if ($p2 != nil) do={
+
+
+                            :local ctype [:pick $rest1 0 $p2]
+
+                            :local rest2 [:pick $rest1 ($p2 + 1) [:len $rest1]]
+
+                            :local p3 [:find $rest2 "|"]
+
+
+                            :if ($p3 != nil) do={
+
+
+                                :local uname [:pick $rest2 0 $p3]
+
+                                :local param [:pick $rest2 ($p3 + 1) [:len $rest2]]
+
+
+                                # =================================
+                                # LOG PARSED COMMAND
+                                # =================================
+
+                                :log warning (
+                                    "$logPrefix: PARSED id=" . $id .
+                                    " type=" . $ctype .
+                                    " user=" . $uname .
+                                    " param=" . $param
+                                )
+
+
+                                # =================================
+                                # SPECIAL REBOOT COMMAND
+                                # =================================
+
+                                :if ($ctype = "reboot") do={
+
+
+                                    :log warning (
+                                        "$logPrefix: REBOOT COMMAND RECEIVED id=" . $id
+                                    )
+
+
+                                    # ---------------------------------
+                                    # ACK BEFORE REBOOT
+                                    # ---------------------------------
+
+                                    :local ackOk false
+
+                                    :for j from=1 to=2 do={
+
+                                        :if ($ackOk = false) do={
+
+                                            :do {
+
+                                                :local ar [/tool fetch \
+                                                    url="$supabaseUrl/rest/v1/rpc/rpc_ack_command" \
+                                                    http-method=post \
+                                                    http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
+                                                    http-data="{\"p_command_id\":\"$id\",\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\",\"p_status\":\"completed\",\"p_error\":\"\"}" \
+                                                    dst-path="ack-reboot.txt" \
+                                                    as-value]
+
+
+                                                :if (($ar->"status") = "finished") do={
+
+                                                    :set ackOk true
+
+                                                    :log warning (
+                                                        "$logPrefix: reboot command ACK successful id=" . $id
+                                                    )
+
+                                                } else={
+
+                                                    :log warning (
+                                                        "$logPrefix: reboot ACK attempt " .
+                                                        $j .
+                                                        " status=" .
+                                                        ($ar->"status")
+                                                    )
+
+                                                    :delay 2s
+
+                                                }
+
+                                            } on-error={
+
+                                                :log warning (
+                                                    "$logPrefix: reboot ACK attempt " .
+                                                    $j .
+                                                    " failed"
+                                                )
+
+                                                :delay 2s
+
+                                            }
+
+                                        }
+
+                                    }
+
+
+                                    # ---------------------------------
+                                    # ONLY REBOOT IF ACK SUCCEEDED
+                                    # ---------------------------------
+
+                                    :if ($ackOk = true) do={
+
+                                        :log warning (
+                                            "$logPrefix: ACK confirmed - MikroTik rebooting in 5 seconds"
+                                        )
+
+                                        :delay 5s
+
+                                        /system reboot
+
+                                    } else={
+
+                                        :log warning (
+                                            "$logPrefix: REBOOT ABORTED - ACK failed"
+                                        )
+
+                                    }
+
+
+                                } else={
+
+
+                                    # =================================
+                                    # NORMAL HOTSPOT COMMANDS
+                                    # =================================
+
+                                    :local status "failed"
+                                    :local errmsg ""
+
+
+                                    :do {
+
+
+                                        # ---------------------------------
+                                        # THROTTLE
+                                        # ---------------------------------
+
+                                        :if ($ctype = "throttle") do={
+
+                                            :local userId [/ip hotspot user find name=$uname]
+
+                                            :if ([:len $userId] = 0) do={
+
+                                                :error "hotspot user not found"
+
+                                            }
+
+                                            /ip hotspot user set $userId profile=$param
+
+                                            /ip hotspot active remove [find user=$uname]
+
+                                            :set status "completed"
+
+                                            :log warning (
+                                                "$logPrefix: throttle completed user=" .
+                                                $uname .
+                                                " profile=" .
+                                                $param
+                                            )
+
+                                        }
+
+
+                                        # ---------------------------------
+                                        # SUSPEND
+                                        # ---------------------------------
+
+                                        :if ($ctype = "suspend") do={
+
+                                            :local userId [/ip hotspot user find name=$uname]
+
+                                            :if ([:len $userId] = 0) do={
+
+                                                :error "hotspot user not found"
+
+                                            }
+
+                                            /ip hotspot user set $userId disabled=yes
+
+                                            /ip hotspot active remove [find user=$uname]
+
+                                            :set status "completed"
+
+                                            :log warning (
+                                                "$logPrefix: suspend completed user=" .
+                                                $uname
+                                            )
+
+                                        }
+
+
+                                        # ---------------------------------
+                                        # RESUME
+                                        # ---------------------------------
+
+                                        :if ($ctype = "resume") do={
+
+                                            :local userId [/ip hotspot user find name=$uname]
+
+                                            :if ([:len $userId] = 0) do={
+
+                                                :error "hotspot user not found"
+
+                                            }
+
+                                            /ip hotspot user set $userId disabled=no profile=$param
+
+                                            :set status "completed"
+
+                                            :log warning (
+                                                "$logPrefix: resume completed user=" .
+                                                $uname .
+                                                " profile=" .
+                                                $param
+                                            )
+
+                                        }
+
+
+                                        # ---------------------------------
+                                        # CHANGE PROFILE
+                                        # ---------------------------------
+
+                                        :if ($ctype = "change_profile") do={
+
+                                            :local userId [/ip hotspot user find name=$uname]
+
+                                            :if ([:len $userId] = 0) do={
+
+                                                :error "hotspot user not found"
+
+                                            }
+
+                                            /ip hotspot user set $userId profile=$param
+
+                                            /ip hotspot active remove [find user=$uname]
+
+                                            :set status "completed"
+
+                                            :log warning (
+                                                "$logPrefix: change_profile completed user=" .
+                                                $uname .
+                                                " profile=" .
+                                                $param
+                                            )
+
+                                        }
+
+
+                                        # ---------------------------------
+                                        # UNKNOWN COMMAND
+                                        # ---------------------------------
+
+                                        :if (
+                                            ($ctype != "throttle") &&
+                                            ($ctype != "suspend") &&
+                                            ($ctype != "resume") &&
+                                            ($ctype != "change_profile")
+                                        ) do={
+
+                                            :set errmsg ("unknown command type: " . $ctype)
+
+                                            :error $errmsg
+
+                                        }
+
+
+                                    } on-error={
+
+                                        :set status "failed"
+
+                                        :if ($errmsg = "") do={
+
+                                            :set errmsg "command execution failed"
+
+                                        }
+
+                                        :log warning (
+                                            "$logPrefix: command FAILED id=" .
+                                            $id .
+                                            " type=" .
+                                            $ctype .
+                                            " error=" .
+                                            $errmsg
+                                        )
+
+                                    }
+
+
+                                    # =================================
+                                    # ACK NORMAL COMMAND
+                                    # =================================
+
+                                    :local ackOk false
+
+
+                                    :for j from=1 to=2 do={
+
+                                        :if ($ackOk = false) do={
+
+                                            :do {
+
+                                                :local ar [/tool fetch \
+                                                    url="$supabaseUrl/rest/v1/rpc/rpc_ack_command" \
+                                                    http-method=post \
+                                                    http-header-field="apikey: $anonKey,Authorization: Bearer $anonKey,Content-Type: application/json" \
+                                                    http-data="{\"p_command_id\":\"$id\",\"p_router_id\":\"$routerId\",\"p_token\":\"$routerToken\",\"p_status\":\"$status\",\"p_error\":\"$errmsg\"}" \
+                                                    dst-path="ack.txt" \
+                                                    as-value]
+
+
+                                                :if (($ar->"status") = "finished") do={
+
+                                                    :set ackOk true
+
+                                                    :log warning (
+                                                        "$logPrefix: ACK successful id=" .
+                                                        $id .
+                                                        " status=" .
+                                                        $status
+                                                    )
+
+                                                } else={
+
+                                                    :log warning (
+                                                        "$logPrefix: ACK attempt " .
+                                                        $j .
+                                                        " status=" .
+                                                        ($ar->"status")
+                                                    )
+
+                                                    :delay 2s
+
+                                                }
+
+                                            } on-error={
+
+                                                :log warning (
+                                                    "$logPrefix: ACK attempt " .
+                                                    $j .
+                                                    " failed id=" .
+                                                    $id
+                                                )
+
+                                                :delay 2s
+
+                                            }
+
+                                        }
+
+                                    }
+
+
+                                    :if ($ackOk = false) do={
+
+                                        :log warning (
+                                            "$logPrefix: ACK FAILED after retries id=" .
+                                            $id .
+                                            " - command may be recovered later"
+                                        )
+
+                                    }
+
+                                }
+
+
+                            } else={
+
+                                :log warning (
+                                    "$logPrefix: malformed command - missing third separator: " .
+                                    $buf
+                                )
+
+                            }
+
+
+                        } else={
+
+                            :log warning (
+                                "$logPrefix: malformed command - missing second separator: " .
+                                $buf
+                            )
+
+                        }
+
+
+                    } else={
+
+                        :log warning (
+                            "$logPrefix: malformed command - missing first separator: " .
+                            $buf
+                        )
+
+                    }
+
+
+                } else={
+
+                    :log warning "$logPrefix: empty command skipped"
+
+                }
+
+
+                # Reset command buffer
+
+                :set buf ""
+
+                :set idx ($idx + $sepLen)
+
+
+            } else={
+
+
+                # Add current character to buffer
+
+                :set buf ($buf . [:pick $raw2 $idx ($idx + 1)])
+
+                :set idx ($idx + 1)
+
+            }
+
+        }
+
+    } else={
+
+        :log warning "$logPrefix: no pending commands"
+
+    }
+
 }
