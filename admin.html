@@ -1396,6 +1396,23 @@ textarea.form-input{height:auto;padding:12px 14px;}
       </div>
     </div>
 
+        <!-- Router Control -->
+    <div class="settings-section">
+      <div class="settings-section-title">Router Control</div>
+      <div class="card settings-card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Reboot Router</div>
+            <div class="settings-row-sub">Queues a remote reboot — takes effect within ~1 min on next poll. Briefly disconnects all customers on this hub.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select class="form-input" id="rebootRouterSelect" style="width:200px;"></select>
+            <button class="btn btn-red btn-sm" onclick="rebootSelectedRouter()">Reboot</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Plan Reference -->
     <div class="settings-section">
       <div class="settings-section-title">Plan Reference</div>
@@ -3170,6 +3187,7 @@ function renderPeakHours(data){
 ══════════════════════════════════════════════════════════════ */
 function initSettings(){
   document.getElementById('displayUsername').textContent=localStorage.getItem('zn_admin_user')||'admin';
+  populateRebootRouterSelect();
   document.getElementById('settingsWA').value=localStorage.getItem('zn_wa')||'2348159694740';
   document.getElementById('settingsNetName').value=localStorage.getItem('zn_netname')||'Z-Network';
   var thresh=parseInt(localStorage.getItem('zn_low_stock')||'10');
@@ -3227,6 +3245,35 @@ function saveUsername(){
   document.getElementById('displayUsername').textContent=u;
   toast('Username updated','success');
   closeModal('usernameModal');
+}
+
+async function populateRebootRouterSelect(){
+  var routers=await getRouters();
+  var sel=document.getElementById('rebootRouterSelect');
+  if(!sel)return;
+  if(!routers.length){sel.innerHTML='<option value="">No routers found</option>';return;}
+  sel.innerHTML=routers.map(function(r){
+    return'<option value="'+r.id+'">'+(r.name||r.id)+'</option>';
+  }).join('');
+}
+
+async function rebootSelectedRouter(){
+  var sel=document.getElementById('rebootRouterSelect');
+  var routerId=sel&&sel.value;
+  if(!routerId){toast('No router selected','error');return;}
+  var routerName=sel.options[sel.selectedIndex].textContent;
+
+  var ok=await showConfirm('Reboot Router','Reboot "'+routerName+'"? All customers on this hub will briefly lose connection. Takes effect within ~1 min.','ic-warn');
+  if(!ok)return;
+
+  var{error}=await supabase.from('router_commands').insert({
+    router_id:routerId,
+    command_type:'reboot',
+    payload:{},
+    status:'pending'
+  });
+  if(error){toast('Reboot command failed to queue: '+error.message,'error');return;}
+  toast('Reboot queued for "'+routerName+'" — will run on next poll (~1 min)','success');
 }
 
 /* ══════════════════════════════════════════════════════════════
