@@ -3181,11 +3181,12 @@ function generateReportPDF(type,start,end,stats,outage){
   }
 
   var tableCommonStyles={
-    theme:'plain',
+    theme:'grid',
     margin:{left:marginX,right:marginX},
-    styles:{fontSize:9,cellPadding:{top:4,bottom:4,left:2,right:2},textColor:TEXT_DARK},
-    headStyles:{fillColor:ACCENT,textColor:255,fontStyle:'bold',fontSize:8.5},
+    styles:{fontSize:9,cellPadding:{top:4,bottom:4,left:3,right:3},textColor:TEXT_DARK,lineColor:[210,210,210],lineWidth:0.2},
+    headStyles:{fillColor:ACCENT,textColor:255,fontStyle:'bold',fontSize:8.5,lineColor:ACCENT,lineWidth:0.2},
     alternateRowStyles:{fillColor:[247,250,248]},
+    footStyles:{fillColor:[224,246,236],textColor:TEXT_DARK,fontStyle:'bold',fontSize:9,lineColor:[210,210,210],lineWidth:0.2},
   };
 
   // ── Summary section ──
