@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 /* ============================================================
    TOKENS
@@ -3143,39 +3144,105 @@ function ensureRoom(doc,y,needed){
 function generateReportPDF(type,start,end,stats,outage){
   if(!window.jspdf){toast('PDF library failed to load — check your connection','error');return;}
   var doc=new window.jspdf.jsPDF();
-  var title=NET_NAME+' — '+type.charAt(0).toUpperCase()+type.slice(1)+' Sales Report';
-  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(title,14,18);
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text('Period: '+fmtDate(start)+'  to  '+fmtDate(new Date(end.getTime()-1)),14,26);
-  doc.text('Generated: '+fmtDate(new Date()),14,32);
-  doc.line(14,36,196,36);
-  var y=46;
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Summary',14,y);y+=8;
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text('Total Vouchers Sold: '+stats.totalCount,14,y);y+=6;
-  doc.text('Total Revenue: '+fmtMoney(stats.totalRevenue),14,y);y+=12;
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('By Payment Method',14,y);y+=8;
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text('Online: '+stats.byMethod.online+' vouchers — '+fmtMoney(stats.byMethodRevenue.online),14,y);y+=6;
-  doc.text('Cash: '+stats.byMethod.cash+' vouchers — '+fmtMoney(stats.byMethodRevenue.cash),14,y);y+=12;
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('By Plan Type',14,y);y+=8;
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  Object.keys(PLANS).forEach(function(id){
-    var p=stats.byPlan[id];
-    doc.text(PLANS[id].name+': '+p.count+' sold — '+fmtMoney(p.revenue),14,y);y+=6;
-  });
-  y+=6;
-  y=ensureRoom(doc,y,20);
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Power / Blackout Summary',14,y);y+=8;
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  if(!outage.count){
-    doc.text('No blackouts recorded during this period.',14,y);y+=6;
-  }else{
-    var creditedCustomers=outage.events.reduce(function(s,ev){return s+(ev.applied?(ev.affected_count||0):0);},0);
-    doc.text('Blackouts: '+outage.count,14,y);y+=6;
-    doc.text('Total downtime: '+fmtTimelineDur(outage.totalMinutes),14,y);y+=6;
-    doc.text('Customers credited: '+creditedCustomers,14,y);y+=6;
+  var ACCENT=[14,159,92];      // matches --green
+  var ACCENT_LIGHT=[224,246,236];
+  var TEXT_DARK=[30,30,30];
+  var TEXT_MUTED=[130,130,130];
+  var pageW=doc.internal.pageSize.getWidth();
+  var marginX=14;
+
+  // ── Header bar ──
+  doc.setFillColor(ACCENT[0],ACCENT[1],ACCENT[2]);
+  doc.rect(0,0,pageW,26,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');doc.setFontSize(16);
+  doc.text(NET_NAME,marginX,17);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  doc.text(type.charAt(0).toUpperCase()+type.slice(1)+' Sales Report',pageW-marginX,17,{align:'right'});
+
+  var y=36;
+  doc.setTextColor(TEXT_MUTED[0],TEXT_MUTED[1],TEXT_MUTED[2]);
+  doc.setFontSize(9);
+  doc.text('Period: '+fmtDate(start)+'  –  '+fmtDate(new Date(end.getTime()-1)),marginX,y);
+  doc.text('Generated: '+fmtDate(new Date()),pageW-marginX,y,{align:'right'});
+  y+=8;
+
+  function sectionTitle(label){
+    doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]);
+    doc.setLineWidth(0.8);
+    doc.line(marginX,y,marginX+8,y);
+    doc.setTextColor(TEXT_DARK[0],TEXT_DARK[1],TEXT_DARK[2]);
+    doc.setFont('helvetica','bold');doc.setFontSize(12);
+    doc.text(label,marginX+12,y+1);
+    y+=3;
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);
+    doc.line(marginX,y+3,pageW-marginX,y+3);
+    y+=10;
   }
+
+  var tableCommonStyles={
+    theme:'plain',
+    margin:{left:marginX,right:marginX},
+    styles:{fontSize:9,cellPadding:{top:4,bottom:4,left:2,right:2},textColor:TEXT_DARK},
+    headStyles:{fillColor:ACCENT,textColor:255,fontStyle:'bold',fontSize:8.5},
+    alternateRowStyles:{fillColor:[247,250,248]},
+  };
+
+  // ── Summary section ──
+  sectionTitle('Summary');
+  doc.autoTable(Object.assign({},tableCommonStyles,{
+    startY:y,
+    head:[['Metric','Value']],
+    body:[
+      ['Total Vouchers Sold',String(stats.totalCount)],
+      ['Total Revenue',fmtMoney(stats.totalRevenue)],
+      ['Online Sales',stats.byMethod.online+'  ('+fmtMoney(stats.byMethodRevenue.online)+')'],
+      ['Cash Sales',stats.byMethod.cash+'  ('+fmtMoney(stats.byMethodRevenue.cash)+')']
+    ],
+  }));
+  y=doc.lastAutoTable.finalY+14;
+
+  // ── By Plan Type ──
+  if(y>250){doc.addPage();y=20;}
+  sectionTitle('Plan Details');
+  var planRows=Object.keys(PLANS).map(function(id){
+    var p=stats.byPlan[id];
+    return[PLANS[id].name,String(p.count),fmtMoney(p.revenue)];
+  });
+  doc.autoTable(Object.assign({},tableCommonStyles,{
+    startY:y,
+    head:[['Plan','Sold','Revenue']],
+    body:planRows,
+    foot:[['Total',String(stats.totalCount),fmtMoney(stats.totalRevenue)]],
+    footStyles:{fillColor:ACCENT_LIGHT,textColor:TEXT_DARK,fontStyle:'bold',fontSize:9},
+  }));
+  y=doc.lastAutoTable.finalY+14;
+
+  // ── Power / Blackout Summary ──
+  if(y>250){doc.addPage();y=20;}
+  sectionTitle('Power / Blackout Summary');
+  var creditedCustomers=(outage.events||[]).reduce(function(s,ev){return s+(ev.applied?(ev.affected_count||0):0);},0);
+  doc.autoTable(Object.assign({},tableCommonStyles,{
+    startY:y,
+    head:[['Metric','Value']],
+    body:outage.count?[
+      ['Blackouts',String(outage.count)],
+      ['Total Downtime',fmtTimelineDur(outage.totalMinutes)],
+      ['Customers Credited',String(creditedCustomers)]
+    ]:[
+      ['Blackouts','None recorded during this period']
+    ],
+  }));
+
+  // ── Footer ──
+  var pageCount=doc.internal.getNumberOfPages();
+  for(var i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setFontSize(7.5);doc.setTextColor(TEXT_MUTED[0],TEXT_MUTED[1],TEXT_MUTED[2]);
+    doc.text(NET_NAME+' · Generated by admin dashboard',marginX,doc.internal.pageSize.getHeight()-8);
+    doc.text('Page '+i+' of '+pageCount,pageW-marginX,doc.internal.pageSize.getHeight()-8,{align:'right'});
+  }
+
   doc.save(NET_NAME.replace(/\s+/g,'_')+'_'+type+'_'+start.toISOString().split('T')[0]+'.pdf');
   markDownloaded(reportKey(type,start));
   toast('Report downloaded','success');
