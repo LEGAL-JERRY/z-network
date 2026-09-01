@@ -2960,8 +2960,26 @@ function renderPeakHours(data){
    exactly on the next 12th.
 ══════════════════════════════════════════════════════════════ */
 var _allSalesData=[];
+var _allOutageData=[];
 var _reportsDataLoaded=false;
 var _reportsTab='daily';
+
+function computeOutageStats(start,end){
+  var events=_allOutageData.filter(function(ev){
+    var evStart=new Date(ev.started_at);
+    var evEnd=ev.resolved_at?new Date(ev.resolved_at):new Date();
+    return evStart<end && evEnd>start; // overlaps period
+  });
+  var totalMinutes=0;
+  events.forEach(function(ev){
+    var evStart=new Date(ev.started_at);
+    var evEnd=ev.resolved_at?new Date(ev.resolved_at):new Date();
+    var clampedStart=evStart<start?start:evStart;
+    var clampedEnd=evEnd>end?end:evEnd;
+    totalMinutes+=Math.max(0,(clampedEnd-clampedStart)/60000);
+  });
+  return{events:events,count:events.length,totalMinutes:totalMinutes};
+}
 
 function getRecentDays(n){
   var days=[];
@@ -3058,14 +3076,19 @@ function periodLabel(type,p){
 }
 function renderReportRow(type,p){
   var stats=computePeriodStats(p.start,p.end);
+  var outage=computeOutageStats(p.start,p.end);
   var key=reportKey(type,p.start);
   var isNew=!isDownloaded(key);
+  var outageLine=outage.count>0
+    ?'<div style="font-size:0.72rem;color:var(--amber);margin-top:4px;">⚠ '+outage.count+' blackout'+(outage.count!==1?'s':'')+' · '+fmtTimelineDur(outage.totalMinutes)+' downtime</div>'
+    :'<div style="font-size:0.72rem;color:var(--green);margin-top:4px;">No blackouts</div>';
   return'<div class="card" style="padding:16px 18px;margin-bottom:12px;'+(isNew?'border-color:var(--accent);':'')+'">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">'+
       '<div>'+
         '<div style="font-weight:700;font-size:0.9rem;color:var(--text);">'+periodLabel(type,p)+(isNew?' <span class="badge badge-amber" style="margin-left:6px;">New</span>':'')+'</div>'+
         '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">'+stats.totalCount+' sold · '+fmtMoney(stats.totalRevenue)+' · Online '+stats.byMethod.online+' / Cash '+stats.byMethod.cash+'</div>'+
         '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">'+Object.keys(PLANS).map(function(id){return PLANS[id].name+': '+stats.byPlan[id].count;}).join(' · ')+'</div>'+
+        outageLine+
       '</div>'+
       '<button class="btn btn-blue btn-sm" onclick="downloadReportPDF(\''+type+'\',\''+p.start.toISOString()+'\',\''+p.end.toISOString()+'\')">⬇ Download PDF</button>'+
     '</div></div>';
@@ -3095,9 +3118,13 @@ function setReportsTab(tab,el){
 async function loadReportsSection(){
   if(!_reportsDataLoaded){
     document.getElementById('reportsListBody').innerHTML='<div class="spinner"></div>';
-    var{data,error}=await supabase.from('vouchers').select('plan_id,used_at,sold_by').eq('is_used',true).order('used_at',{ascending:true});
-    if(error){document.getElementById('reportsListBody').innerHTML='<div style="text-align:center;color:var(--red);padding:20px;font-size:0.82rem;">Failed to load: '+error.message+'</div>';return;}
-    _allSalesData=data||[];
+    var[r1,r2]=await Promise.all([
+      supabase.from('vouchers').select('plan_id,used_at,sold_by').eq('is_used',true).order('used_at',{ascending:true}),
+      supabase.from('outage_events').select('started_at,resolved_at,applied,affected_count').order('started_at',{ascending:true})
+    ]);
+    if(r1.error){document.getElementById('reportsListBody').innerHTML='<div style="text-align:center;color:var(--red);padding:20px;font-size:0.82rem;">Failed to load: '+r1.error.message+'</div>';return;}
+    _allSalesData=r1.data||[];
+    _allOutageData=r2.data||[];
     _reportsDataLoaded=true;
   }
   renderReportsList();
@@ -3106,9 +3133,14 @@ async function loadReportsSection(){
 function downloadReportPDF(type,startIso,endIso){
   var start=new Date(startIso),end=new Date(endIso);
   var stats=computePeriodStats(start,end);
-  generateReportPDF(type,start,end,stats);
+  var outage=computeOutageStats(start,end);
+  generateReportPDF(type,start,end,stats,outage);
 }
-function generateReportPDF(type,start,end,stats){
+function ensureRoom(doc,y,needed){
+  if(y+needed>285){doc.addPage();return 18;}
+  return y;
+}
+function generateReportPDF(type,start,end,stats,outage){
   if(!window.jspdf){toast('PDF library failed to load — check your connection','error');return;}
   var doc=new window.jspdf.jsPDF();
   var title=NET_NAME+' — '+type.charAt(0).toUpperCase()+type.slice(1)+' Sales Report';
@@ -3132,6 +3164,24 @@ function generateReportPDF(type,start,end,stats){
     var p=stats.byPlan[id];
     doc.text(PLANS[id].name+': '+p.count+' sold — '+fmtMoney(p.revenue),14,y);y+=6;
   });
+  y+=6;
+  y=ensureRoom(doc,y,24);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Power / Blackout Log',14,y);y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  if(!outage.count){
+    doc.text('No blackouts recorded during this period.',14,y);y+=6;
+  }else{
+    doc.text('Blackouts: '+outage.count+'   ·   Total downtime: '+fmtTimelineDur(outage.totalMinutes),14,y);y+=8;
+    outage.events.forEach(function(ev){
+      y=ensureRoom(doc,y,7);
+      var evStart=new Date(ev.started_at);
+      var evEnd=ev.resolved_at?new Date(ev.resolved_at):null;
+      var durMin=(evEnd?evEnd:new Date())-evStart;durMin=durMin/60000;
+      var line='• '+fmtDate(evStart)+' → '+(evEnd?fmtDate(evEnd):'ongoing')+'  ('+fmtTimelineDur(durMin)+')'+
+        (ev.applied?'  — credited '+(ev.affected_count||0)+' customers':(evEnd?'  — no credit':''));
+      doc.text(line,14,y);y+=6;
+    });
+  }
   doc.save(NET_NAME.replace(/\s+/g,'_')+'_'+type+'_'+start.toISOString().split('T')[0]+'.pdf');
   markDownloaded(reportKey(type,start));
   toast('Report downloaded','success');
