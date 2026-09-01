@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Z-Network Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 /* ============================================================
    TOKENS
@@ -823,11 +823,9 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <span class="nav-icon" data-icon="ic-clock"></span> Expiry Watch
       <span class="nav-badge" id="navBadgeExpiry"></span>
     </div>
-    <div class="nav-item" data-section="saleslog" onclick="navigate('saleslog',this)" tabindex="0" role="button">
-      <span class="nav-icon" data-icon="ic-list"></span> Sales Log
-    </div>
-    <div class="nav-item" data-section="analytics" onclick="navigate('analytics',this)" tabindex="0" role="button">
-      <span class="nav-icon" data-icon="ic-chart"></span> Analytics
+    <div class="nav-item" data-section="reports" onclick="navigate('reports',this)" tabindex="0" role="button">
+      <span class="nav-icon" data-icon="ic-chart"></span> Reports
+      <span class="nav-badge" id="navBadgeReports"></span>
     </div>
     <div class="nav-item" data-section="settings" onclick="navigate('settings',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-gear"></span> Settings
@@ -1147,105 +1145,22 @@ textarea.form-input{height:auto;padding:12px 14px;}
     </div>
   </section>
 
-  <!-- SALES LOG -->
-  <section class="section" id="section-saleslog">
+   <!-- REPORTS -->
+  <section class="section" id="section-reports">
     <div class="section-head">
       <div>
-        <div class="section-title">Sales Log</div>
-        <div class="section-sub">Full transaction history</div>
+        <div class="section-title">Reports</div>
+        <div class="section-sub">Daily, weekly and monthly sales — downloadable as PDF</div>
       </div>
     </div>
 
-    <div class="filters-row">
-      <input class="filter-input" type="date" id="slFrom" aria-label="From date"/>
-      <input class="filter-input" type="date" id="slTo" aria-label="To date"/>
-      <select class="filter-select" id="slPlan" onchange="filterSalesLog()" aria-label="Filter by plan">
-        <option value="">All Plans</option>
-        <option value="31fd47b9-fa74-4da3-a390-9e450ca3923c">Daily</option>
-        <option value="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae">2-Day</option>
-        <option value="6ce23b1a-bdb4-4118-958a-bcd4d637fb96">Half-Week</option>
-        <option value="08dbcc38-34fa-4251-a667-f989d26d625e">Weekly</option>
-        <option value="925f31d8-6a56-450b-aca0-5b165e336642">Monthly</option>
-      </select>
-      <select class="filter-select" id="slChannel" onchange="filterSalesLog()" aria-label="Filter by channel">
-        <option value="">All Channels</option>
-        <option value="online">Online</option>
-        <option value="cash">Cash</option>
-      </select>
-      <button class="btn btn-blue btn-sm" onclick="filterSalesLog()">Filter</button>
-      <button class="btn btn-outline btn-sm" onclick="exportSalesLog()"><span data-icon="ic-export" style="width:14px;height:14px;"></span>Export CSV</button>
+    <div class="time-tabs" id="reportsTabs">
+      <div class="time-tab active" data-rtab="daily" onclick="setReportsTab('daily',this)">Daily</div>
+      <div class="time-tab" data-rtab="weekly" onclick="setReportsTab('weekly',this)">Weekly</div>
+      <div class="time-tab" data-rtab="monthly" onclick="setReportsTab('monthly',this)">Monthly</div>
     </div>
 
-    <div class="totals-bar" id="slTotals">
-      <span>Loading…</span>
-    </div>
-
-    <div class="card" style="padding:0;overflow:hidden;">
-      <div class="table-scroll">
-        <table class="v-table" id="slTable">
-          <thead>
-            <tr>
-              <th>Date/Time</th><th>Plan</th><th>Amount</th>
-              <th>Channel</th><th>Code</th><th>Reference</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="slTableBody">
-            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pagination" id="slPagination"></div>
-    </div>
-  </section>
-
-  <!-- ANALYTICS -->
-  <section class="section" id="section-analytics">
-    <div class="section-head">
-      <div>
-        <div class="section-title">Analytics</div>
-        <div class="section-sub">Sales performance over time</div>
-      </div>
-    </div>
-
-    <div class="analytics-summary" id="analyticsAllTime">
-      <div class="sum-card"><div class="sum-label">All Time Revenue</div><div class="spinner" style="margin:8px auto;"></div></div>
-      <div class="sum-card"><div class="sum-label">Total Sold</div><div class="spinner" style="margin:8px auto;"></div></div>
-      <div class="sum-card"><div class="sum-label">Online Sales</div><div class="spinner" style="margin:8px auto;"></div></div>
-      <div class="sum-card"><div class="sum-label">Cash Sales</div><div class="spinner" style="margin:8px auto;"></div></div>
-    </div>
-
-    <div class="time-tabs" id="timeTabs">
-      <div class="time-tab active" data-range="today" onclick="setAnalyticsRange('today',this)">Today</div>
-      <div class="time-tab" data-range="week" onclick="setAnalyticsRange('week',this)">This Week</div>
-      <div class="time-tab" data-range="month" onclick="setAnalyticsRange('month',this)">This Month</div>
-      <div class="time-tab" data-range="30days" onclick="setAnalyticsRange('30days',this)">Last 30 Days</div>
-      <div class="time-tab" data-range="all" onclick="setAnalyticsRange('all',this)">All Time</div>
-    </div>
-
-    <div class="card chart-card">
-      <div class="chart-title">Revenue — Online vs Cash</div>
-      <div class="chart-wrap">
-        <canvas id="revenueChart"></canvas>
-      </div>
-    </div>
-
-    <div class="card" style="padding:18px;margin-bottom:20px;">
-      <div class="chart-title">Plan Performance</div>
-      <div style="overflow-x:auto;">
-        <table class="perf-table" id="perfTable">
-          <thead><tr><th>Plan</th><th>Sold</th><th>Revenue</th><th>% of Total</th></tr></thead>
-          <tbody id="perfBody"><tr><td colspan="4" style="text-align:center;padding:20px;"><div class="spinner"></div></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card" style="padding:18px;margin-bottom:20px;">
-      <div class="chart-title">Peak Hours</div>
-      <div class="peak-grid" id="peakGrid">
-        <div class="spinner"></div>
-      </div>
-      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Taller / darker bar = more sales at that hour</div>
-    </div>
+    <div id="reportsListBody"><div class="spinner"></div></div>
   </section>
 
    <!-- BLACKOUTS -->
@@ -1619,13 +1534,6 @@ textarea.form-input{height:auto;padding:12px 14px;}
   </div>
 </div>
 
-<div class="modal-backdrop" id="slDetailModal">
-  <div class="modal">
-    <div class="modal-header"><span class="modal-title">Transaction Details</span><button class="modal-close" onclick="closeModal('slDetailModal')">✕</button></div>
-    <div class="modal-body" id="slDetailBody"></div>
-    <div class="modal-footer" id="slDetailFooter"></div>
-  </div>
-</div>
 
 <div class="modal-backdrop" id="passwordModal">
   <div class="modal">
@@ -1881,7 +1789,7 @@ var SECTION_TITLES={
   voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
   accesspoints:'Access Points',
   overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
-  saleslog:'Sales Log',analytics:'Analytics',settings:'Settings'
+  reports:'Reports',settings:'Settings'
 };
 function navigate(id,el){
   document.getElementById('section-'+currentSection).classList.remove('active');
@@ -1900,8 +1808,7 @@ function navigate(id,el){
   else if(id==='blackouts')checkActiveOutage();
   else if(id==='accesspoints')loadAccessPoints();
   else if(id==='expiry')loadExpiryData();
-  else if(id==='saleslog'){if(!_slLoaded)loadSalesLog();}
-  else if(id==='analytics')loadAnalytics();
+  else if(id==='reports')loadReportsSection();
   else if(id==='settings')initSettings();
   closeSidebar();
   window.scrollTo({top:0,behavior:'instant'});
@@ -2959,103 +2866,7 @@ function exportExpired(){
 /* ══════════════════════════════════════════════════════════════
    SALES LOG
 ══════════════════════════════════════════════════════════════ */
-var _allSales=[];
-var _filteredSales=[];
-var _slLoaded=false;
-var _slPage=1;
-var _slPageSize=20;
 
-async function loadSalesLog(){
-  _slLoaded=true;
-  document.getElementById('slTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
-  var{data}=await supabase.from('vouchers').select('*').eq('is_used',true).order('used_at',{ascending:false});
-  _allSales=data||[];
-  filterSalesLog();
-}
-
-function filterSalesLog(){
-  var from=document.getElementById('slFrom').value;
-  var to=document.getElementById('slTo').value;
-  var plan=document.getElementById('slPlan').value;
-  var ch=document.getElementById('slChannel').value;
-  _filteredSales=_allSales.filter(function(v){
-    if(from&&v.used_at<from)return false;
-    if(to&&v.used_at.split('T')[0]>to)return false;
-    if(plan&&v.plan_id!==plan)return false;
-    if(ch&&v.sold_by!==ch)return false;
-    return true;
-  });
-  _slPage=1;
-  var total=_filteredSales.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
-  var online=_filteredSales.filter(function(v){return v.sold_by!=='cash';});
-  var cash=_filteredSales.filter(function(v){return v.sold_by==='cash';});
-  var onlineRev=online.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
-  var cashRev=cash.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
-  document.getElementById('slTotals').innerHTML=
-    '<strong>'+_filteredSales.length+' results</strong>'+
-    ' &nbsp;|&nbsp; Total: <strong>'+fmtMoney(total)+'</strong>'+
-    ' &nbsp;|&nbsp; Online: <strong style="color:var(--accent)">'+fmtMoney(onlineRev)+'</strong>'+
-    ' &nbsp;|&nbsp; Cash: <strong style="color:var(--amber)">'+fmtMoney(cashRev)+'</strong>';
-  renderSalesPage();
-}
-
-function renderSalesPage(){
-  var start=(_slPage-1)*_slPageSize;
-  var page=_filteredSales.slice(start,start+_slPageSize);
-  if(!page.length){
-    document.getElementById('slTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No transactions match these filters.</td></tr>';
-    document.getElementById('slPagination').innerHTML='';
-    return;
-  }
-  document.getElementById('slTableBody').innerHTML=page.map(function(v){
-    return'<tr onclick="openSaleDetail(\''+v.id+'\')">'+
-      '<td data-label="Date">'+fmtDate(v.used_at)+'</td>'+
-      '<td data-label="Plan">'+getPlanName(v.plan_id)+'</td>'+
-      '<td data-label="Amount"><strong>'+fmtMoney(getPlanPrice(v.plan_id))+'</strong></td>'+
-      '<td data-label="Channel"><span class="badge '+(v.sold_by==='cash'?'badge-amber':'badge-green')+'">'+( v.sold_by||'online')+'</span></td>'+
-      '<td data-label="Code">'+maskCode(v.code)+'</td>'+
-      '<td data-label="Ref" style="font-size:0.72rem;color:var(--text-muted);">'+(v.transaction_reference||'—').substring(0,16)+'…</td>'+
-      '<td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openSaleDetail(\''+v.id+'\')">View</button></td>'+
-    '</tr>';
-  }).join('');
-  renderPagination('slPagination',_filteredSales.length,_slPage,_slPageSize,function(p){_slPage=p;renderSalesPage();});
-}
-
-function openSaleDetail(id){
-  var v=_allSales.find(function(x){return x.id===id;});
-  if(!v)return;
-  document.getElementById('slDetailBody').innerHTML=
-    '<div class="detail-row"><span class="detail-label">Code</span><span class="detail-val" style="font-size:1.1rem;font-weight:800;">'+v.code+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Plan</span><span class="detail-val">'+getPlanName(v.plan_id)+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Amount</span><span class="detail-val">'+fmtMoney(getPlanPrice(v.plan_id))+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Channel</span><span class="detail-val">'+( v.sold_by||'online')+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Used At</span><span class="detail-val">'+fmtDate(v.used_at)+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val">'+getExpiry(v.used_at,v.plan_id)+'</span></div>'+
-    '<div class="detail-row"><span class="detail-label">Reference</span><span class="detail-val" style="font-size:0.72rem;">'+( v.transaction_reference||'—')+'</span></div>'+
-    (v.phone?'<div class="detail-row"><span class="detail-label">Customer Phone</span><span class="detail-val">'+v.phone+'</span></div>':'');
-  document.getElementById('slDetailFooter').innerHTML=
-    '<button class="btn btn-outline" onclick="copyToClipboard(\''+v.code+'\',\'Code copied!\')">Copy Code</button>'+
-    '<button class="btn btn-outline" onclick="sendCodeViaWA(\''+v.code+'\',\''+v.plan_id+'\')">WhatsApp</button>'+
-    '<button class="btn btn-red" onclick="revokeSale(\''+id+'\')">Revoke</button>';
-  openModal('slDetailModal');
-}
-
-async function revokeSale(id){
-  var ok=await showConfirm('Revoke Sale','This will mark the voucher as unused and remove usage data.','ic-warn');
-  if(!ok)return;
-  var{error}=await supabase.from('vouchers').update({is_used:false,used_at:null,sold_by:null,transaction_reference:null}).eq('id',id);
-  if(error){toast('Revoke failed: '+error.message,'error');return;}
-  toast('Sale revoked','success');
-  closeModal('slDetailModal');
-  loadSalesLog();
-}
-
-function exportSalesLog(){
-  downloadCSV(_filteredSales.map(function(v){
-    return{date:fmtDate(v.used_at),plan:getPlanName(v.plan_id),amount:getPlanPrice(v.plan_id),
-      channel:v.sold_by||'online',code:v.code,reference:v.transaction_reference||'',phone:v.phone||''};
-  }),'sales_log.csv');
-}
 function exportAllSales(){
   supabase.from('vouchers').select('*').eq('is_used',true).then(function(r){
     downloadCSV((r.data||[]).map(function(v){
@@ -3065,50 +2876,7 @@ function exportAllSales(){
   });
 }
 
-/* ══════════════════════════════════════════════════════════════
-   ANALYTICS
-══════════════════════════════════════════════════════════════ */
-var _analyticsRange='today';
-var _chartInstance=null;
-var _allSalesData=[];
-var _lastChartData=[];
-var _lastChartRange='today';
 
-async function loadAnalytics(){
-  var{data}=await supabase.from('vouchers').select('plan_id,used_at,sold_by').eq('is_used',true).order('used_at',{ascending:true});
-  _allSalesData=data||[];
-  renderAllTimeStats();
-  setAnalyticsRange('today',document.querySelector('.time-tab'));
-}
-
-function renderAllTimeStats(){
-  var all=_allSalesData;
-  var rev=all.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0);
-  var online=all.filter(function(v){return v.sold_by!=='cash';});
-  var cash=all.filter(function(v){return v.sold_by==='cash';});
-  document.getElementById('analyticsAllTime').innerHTML=
-    sumCard('All Time Revenue',fmtMoney(rev),'accent','')+
-    sumCard('Total Sold',all.length,'green','')+
-    sumCard('Online Sales',online.length,'',fmtMoney(online.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0)))+
-    sumCard('Cash Sales',cash.length,'amber',fmtMoney(cash.reduce(function(s,v){return s+getPlanPrice(v.plan_id);},0)));
-}
-
-function setAnalyticsRange(range,el){
-  _analyticsRange=range;
-  document.querySelectorAll('.time-tab').forEach(function(t){t.classList.remove('active');});
-  if(el)el.classList.add('active');
-  var now=new Date();
-  var from;
-  if(range==='today'){from=new Date(now.toISOString().split('T')[0]);}
-  else if(range==='week'){from=new Date(now);from.setDate(from.getDate()-from.getDay());}
-  else if(range==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
-  else if(range==='30days'){from=new Date(now);from.setDate(from.getDate()-29);}
-  else{from=null;}
-  var filtered=from?_allSalesData.filter(function(v){return new Date(v.used_at)>=from;}):_allSalesData;
-  rebuildChart(filtered,range);
-  renderPerfTable(filtered);
-  renderPeakHours(filtered);
-}
 
 function rebuildChart(data,range){
   _lastChartData=data;_lastChartRange=range;
@@ -3183,8 +2951,191 @@ function renderPeakHours(data){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SETTINGS
+   REPORTS — daily / weekly / monthly, PDF export
+   Week/month cycles anchor to the 12th of each month. A cycle runs
+   12th → next 12th. Weeks inside a cycle are 7 days starting at the
+   12th; the trailing remainder becomes its own (shorter) week unless
+   it's under 4 days, in which case it's merged into the prior week
+   (making that week longer) — so every cycle's last week always ends
+   exactly on the next 12th.
 ══════════════════════════════════════════════════════════════ */
+var _allSalesData=[];
+var _reportsDataLoaded=false;
+var _reportsTab='daily';
+
+function getRecentDays(n){
+  var days=[];
+  var now=new Date();
+  var base=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  for(var i=0;i<n;i++){
+    var s=new Date(base.getTime()-i*86400000);
+    days.push({start:s,end:new Date(s.getTime()+86400000)});
+  }
+  return days;
+}
+function getCycleForDate(d){
+  var day=d.getDate(),y=d.getFullYear(),m=d.getMonth();
+  var start=day>=12?new Date(y,m,12):new Date(y,m-1,12);
+  var end=new Date(start.getFullYear(),start.getMonth()+1,12);
+  return{start:start,end:end};
+}
+function getRecentCycles(n){
+  var cycles=[],d=new Date();
+  for(var i=0;i<n;i++){
+    var c=getCycleForDate(d);
+    cycles.push(c);
+    d=new Date(c.start.getTime()-1);
+  }
+  return cycles;
+}
+function getWeeksInCycle(cycle){
+  var weeks=[],cursor=new Date(cycle.start);
+  while(cursor<cycle.end){
+    var wEnd=new Date(cursor.getTime()+7*86400000);
+    if(wEnd>cycle.end)wEnd=new Date(cycle.end);
+    weeks.push({start:new Date(cursor),end:wEnd});
+    cursor=wEnd;
+  }
+  if(weeks.length>1){
+    var last=weeks[weeks.length-1];
+    if((last.end-last.start)/86400000<4){
+      weeks[weeks.length-2].end=last.end;
+      weeks.pop();
+    }
+  }
+  return weeks;
+}
+function findCurrentPeriod(periods,now){
+  for(var i=0;i<periods.length;i++){
+    if(now>=periods[i].start&&now<periods[i].end)return periods[i];
+  }
+  return periods[periods.length-1];
+}
+function computePeriodStats(start,end){
+  var rows=_allSalesData.filter(function(v){var t=new Date(v.used_at);return t>=start&&t<end;});
+  var totalRevenue=0;
+  var byMethod={online:0,cash:0},byMethodRevenue={online:0,cash:0};
+  var byPlan={};Object.keys(PLANS).forEach(function(id){byPlan[id]={count:0,revenue:0};});
+  rows.forEach(function(v){
+    var price=getPlanPrice(v.plan_id);
+    totalRevenue+=price;
+    var m=v.sold_by==='cash'?'cash':'online';
+    byMethod[m]++;byMethodRevenue[m]+=price;
+    if(byPlan[v.plan_id]){byPlan[v.plan_id].count++;byPlan[v.plan_id].revenue+=price;}
+  });
+  return{start:start,end:end,totalCount:rows.length,totalRevenue:totalRevenue,byMethod:byMethod,byMethodRevenue:byMethodRevenue,byPlan:byPlan};
+}
+function reportKey(type,start){return type+':'+start.toISOString();}
+function isDownloaded(key){
+  var arr=JSON.parse(localStorage.getItem('zn_reports_downloaded')||'[]');
+  return arr.indexOf(key)>=0;
+}
+function markDownloaded(key){
+  var arr=JSON.parse(localStorage.getItem('zn_reports_downloaded')||'[]');
+  if(arr.indexOf(key)<0){arr.push(key);if(arr.length>200)arr=arr.slice(-200);localStorage.setItem('zn_reports_downloaded',JSON.stringify(arr));}
+  checkReportsNotifications();
+}
+function checkReportsNotifications(){
+  var now=new Date();
+  var dayKey=reportKey('daily',getRecentDays(1)[0].start);
+  var cycle=getCycleForDate(now);
+  var weeks=getWeeksInCycle(cycle);
+  var curWeek=findCurrentPeriod(weeks,now);
+  var weekKey=reportKey('weekly',curWeek.start);
+  var monthKey=reportKey('monthly',cycle.start);
+  var missing=[dayKey,weekKey,monthKey].filter(function(k){return !isDownloaded(k);}).length;
+  var badge=document.getElementById('navBadgeReports');
+  if(badge){
+    if(missing>0){badge.textContent=missing;badge.classList.add('show');}
+    else badge.classList.remove('show');
+  }
+}
+function periodLabel(type,p){
+  if(type==='daily')return p.start.toLocaleDateString('en-NG',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+  var endDisp=new Date(p.end.getTime()-1).toLocaleDateString('en-NG',{day:'2-digit',month:'short',year:'numeric'});
+  var startDisp=p.start.toLocaleDateString('en-NG',{day:'2-digit',month:'short'});
+  return startDisp+' – '+endDisp+(type==='monthly'?' (cycle)':'');
+}
+function renderReportRow(type,p){
+  var stats=computePeriodStats(p.start,p.end);
+  var key=reportKey(type,p.start);
+  var isNew=!isDownloaded(key);
+  return'<div class="card" style="padding:16px 18px;margin-bottom:12px;'+(isNew?'border-color:var(--accent);':'')+'">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">'+
+      '<div>'+
+        '<div style="font-weight:700;font-size:0.9rem;color:var(--text);">'+periodLabel(type,p)+(isNew?' <span class="badge badge-amber" style="margin-left:6px;">New</span>':'')+'</div>'+
+        '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">'+stats.totalCount+' sold · '+fmtMoney(stats.totalRevenue)+' · Online '+stats.byMethod.online+' / Cash '+stats.byMethod.cash+'</div>'+
+        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">'+Object.keys(PLANS).map(function(id){return PLANS[id].name+': '+stats.byPlan[id].count;}).join(' · ')+'</div>'+
+      '</div>'+
+      '<button class="btn btn-blue btn-sm" onclick="downloadReportPDF(\''+type+'\',\''+p.start.toISOString()+'\',\''+p.end.toISOString()+'\')">⬇ Download PDF</button>'+
+    '</div></div>';
+}
+function renderReportsList(){
+  var body=document.getElementById('reportsListBody');
+  if(!body)return;
+  var periods=[];
+  if(_reportsTab==='daily'){
+    periods=getRecentDays(14);
+  }else if(_reportsTab==='weekly'){
+    var all=[];
+    getRecentCycles(3).forEach(function(c){all=all.concat(getWeeksInCycle(c));});
+    periods=all.filter(function(w){return w.start<=new Date();}).sort(function(a,b){return b.start-a.start;}).slice(0,10);
+  }else{
+    periods=getRecentCycles(6);
+  }
+  if(!periods.length){body.innerHTML='<div style="text-align:center;padding:28px;color:var(--text-muted);">Nothing to show yet.</div>';return;}
+  body.innerHTML=periods.map(function(p){return renderReportRow(_reportsTab,p);}).join('');
+}
+function setReportsTab(tab,el){
+  _reportsTab=tab;
+  document.querySelectorAll('#reportsTabs .time-tab').forEach(function(t){t.classList.remove('active');});
+  if(el)el.classList.add('active');
+  renderReportsList();
+}
+async function loadReportsSection(){
+  if(!_reportsDataLoaded){
+    document.getElementById('reportsListBody').innerHTML='<div class="spinner"></div>';
+    var{data,error}=await supabase.from('vouchers').select('plan_id,used_at,sold_by').eq('is_used',true).order('used_at',{ascending:true});
+    if(error){document.getElementById('reportsListBody').innerHTML='<div style="text-align:center;color:var(--red);padding:20px;font-size:0.82rem;">Failed to load: '+error.message+'</div>';return;}
+    _allSalesData=data||[];
+    _reportsDataLoaded=true;
+  }
+  renderReportsList();
+  checkReportsNotifications();
+}
+function downloadReportPDF(type,startIso,endIso){
+  var start=new Date(startIso),end=new Date(endIso);
+  var stats=computePeriodStats(start,end);
+  generateReportPDF(type,start,end,stats);
+}
+function generateReportPDF(type,start,end,stats){
+  if(!window.jspdf){toast('PDF library failed to load — check your connection','error');return;}
+  var doc=new window.jspdf.jsPDF();
+  var title=NET_NAME+' — '+type.charAt(0).toUpperCase()+type.slice(1)+' Sales Report';
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(title,14,18);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('Period: '+fmtDate(start)+'  to  '+fmtDate(new Date(end.getTime()-1)),14,26);
+  doc.text('Generated: '+fmtDate(new Date()),14,32);
+  doc.line(14,36,196,36);
+  var y=46;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Summary',14,y);y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('Total Vouchers Sold: '+stats.totalCount,14,y);y+=6;
+  doc.text('Total Revenue: '+fmtMoney(stats.totalRevenue),14,y);y+=12;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('By Payment Method',14,y);y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  doc.text('Online: '+stats.byMethod.online+' vouchers — '+fmtMoney(stats.byMethodRevenue.online),14,y);y+=6;
+  doc.text('Cash: '+stats.byMethod.cash+' vouchers — '+fmtMoney(stats.byMethodRevenue.cash),14,y);y+=12;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('By Plan Type',14,y);y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  Object.keys(PLANS).forEach(function(id){
+    var p=stats.byPlan[id];
+    doc.text(PLANS[id].name+': '+p.count+' sold — '+fmtMoney(p.revenue),14,y);y+=6;
+  });
+  doc.save(NET_NAME.replace(/\s+/g,'_')+'_'+type+'_'+start.toISOString().split('T')[0]+'.pdf');
+  markDownloaded(reportKey(type,start));
+  toast('Report downloaded','success');
+}
 function initSettings(){
   document.getElementById('displayUsername').textContent=localStorage.getItem('zn_admin_user')||'admin';
   populateRebootRouterSelect();
@@ -4295,6 +4246,7 @@ async function deleteAP(id){
 loadCashSalePlans();
 loadCustomers();
 checkActiveOutage();
+checkReportsNotifications();;
 </script>
 </body>
 </html>
