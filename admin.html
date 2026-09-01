@@ -3165,22 +3165,16 @@ function generateReportPDF(type,start,end,stats,outage){
     doc.text(PLANS[id].name+': '+p.count+' sold — '+fmtMoney(p.revenue),14,y);y+=6;
   });
   y+=6;
-  y=ensureRoom(doc,y,24);
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Power / Blackout Log',14,y);y+=8;
+  y=ensureRoom(doc,y,20);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Power / Blackout Summary',14,y);y+=8;
   doc.setFont('helvetica','normal');doc.setFontSize(10);
   if(!outage.count){
     doc.text('No blackouts recorded during this period.',14,y);y+=6;
   }else{
-    doc.text('Blackouts: '+outage.count+'   ·   Total downtime: '+fmtTimelineDur(outage.totalMinutes),14,y);y+=8;
-    outage.events.forEach(function(ev){
-      y=ensureRoom(doc,y,7);
-      var evStart=new Date(ev.started_at);
-      var evEnd=ev.resolved_at?new Date(ev.resolved_at):null;
-      var durMin=(evEnd?evEnd:new Date())-evStart;durMin=durMin/60000;
-      var line='• '+fmtDate(evStart)+' → '+(evEnd?fmtDate(evEnd):'ongoing')+'  ('+fmtTimelineDur(durMin)+')'+
-        (ev.applied?'  — credited '+(ev.affected_count||0)+' customers':(evEnd?'  — no credit':''));
-      doc.text(line,14,y);y+=6;
-    });
+    var creditedCustomers=outage.events.reduce(function(s,ev){return s+(ev.applied?(ev.affected_count||0):0);},0);
+    doc.text('Blackouts: '+outage.count,14,y);y+=6;
+    doc.text('Total downtime: '+fmtTimelineDur(outage.totalMinutes),14,y);y+=6;
+    doc.text('Customers credited: '+creditedCustomers,14,y);y+=6;
   }
   doc.save(NET_NAME.replace(/\s+/g,'_')+'_'+type+'_'+start.toISOString().split('T')[0]+'.pdf');
   markDownloaded(reportKey(type,start));
