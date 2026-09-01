@@ -2130,9 +2130,16 @@ function filterCustomers(){
 
 var ALMOST_EXPIRED_HOURS=6;
 
+var VERY_INACTIVE_DAYS=30;
 function getCustRowStatus(c){
   if(c.status==='cancelled')return{cls:'cust-row-removed',label:'Removed',weight:4};
-  if(c.status==='suspended')return{cls:'cust-row-red',label:'Paused',weight:3};
+  if(c.status==='suspended'){
+    var expMs=c.expiry_date?new Date(c.expiry_date).getTime():null;
+    if(expMs!==null&&(Date.now()-expMs)>(VERY_INACTIVE_DAYS*86400000)){
+      return{cls:'cust-row-removed',label:'Inactive',weight:-1};
+    }
+    return{cls:'cust-row-red',label:'Paused',weight:3};
+  }
   var expiryMs=c.expiry_date?new Date(c.expiry_date).getTime():null;
   if(expiryMs===null)return{cls:'',label:'No plan',weight:2};
   var now=Date.now();
