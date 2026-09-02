@@ -813,6 +813,10 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="nav-item" data-section="accesspoints" onclick="navigate('accesspoints',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-wifi"></span> Access Points
     </div>
+    <div class="nav-item" data-section="livecustomers" onclick="navigate('livecustomers',this)" tabindex="0" role="button">
+      <span class="nav-icon">🟢</span> Live Customers
+      <span class="nav-badge" id="navBadgeLive"></span>
+    </div>
     <div class="nav-label">More</div>
     <div class="nav-item" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-overview"></span> Overview
@@ -1234,6 +1238,31 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#e0524f;"></span>Offline</span>
         <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#e0a63b;"></span>Hub offline</span>
         <span style="margin-left:auto;" id="apCountLabel">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE CUSTOMERS -->
+  <section class="section" id="section-livecustomers">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Live Customers</div>
+        <div class="section-sub" id="liveCustSub">Customers currently connected to the network — refreshes every minute</div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <button class="btn btn-outline btn-sm" onclick="loadLiveCustomers()"><span data-icon="ic-refresh" style="width:14px;height:14px;"></span>Refresh</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="table-scroll">
+        <table class="v-table" id="liveTable">
+          <thead>
+            <tr><th>Customer</th><th>Voucher</th><th>Plan/Profile</th><th>Hub</th><th>IP</th><th>Uptime</th><th>Data (In/Out)</th></tr>
+          </thead>
+          <tbody id="liveTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -1789,7 +1818,7 @@ document.addEventListener('keydown',function(e){
 var currentSection='voucherhub';
 var SECTION_TITLES={
   voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
-  accesspoints:'Access Points',
+  accesspoints:'Access Points',livecustomers:'Live Customers',
   overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
   reports:'Reports',settings:'Settings'
 };
@@ -1809,9 +1838,13 @@ function navigate(id,el){
   else if(id==='voucherhub'){loadCashSalePlans();if(!_custLoaded)loadCustomers();renderRenewalList();}
   else if(id==='blackouts')checkActiveOutage();
   else if(id==='accesspoints')loadAccessPoints();
+  else if(id==='livecustomers')loadLiveCustomers();
   else if(id==='expiry')loadExpiryData();
   else if(id==='reports')loadReportsSection();
   else if(id==='settings')initSettings();
+  if(id==='livecustomers'){
+    if(!_liveTimer)_liveTimer=setInterval(function(){if(currentSection==='livecustomers')loadLiveCustomers();},60000);
+  }
   closeSidebar();
   window.scrollTo({top:0,behavior:'instant'});
 }
@@ -3488,6 +3521,57 @@ async function restoreBlackout(){
   await supabase.from('outage_events').update({resolved_at:resolvedAt.toISOString(),duration_minutes:durationMin,applied:true,affected_count:count}).eq('id',_activeOutage.id);
   toast('Credited '+count+' customers with '+hrs+'h','success');
   checkActiveOutage();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIVE CUSTOMERS
+══════════════════════════════════════════════════════════════ */
+var _liveTimer=null;
+
+function fmtBytes(n){
+  if(!n)return'0 B';
+  var units=['B','KB','MB','GB'],i=0;
+  while(n>=1024&&i<units.length-1){n/=1024;i++;}
+  return n.toFixed(1)+' '+units[i];
+}
+
+async function loadLiveCustomers(){
+  document.getElementById('liveTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;"><div class="spinner"></div></td></tr>';
+  var[sessRes,routerRes]=await Promise.all([
+    supabase.from('live_sessions').select('*').order('reported_at',{ascending:false}),
+    getRouters()
+  ]);
+  if(sessRes.error){toast('Failed to load live sessions: '+sessRes.error.message,'error');return;}
+  var sessions=sessRes.data||[];
+  var routerMap={};
+  routerRes.forEach(function(r){routerMap[r.id]=r.name||r.id;});
+
+  document.getElementById('liveCustSub').textContent=
+    sessions.length+' customer'+(sessions.length!==1?'s':'')+' currently connected';
+  var badge=document.getElementById('navBadgeLive');
+  if(sessions.length>0){badge.textContent=sessions.length;badge.classList.add('show');}
+  else badge.classList.remove('show');
+
+  if(!sessions.length){
+    document.getElementById('liveTableBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No customers currently connected.</td></tr>';
+    return;
+  }
+
+  if(!_allCustomers.length&&!_custLoaded)await loadCustomers();
+
+  document.getElementById('liveTableBody').innerHTML=sessions.map(function(s){
+    var cust=_allCustomers.find(function(c){return c.voucher_code===s.username;});
+    var custName=cust?(cust.name||'Unnamed'):'Unknown';
+    return'<tr'+(cust?' onclick="openCustomerDetail(\''+cust.id+'\')" style="cursor:pointer;"':'')+'>'+
+      '<td data-label="Customer">'+custName+'</td>'+
+      '<td data-label="Voucher" class="mono">'+s.username+'</td>'+
+      '<td data-label="Plan/Profile">'+(s.profile||'—')+'</td>'+
+      '<td data-label="Hub">'+(routerMap[s.router_id]||'—')+'</td>'+
+      '<td data-label="IP" class="mono">'+(s.ip_address||'—')+'</td>'+
+      '<td data-label="Uptime">'+(s.uptime||'—')+'</td>'+
+      '<td data-label="Data (In/Out)">'+fmtBytes(s.bytes_in)+' / '+fmtBytes(s.bytes_out)+'</td>'+
+    '</tr>';
+  }).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
