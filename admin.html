@@ -1662,14 +1662,18 @@ textarea.form-input{height:auto;padding:12px 14px;}
         <label class="form-label">Notes (optional)</label>
         <textarea class="form-input form-textarea" id="apNotes" placeholder="Location, install date, etc."></textarea>
       </div>
-      <div class="form-group" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">Admin PIN</label>
         <input class="form-input" type="password" id="apPin" placeholder="Enter PIN to confirm" inputmode="numeric"/>
       </div>
+      <div id="apActivityPanel" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:10px;">Activity Check</div>
+        <div id="apActivityBody" style="font-size:0.82rem;color:var(--text-muted);">Loading…</div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-red" id="apDeleteBtn" style="display:none;margin-right:auto;" onclick="deleteAP(document.getElementById('apId').value)">Delete</button>
-      <button class="btn btn-outline" id="apPinBtn" style="display:none;" onclick="togglePinAP(document.getElementById('apId').value)">📌 Pin</button>
+      <button class="btn btn-outline" id="apCheckBtn" style="display:none;" onclick="checkAPActivity(document.getElementById('apId').value)">🔍 Check Activity</button>
+      <button class="btn btn-red" id="apDeleteBtn" style="display:none;margin-right:auto;" onclick="deleteAP(document.getElementById('apId').value)">Delete</button><button class="btn btn-outline" id="apPinBtn" style="display:none;" onclick="togglePinAP(document.getElementById('apId').value)">📌 Pin</button>
       <button class="btn btn-outline" id="apCopyBtn" style="display:none;" onclick="copyAPToClipboard(document.getElementById('apId').value)">📋 Copy</button>
        <button class="btn btn-outline" onclick="closeModal('apModal')">Cancel</button>
       <button class="btn btn-blue" onclick="submitAP()">Save Access Point</button>
@@ -4477,11 +4481,46 @@ async function openAddAPModal(){
   document.getElementById('apNotes').value='';
   document.getElementById('apPin').value='';
   document.getElementById('apDeleteBtn').style.display='none';
+  document.getElementById('apCheckBtn').style.display='none';
+  document.getElementById('apActivityPanel').style.display='none';
   var routers=await getRouters();
   document.getElementById('apRouter').innerHTML=routers.map(function(r){
     return'<option value="'+r.id+'">'+(r.name||r.id)+'</option>';
   }).join('');
   openModal('apModal');
+}
+
+async function checkAPActivity(id){
+  if(!id)return;
+  var panel=document.getElementById('apActivityPanel');
+  var body=document.getElementById('apActivityBody');
+  panel.style.display='block';
+  body.innerHTML='<div class="spinner" style="margin:10px auto;"></div>';
+
+  var{data,error}=await supabase.rpc('rpc_get_ap_history',{p_ap_id:id,p_hours:168});
+  if(error){body.innerHTML='<span style="color:var(--red);">Check failed: '+error.message+'</span>';return;}
+
+  var statusBadge={'online':'badge-green','offline':'badge-red','hub_offline':'badge-amber'}[data.current_status]||'badge-gray';
+  var lastSeenLine=data.last_seen_at?('Last seen '+timeAgo(data.last_seen_at)+' ('+fmtDate(data.last_seen_at)+')'):'Never seen online';
+  var uptimeColor=data.uptime_pct>=99?'var(--green)':(data.uptime_pct>=95?'var(--amber)':'var(--red)');
+
+  var eventsHtml=(data.events&&data.events.length)
+    ? data.events.slice(0,15).map(function(ev){
+        var badge=ev.status==='online'?'badge-green':'badge-red';
+        return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem;">'+
+          '<span class="badge '+badge+'">'+ev.status+'</span>'+
+          '<span style="color:var(--text-muted);">'+fmtDate(ev.changed_at)+'</span></div>';
+      }).join('')
+    : '<div style="color:var(--text-muted);padding:8px 0;">No status changes recorded in the last 7 days.</div>';
+
+  body.innerHTML=
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'+
+      '<span class="badge '+statusBadge+'">'+data.current_status+'</span>'+
+      '<span style="font-size:0.78rem;color:var(--text-muted);">'+lastSeenLine+'</span>'+
+    '</div>'+
+    '<div style="font-size:0.85rem;font-weight:700;color:'+uptimeColor+';margin:10px 0 2px;">'+data.uptime_pct+'% uptime — last 7 days</div>'+
+    '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px;">'+data.downtime_minutes+' min offline in window</div>'+
+    '<div style="max-height:220px;overflow-y:auto;">'+eventsHtml+'</div>';
 }
 
 async function openEditAPModal(id){
@@ -4497,11 +4536,14 @@ async function openEditAPModal(id){
   pinBtn.style.display='';
   pinBtn.textContent=ap.pinned?'📌 Unpin':'📌 Pin';
   document.getElementById('apCopyBtn').style.display='';
+  document.getElementById('apCheckBtn').style.display='';
+  document.getElementById('apActivityPanel').style.display='none';
   var routers=await getRouters();
   document.getElementById('apRouter').innerHTML=routers.map(function(r){
     return'<option value="'+r.id+'"'+(r.id===ap.router_id?' selected':'')+'>'+(r.name||r.id)+'</option>';
   }).join('');
   openModal('apModal');
+  checkAPActivity(id);
 }
 
 async function openEditAPModal(id){
