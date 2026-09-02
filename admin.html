@@ -817,6 +817,10 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <span class="nav-icon">🟢</span> Live Customers
       <span class="nav-badge" id="navBadgeLive"></span>
     </div>
+    <div class="nav-item" data-section="bandwidth" onclick="navigate('bandwidth',this)" tabindex="0" role="button">
+      <span class="nav-icon">📶</span> Live Bandwidth
+    </div>
+    <div class="nav-label">More</div>
     <div class="nav-label">More</div>
     <div class="nav-item" data-section="overview" onclick="navigate('overview',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-overview"></span> Overview
@@ -1264,6 +1268,34 @@ textarea.form-input{height:auto;padding:12px 14px;}
           </tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+    <!-- LIVE BANDWIDTH -->
+  <section class="section" id="section-bandwidth">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Live Bandwidth</div>
+        <div class="section-sub" id="bwSub">Current throughput on your uplink — updates every minute</div>
+      </div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div class="sum-card accent">
+        <div class="sum-label">Download</div>
+        <div class="sum-value accent" id="bwDownVal">—</div>
+        <div class="sum-detail">Mbps right now</div>
+      </div>
+      <div class="sum-card green">
+        <div class="sum-label">Upload</div>
+        <div class="sum-value green" id="bwUpVal">—</div>
+        <div class="sum-detail">Mbps right now</div>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="chart-title">Last 24 Hours</div>
+      <canvas id="bwCanvas" style="width:100%;height:220px;display:block;"></canvas>
     </div>
   </section>
 
@@ -1818,7 +1850,7 @@ document.addEventListener('keydown',function(e){
 var currentSection='voucherhub';
 var SECTION_TITLES={
   voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
-  accesspoints:'Access Points',livecustomers:'Live Customers',
+  accesspoints:'Access Points',livecustomers:'Live Customers',bandwidth:'Live Bandwidth',
   overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
   reports:'Reports',settings:'Settings'
 };
@@ -1839,11 +1871,15 @@ function navigate(id,el){
   else if(id==='blackouts')checkActiveOutage();
   else if(id==='accesspoints')loadAccessPoints();
   else if(id==='livecustomers')loadLiveCustomers();
+  else if(id==='bandwidth')loadBandwidth();
   else if(id==='expiry')loadExpiryData();
   else if(id==='reports')loadReportsSection();
   else if(id==='settings')initSettings();
   if(id==='livecustomers'){
     if(!_liveTimer)_liveTimer=setInterval(function(){if(currentSection==='livecustomers')loadLiveCustomers();},60000);
+  }
+  if(id==='bandwidth'){
+    if(!_bwTimer)_bwTimer=setInterval(function(){if(currentSection==='bandwidth')loadBandwidth();},60000);
   }
   closeSidebar();
   window.scrollTo({top:0,behavior:'instant'});
@@ -3572,6 +3608,102 @@ async function loadLiveCustomers(){
       '<td data-label="Data (In/Out)">'+fmtBytes(s.bytes_in)+' / '+fmtBytes(s.bytes_out)+'</td>'+
     '</tr>';
   }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIVE BANDWIDTH
+══════════════════════════════════════════════════════════════ */
+var _bwTimer=null;
+
+async function loadBandwidth(){
+  var{data,error}=await supabase.from('bandwidth_samples')
+    .select('bytes_in,bytes_out,sampled_at')
+    .eq('router_id',PRODUCTION_ROUTER_ID)
+    .order('sampled_at',{ascending:true});
+  if(error){toast('Failed to load bandwidth: '+error.message,'error');return;}
+  var rows=data||[];
+  if(rows.length<2){
+    document.getElementById('bwDownVal').textContent='—';
+    document.getElementById('bwUpVal').textContent='—';
+    document.getElementById('bwSub').textContent='Not enough data yet — check back in a minute';
+    drawBandwidthSparkline([]);
+    return;
+  }
+
+  var rates=[];
+  for(var i=1;i<rows.length;i++){
+    var prev=rows[i-1],cur=rows[i];
+    var dt=(new Date(cur.sampled_at)-new Date(prev.sampled_at))/1000;
+    if(dt<=0)continue;
+    var dIn=cur.bytes_in-prev.bytes_in;
+    var dOut=cur.bytes_out-prev.bytes_out;
+    if(dIn<0||dOut<0)continue; // counter reset (router reboot) — skip this interval
+    rates.push({
+      t:new Date(cur.sampled_at),
+      down:(dIn*8/dt)/1000000,
+      up:(dOut*8/dt)/1000000
+    });
+  }
+
+  if(!rates.length){
+    document.getElementById('bwDownVal').textContent='—';
+    document.getElementById('bwUpVal').textContent='—';
+    document.getElementById('bwSub').textContent='No valid samples yet';
+    drawBandwidthSparkline([]);
+    return;
+  }
+
+  var latest=rates[rates.length-1];
+  document.getElementById('bwDownVal').textContent=latest.down.toFixed(1);
+  document.getElementById('bwUpVal').textContent=latest.up.toFixed(1);
+  document.getElementById('bwSub').textContent='Last updated '+timeAgo(latest.t);
+
+  drawBandwidthSparkline(rates);
+}
+
+function drawBandwidthSparkline(rates){
+  var canvas=document.getElementById('bwCanvas');
+  if(!canvas)return;
+  var rect=canvas.getBoundingClientRect();
+  var dpr=window.devicePixelRatio||1;
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  var ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  var w=rect.width,h=rect.height,pad=10;
+  ctx.clearRect(0,0,w,h);
+
+  if(!rates.length){
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text-muted');
+    ctx.font='13px sans-serif';ctx.textAlign='center';
+    ctx.fillText('No data yet',w/2,h/2);
+    return;
+  }
+
+  var maxVal=Math.max.apply(null,rates.map(function(r){return Math.max(r.down,r.up);}).concat([1]));
+  var isDark=document.body.classList.contains('dark');
+  var gridColor=isDark?'#26262a':'#e2e2e2';
+
+  ctx.strokeStyle=gridColor;ctx.lineWidth=1;
+  for(var gy=0;gy<=4;gy++){
+    var y=pad+(h-pad*2)*(gy/4);
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();
+  }
+
+  function plotLine(key,color){
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+    rates.forEach(function(r,i){
+      var x=pad+(w-pad*2)*(i/Math.max(1,rates.length-1));
+      var y=pad+(h-pad*2)*(1-r[key]/maxVal);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+  plotLine('down','#1A6FE8');
+  plotLine('up','#0E9F5C');
+
+  ctx.font='10px sans-serif';ctx.textAlign='left';
+  ctx.fillStyle='#1A6FE8';ctx.fillText('● Download',pad,14);
+  ctx.fillStyle='#0E9F5C';ctx.fillText('● Upload',pad+80,14);
 }
 
 /* ══════════════════════════════════════════════════════════════
