@@ -1,1627 +1,819 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Z-Network – Get Online Now</title>
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Z-Network is a Nigerian connectivity infrastructure company building Starlink-backed wireless internet networks for off-campus student housing and residential communities, starting in Lafia, Nasarawa State.">
+<meta property="og:title" content="Z-Network | Connectivity Infrastructure">
+<meta property="og:description" content="Starlink-backed wireless ISP infrastructure for underserved communities. Live network data, investment structure and roadmap.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:,">
+<title>Z-Network | Connectivity Infrastructure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
+:root{--bg:#07090c;--panel:#0d1117;--panel2:#111720;--panel3:#161d29;--text:#f4f7fb;--muted:#9aa7b7;--muted2:#7c8aa0;--line:#202a36;--line2:#2a394b;--blue:#3d8bfd;--blue2:#8bbcff;--blue-glow:rgba(61,139,253,.14);--green:#35c285;--amber:#e0a63b;--red:#f0605f;--max:1180px;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--max);margin:auto;padding:0 24px}
+::selection{background:var(--blue);color:#fff}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
 
-/* ============================================================
-   RESET & BASE
-============================================================ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
-  transition: background 0.3s, color 0.3s;
-}
-button { cursor: pointer; border: none; outline: none; font-family: inherit; }
-input  { font-family: inherit; border: none; outline: none; }
-ol, ul { padding-left: 18px; }
+/* ============ NAV ============ */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(7,9,12,.86);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+.nav{height:72px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:800;letter-spacing:-.04em;font-size:21px}.brand span{color:var(--blue)}
+.links{display:flex;gap:25px;align-items:center;font-size:14px;color:#c7d0db}
+.links a{position:relative;padding:4px 0}
+.links a:hover{color:#fff}
+.links a::after{content:"";position:absolute;left:0;bottom:-2px;width:0;height:1.5px;background:var(--blue);transition:width .2s}
+.links a:hover::after{width:100%}
+.navcta{border:1px solid #31435b;padding:10px 15px;border-radius:8px;color:white;white-space:nowrap}
+.navcta:hover{border-color:var(--blue);background:var(--blue-glow)}
+.hamburger{display:none;flex-direction:column;gap:5px;width:34px;height:34px;align-items:center;justify-content:center;border:1px solid var(--line2);border-radius:8px;background:transparent}
+.hamburger span{display:block;width:16px;height:1.5px;background:#fff;transition:transform .2s,opacity .2s}
+.hamburger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+.mobilemenu{display:none;max-height:0;overflow:hidden;transition:max-height .25s ease;border-bottom:1px solid var(--line)}
+.mobilemenu.open{max-height:420px}
+.mobilemenu .wrap{padding:8px 24px 20px;display:flex;flex-direction:column;gap:2px}
+.mobilemenu a{padding:12px 4px;border-bottom:1px solid var(--line);font-size:14.5px;color:#dbe2ea}
+.mobilemenu a:last-child{border-bottom:none}
 
-/* ============================================================
-   THEME TOKENS
-============================================================ */
-:root {
-  --bg:           #f4f7fc;
-  --bg-card:      #ffffff;
-  --bg-card2:     #eef2fb;
-  --border:       #dde4f0;
-  --text:         #1a2236;
-  --text-soft:    #4d5e80;
-  --text-muted:   #8a97b0;
-  --accent:       #1A6FE8;
-  --accent-dark:  #1459BB;
-  --accent-glow:  rgba(26,111,232,0.15);
-  --green:        #00C06A;
-  --green-dark:   #009952;
-  --green-glow:   rgba(0,192,106,0.15);
-  --input-bg:     #f0f4fc;
-  --shadow:       0 2px 14px rgba(26,111,232,0.09);
-  --shadow-lg:    0 6px 32px rgba(26,111,232,0.13);
-}
-body.dark {
-  --bg:           #0b0b0b;
-  --bg-card:      #141414;
-  --bg-card2:     #1c1c1c;
-  --border:       #2a2a2a;
-  --text:         #efefef;
-  --text-soft:    #9aa3b5;
-  --text-muted:   #515a6a;
-  --accent:       #3B8EFF;
-  --accent-dark:  #2270e8;
-  --accent-glow:  rgba(59,142,255,0.18);
-  --input-bg:     #1a1a1a;
-  --shadow:       0 2px 16px rgba(0,0,0,0.5);
-  --shadow-lg:    0 6px 32px rgba(0,0,0,0.65);
-}
+/* ============ HERO ============ */
+.hero{padding:168px 0 64px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;width:620px;height:620px;right:-180px;top:30px;background:radial-gradient(circle,rgba(61,139,253,.18),transparent 65%);pointer-events:none}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--blue2);font-weight:700;margin-bottom:22px}
+h1{font-size:clamp(42px,6.4vw,76px);line-height:.99;letter-spacing:-.06em;max-width:900px;margin:0 0 26px}
+.lead{font-size:19px;line-height:1.65;color:#b7c2cf;max-width:720px}
+.buttons{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+.btn{padding:13px 18px;border-radius:8px;font-weight:700;font-size:14px;border:1px solid #2a394b;cursor:pointer;font-family:inherit}
+.primary{background:#f5f8fc;color:#071018;border-color:#f5f8fc}
+.primary:hover{background:#dce6f2}
+.secondary{background:transparent}
+.secondary:hover{border-color:var(--blue);color:var(--blue2)}
 
-/* ============================================================
-   PAGE BACKGROUND — dot grid
-============================================================ */
-.page-bg {
-  min-height: 100vh;
-  background-color: var(--bg);
-  background-image: radial-gradient(rgba(26,111,232,0.07) 1px, transparent 1px);
-  background-size: 22px 22px;
-  transition: background 0.3s;
-}
-body.dark .page-bg {
-  background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-}
+/* at a glance strip */
+.glance{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:52px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+.glance>div{padding:22px 24px;border-right:1px solid var(--line)}
+.glance>div:last-child{border-right:none}
+.glance .gk{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue2);font-weight:700;margin-bottom:8px}
+.glance p{margin:0;color:#c3ccd7;font-size:14px;line-height:1.55}
 
-/* ============================================================
-   TOP BAR
-============================================================ */
-.topbar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 16px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  transition: background 0.3s, border-color 0.3s;
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.logo-icon {
-  width: 30px; height: 30px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #1A6FE8, #1459BB);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.logo-text {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
+/* ============ LIVE PANEL ============ */
+.live-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.live-badge{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.04em;color:var(--green)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(53,194,133,.55);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(53,194,133,.55)}70%{box-shadow:0 0 0 8px rgba(53,194,133,0)}100%{box-shadow:0 0 0 0 rgba(53,194,133,0)}}
+.live-meta{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted2);font-family:var(--mono)}
+.refresh-btn{background:var(--panel2);border:1px solid var(--line2);color:#dbe2ea;border-radius:7px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .35s,border-color .15s}
+.refresh-btn:hover{border-color:var(--blue)}
+.refresh-btn.spinning svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.live-source{font-size:12.5px;color:var(--muted2);margin:14px 0 30px;max-width:640px}
 
-/* Progress dots */
-.progress-dots {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.progress-dots.visible { opacity: 1; }
-.pdot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  transition: background 0.3s;
-}
-.pdot.active { background: var(--accent); }
-.pdot.done   { background: var(--green); }
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;min-height:104px}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);font-weight:700;margin-bottom:10px}
+.kpi-num{font-family:var(--mono);font-size:26px;font-weight:800;letter-spacing:-.02em;color:#fff;display:block}
+.kpi-sub{font-size:11.5px;color:var(--muted2);margin-top:5px}
+.skeleton-text{color:var(--muted2)!important;animation:shimmerText 1.3s ease-in-out infinite}
+@keyframes shimmerText{0%,100%{opacity:.35}50%{opacity:.85}}
 
-/* Dark mode toggle */
-.toggle-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.toggle-wrap svg { color: var(--text-muted); flex-shrink: 0; }
-.toggle-track {
-  width: 44px; height: 24px;
-  background: var(--border);
-  border-radius: 99px;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.3s;
-  flex-shrink: 0;
-}
-.toggle-track.on { background: var(--accent); }
-.toggle-thumb {
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
-}
-.toggle-track.on .toggle-thumb { transform: translateX(20px); }
+.trend-card{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 20px 10px}
+.trend-title{font-size:12.5px;font-weight:700;color:#dbe2ea;margin-bottom:4px}
+.trend-sub{font-size:11.5px;color:var(--muted2);margin-bottom:12px}
+.trend-wrap{height:180px}
 
-/* ============================================================
-   STEP SYSTEM
-============================================================ */
-.step {
-  display: none;
-  opacity: 0;
-  padding-top: 72px;
-  padding-bottom: 32px;
-  padding-left: 16px;
-  padding-right: 16px;
-  max-width: 420px;
-  margin: 0 auto;
-  animation: fadeIn 0.35s ease both;
-}
-.step.active { display: block; opacity: 1; }
-#step-plans { max-width: 660px; }
+/* ============ GENERIC SECTIONS ============ */
+section{padding:100px 0;border-bottom:1px solid var(--line)}
+.kicker{color:var(--blue2);font-size:12px;text-transform:uppercase;letter-spacing:.17em;font-weight:800}
+h2{font-size:clamp(32px,4.2vw,52px);letter-spacing:-.05em;line-height:1.06;margin:12px 0 22px}
+h3{font-size:19px;margin:0 0 10px;letter-spacing:-.02em}
+.intro{max-width:720px;color:#aeb9c7;font-size:17px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px}
+.card p{color:var(--muted);font-size:14.5px;margin:0}
+.quote{font-size:25px;line-height:1.35;letter-spacing:-.03em;max-width:820px;margin-top:34px;color:#e7ecf3}
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes spin   { to { transform: rotate(360deg); } }
-@keyframes pulse  { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
-@keyframes ringPop{ 0%{transform:scale(0.5);opacity:0;} 70%{transform:scale(1.08);} 100%{transform:scale(1);opacity:1;} }
-@keyframes vPop   { 0%{opacity:0;transform:scale(0.82) translateY(8px);} 70%{transform:scale(1.03);} 100%{opacity:1;transform:scale(1) translateY(0);} }
-@keyframes shimmer{ 0%{background-position:-200% 0;} 100%{background-position:200% 0;} }
+.diagram{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;margin-top:44px;align-items:center}
+.node{padding:20px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;text-align:center;font-weight:700;font-size:14px}
+.node small{display:block;font-weight:500;color:var(--muted2);font-size:11.5px;margin-top:5px}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:20px}
+.diagram2{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+@media(max-width:800px){.diagram2{grid-template-columns:1fr 1fr}}
 
-/* ============================================================
-   CARDS
-============================================================ */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  transition: background 0.3s, border-color 0.3s;
-}
-.card2 {
-  background: var(--bg-card2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: background 0.3s, border-color 0.3s;
-}
+.timeline{margin-top:44px;border-left:1px solid #344355;padding-left:28px}
+.event{position:relative;margin:0 0 32px}
+.event:before{content:"";position:absolute;left:-34px;top:7px;width:9px;height:9px;background:var(--blue);border-radius:50%;box-shadow:0 0 0 5px var(--bg)}
+.year{color:var(--blue2);font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+.event p{color:var(--muted);margin:5px 0;font-size:14.5px}
+.timeline-note{margin-top:8px;font-size:13px;color:var(--muted2);border-top:1px solid var(--line);padding-top:20px}
 
-/* ============================================================
-   STEP 1 — LANDING  (two-section layout)
-============================================================ */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:44px}
+.step{border-top:2px solid #31445e;padding-top:18px}
+.step strong{display:block;font-size:15.5px;margin-bottom:7px}
+.step span{font-size:13.5px;color:var(--muted)}
 
-/* Outer wrapper — centers everything, max 420px */
-.landing-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
+.table{width:100%;border-collapse:collapse;margin-top:36px;font-size:14px}
+.table th,.table td{text-align:left;padding:15px 16px;border-bottom:1px solid var(--line)}
+.table th{color:#c9d4e1;font-weight:700}
+.table td{color:var(--muted)}
 
-/* ── Section 1: Buy Internet ── */
-.buy-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 32px 24px 28px;
-  text-align: center;
-  box-shadow: var(--shadow-lg);
-  animation: fadeUp 0.5s 0.05s ease both;
-  transition: background 0.3s, border-color 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-/* subtle blue glow top-left */
-.buy-section::before {
-  content: '';
-  position: absolute;
-  top: -40px; left: -40px;
-  width: 180px; height: 180px;
-  background: radial-gradient(circle, rgba(26,111,232,0.12), transparent 70%);
-  pointer-events: none;
-}
+/* ============ PLANS TABLE ============ */
+.plans-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:40px}
+.plan-chip{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 12px;text-align:center}
+.plan-chip .pn{font-size:12px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.plan-chip .pp{font-family:var(--mono);font-size:19px;font-weight:800;margin:8px 0 3px}
+.plan-chip .pd{font-size:11.5px;color:var(--muted2)}
 
-.buy-logo {
-  width: 64px; height: 64px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #1A6FE8, #0d3c8a);
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 20px;
-  box-shadow: 0 0 0 1px rgba(26,111,232,0.3), 0 8px 24px rgba(26,111,232,0.28);
-}
+/* ============ DEAL CARDS ============ */
+.deal-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:44px}
+.deal-card{background:linear-gradient(160deg,#101823,#0b0f15);border:1px solid var(--line2);border-radius:16px;padding:30px}
+.deal-card h3{font-size:22px}
+.deal-price{font-family:var(--mono);font-size:32px;font-weight:800;color:var(--blue2);margin:10px 0 16px;letter-spacing:-.02em}
+.deal-card ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px;line-height:1.85}
+.deal-tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--green);background:rgba(53,194,133,.1);border:1px solid rgba(53,194,133,.3);padding:4px 10px;border-radius:99px;margin-top:18px}
 
-.buy-section h2 {
-  font-size: clamp(1.6rem, 6vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-.buy-section h2 span {
-  background: linear-gradient(90deg, #1A6FE8, #00C06A);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.buy-section p {
-  font-size: 0.9rem;
-  color: var(--text-soft);
-  margin-bottom: 24px;
-  line-height: 1.5;
-}
+/* ============ CALCULATOR ============ */
+.calc{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px;display:grid;grid-template-columns:1.1fr 1fr;gap:36px}
+@media(max-width:800px){.calc{grid-template-columns:1fr}}
+.calc-field{margin-bottom:22px}
+.calc-field:last-child{margin-bottom:0}
+.calc-field label{display:flex;justify-content:space-between;font-size:13px;color:#dbe2ea;font-weight:600;margin-bottom:10px}
+.calc-field label b{font-family:var(--mono);color:var(--blue2);font-weight:700}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:99px;background:var(--line2);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 0 0 4px var(--blue-glow)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--blue);border:none;cursor:pointer}
+.calc-num-input{width:100%;background:#090d12;border:1px solid #293543;color:white;border-radius:8px;padding:11px 13px;font:inherit;font-family:var(--mono);font-size:14px}
+.calc-num-input:focus{border-color:var(--blue)}
+.calc-hint{font-size:11.5px;color:var(--muted2);margin-top:7px}
+.calc-out{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:22px}
+.calc-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line)}
+.calc-row:last-child{border-bottom:none}
+.calc-row span:first-child{font-size:13px;color:var(--muted)}
+.calc-row span:last-child{font-family:var(--mono);font-weight:800;font-size:17px;color:#fff}
+.calc-disclaimer{font-size:11.5px;color:var(--muted2);margin-top:18px;line-height:1.55;border-top:1px solid var(--line);padding-top:16px}
 
-/* trust micro-row inside buy section */
-.trust-micro {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 22px;
-  flex-wrap: wrap;
-}
-.trust-micro-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-.trust-micro-item svg { color: var(--green); flex-shrink: 0; }
+/* ============ TEAM ============ */
+.team-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:44px}
+.team-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
+.team-avatar{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--blue),#1a3a63);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:800;font-size:16px;margin-bottom:16px}
+.team-role{font-size:12px;color:var(--blue2);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:10px}
+.team-card p{color:var(--muted);font-size:14.5px}
 
-/* ── Divider between sections ── */
-.landing-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 4px;
-  animation: fadeUp 0.5s 0.22s ease both;
-}
-.landing-divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-.landing-divider-text {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
+/* ============ ROADMAP ============ */
+.roadmap-list{margin-top:44px;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.roadmap-item{background:var(--panel);padding:20px 24px;display:grid;grid-template-columns:110px 1fr auto;gap:18px;align-items:center}
+@media(max-width:700px){.roadmap-item{grid-template-columns:1fr;gap:8px}}
+.roadmap-tag{font-family:var(--mono);font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.roadmap-item h4{margin:0 0 4px;font-size:15px}
+.roadmap-item p{margin:0;color:var(--muted);font-size:13.5px}
+.status-pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 11px;border-radius:99px;white-space:nowrap;justify-self:start}
+@media(max-width:700px){.status-pill{justify-self:start}}
+.status-live{background:rgba(53,194,133,.1);color:var(--green);border:1px solid rgba(53,194,133,.3)}
+.status-progress{background:rgba(224,166,59,.1);color:var(--amber);border:1px solid rgba(224,166,59,.3)}
+.status-planned{background:rgba(124,138,160,.1);color:var(--muted2);border:1px solid var(--line2)}
 
-/* ── Section 2: Enter Voucher (Login) ── */
-.login-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 24px 24px 24px;
-  box-shadow: var(--shadow);
-  animation: fadeUp 0.5s 0.32s ease both;
-  transition: background 0.3s, border-color 0.3s;
-}
-.login-section-header {
-  margin-bottom: 18px;
-}
-.login-section-header h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.login-section-header p {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-}
+/* ============ FAQ ============ */
+.faq-list{margin-top:40px;max-width:820px}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-item summary{list-style:none;cursor:pointer;padding:20px 4px;font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:16px;color:#e7ecf3}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary:after{content:"+";font-size:22px;color:var(--muted2);font-weight:400;flex-shrink:0;transition:transform .2s}
+.faq-item[open] summary:after{content:"–"}
+.faq-item p{margin:0 4px 20px;color:var(--muted);font-size:14.5px;max-width:680px}
 
-/* voucher input inside login section */
-.voucher-input-field {
-  width: 100%;
-  background: var(--input-bg);
-  color: var(--text);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 15px 16px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-align: center;
-  caret-color: var(--accent);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.3s;
-  margin-bottom: 12px;
-}
-.voucher-input-field::placeholder {
-  color: var(--text-muted);
-  font-weight: 400;
-  letter-spacing: 0.03em;
-}
-.voucher-input-field:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-  outline: none;
-}
+/* ============ INVEST ============ */
+.invest{background:linear-gradient(135deg,#0d1420,#0a0d12);border:1px solid #26364a;border-radius:18px;padding:50px}
+.invest ul{color:#b5c0cd;display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;padding-left:20px;font-size:14.5px}
 
-/* hint below login form */
-.login-hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  margin-top: 10px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
+/* ============ CONTACT ============ */
+form{display:grid;gap:13px;max-width:760px;margin-top:32px}
+input,textarea,select{width:100%;background:#090d12;border:1px solid #293543;color:white;border-radius:8px;padding:14px;font:inherit}
+textarea{min-height:120px;resize:vertical}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.contact-alt{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.wa-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #235c3f;background:rgba(53,194,133,.08);color:#6fe3ab;padding:12px 16px;border-radius:8px;font-size:13.5px;font-weight:700}
+.wa-btn:hover{background:rgba(53,194,133,.16)}
 
-/* ============================================================
-   STEP 2 — PLANS (3×2 grid)
-============================================================ */
-.plans-header {
-  text-align: center;
-  margin-bottom: 18px;
-  animation: fadeUp 0.5s 0.05s ease both;
-}
-.plans-header h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.plans-header p { font-size: 0.875rem; color: var(--text-muted); }
+footer{padding:46px 0;color:#8491a1;font-size:13px}
+.footerline{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.smalllinks{display:flex;gap:18px}
 
-.plan-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding-top: 14px;
-  animation: fadeUp 0.5s 0.12s ease both;
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .glance{grid-template-columns:1fr}
+  .glance>div{border-right:none;border-bottom:1px solid var(--line)}
+  .glance>div:last-child{border-bottom:none}
 }
-@media (max-width: 480px) {
-  .plan-grid { grid-template-columns: 1fr; }
-  #step-plans { padding-top: 80px; padding-left: 16px; padding-right: 16px; }
-  .plan-card { overflow: visible; }
+@media(max-width:800px){
+  .links{display:none}
+  .hamburger{display:flex}
+  .mobilemenu{display:block}
+  .grid3,.steps,.plans-row,.deal-grid,.team-grid{grid-template-columns:1fr}
+  .diagram{grid-template-columns:1fr}
+  .diagram .arrow{transform:rotate(90deg);height:10px}
+  .diagram2{grid-template-columns:1fr}
+  .invest ul{grid-template-columns:1fr}
+  .formgrid{grid-template-columns:1fr}
+  section{padding:70px 0}
+  .hero{padding-top:130px}
+  h1{font-size:44px}
+  .roadmap-item{grid-template-columns:1fr}
 }
-@media (min-width: 481px) and (max-width: 639px) {
-  .plan-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-.plan-card {
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 13px 13px;
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-  min-height: 130px;
-  overflow: visible;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, background 0.3s;
-}
-.plan-card:hover:not(.plan-disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 22px var(--accent-glow);
-  border-color: var(--accent);
-}
-.plan-card:active:not(.plan-disabled) { transform: scale(0.97); }
-.plan-card.selected {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px var(--accent), 0 6px 24px var(--accent-glow) !important;
-  transform: translateY(-4px) scale(1.02) !important;
-}
-.plan-card.plan-disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-  filter: grayscale(0.4);
-}
-
-.plan-icon {
-  width: 36px; height: 36px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 10px;
-}
-.plan-name {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text);
-  margin-bottom: 5px;
-}
-.plan-price {
-  font-weight: 700;
-  font-size: 1.15rem;
-  margin-bottom: 8px;
-  color: var(--accent);
-}
-.plan-details {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  line-height: 1.8;
-}
-.plan-check {
-  display: none;
-  position: absolute;
-  top: 10px; right: 10px;
-}
-.plan-card.selected .plan-check { display: block; }
-
-/* Popular badge */
-.popular-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-}
-.popular-badge-inner {
-  background: linear-gradient(90deg, #1A6FE8 0%, #00C06A 50%, #1A6FE8 100%);
-  background-size: 200% 100%;
-  animation: shimmer 2.2s linear infinite;
-  border-radius: 99px;
-  padding: 1px;
-}
-.popular-badge-text {
-  background: var(--bg-card);
-  border-radius: 99px;
-  padding: 2px 10px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-/* ============================================================
-   STEP 3 — CHECKOUT
-============================================================ */
-.checkout-header {
-  text-align: center;
-  margin-bottom: 20px;
-  animation: fadeUp 0.5s 0.05s ease both;
-}
-.checkout-header h2 {
-  font-size: 1.4rem; font-weight: 700; color: var(--text); margin-bottom: 4px;
-}
-.checkout-header p { font-size: 0.875rem; color: var(--text-muted); }
-
-/* Plan summary bar */
-.plan-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  margin-bottom: 20px;
-  border-radius: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  animation: fadeUp 0.5s 0.12s ease both;
-  transition: background 0.3s, border-color 0.3s;
-}
-.summary-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px; }
-.summary-value { font-weight: 700; font-size: 1rem; color: var(--text); }
-.summary-sub   { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-.summary-amount { font-weight: 700; font-size: 1.3rem; color: var(--accent); }
-
-/* Phone input */
-.phone-label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-soft);
-  margin-bottom: 8px;
-  animation: fadeUp 0.5s 0.2s ease both;
-}
-.phone-label span { font-weight: 400; color: var(--text-muted); font-size: 0.8rem; }
-.phone-wrap {
-  position: relative;
-  animation: fadeUp 0.5s 0.2s ease both;
-}
-.phone-prefix {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  pointer-events: none;
-}
-.phone-prefix .flag { font-size: 1.1rem; line-height: 1; }
-.phone-prefix .code { font-size: 0.875rem; font-weight: 500; color: var(--text-muted); }
-.phone-divider { width: 1px; height: 16px; background: var(--border); }
-.phone-input {
-  width: 100%;
-  background: var(--input-bg);
-  color: var(--text);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 16px 16px 16px 96px;
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
-  caret-color: var(--accent);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.3s;
-}
-.phone-input::placeholder { color: var(--text-muted); }
-.phone-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-
-.field-msg {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 0.75rem;
-}
-.field-msg svg { flex-shrink: 0; }
-.field-msg.error { color: #ef4444; }
-.field-msg.success { color: var(--green); }
-
-/* ============================================================
-   STEP 4 — PROCESSING
-============================================================ */
-.proc-center { text-align: center; }
-.proc-ring-wrap {
-  position: relative;
-  width: 80px; height: 80px;
-  margin: 0 auto 22px;
-  animation: fadeUp 0.5s 0.05s ease both;
-}
-.proc-ring-svg {
-  position: absolute; inset: 0;
-  animation: spin 1.6s linear infinite;
-}
-.proc-ring-icon {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.proc-title {
-  font-size: 1.5rem; font-weight: 700;
-  color: var(--text); margin-bottom: 8px;
-  animation: fadeUp 0.5s 0.12s ease both;
-}
-.proc-sub {
-  font-size: 0.875rem; color: var(--text-muted); line-height: 1.6;
-  margin-bottom: 22px;
-  animation: fadeUp 0.5s 0.2s ease both;
-}
-.proc-steps { animation: fadeUp 0.5s 0.28s ease both; }
-.proc-step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.875rem;
-  color: var(--text-soft);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  transition: opacity 0.3s;
-}
-.proc-step:last-child { border-bottom: none; }
-.proc-step.dim { opacity: 0.3; }
-.step-dot-idle {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  flex-shrink: 0;
-}
-
-/* ============================================================
-   STEP 5 — SUCCESS / VOUCHER
-============================================================ */
-.success-ring-wrap {
-  display: flex; justify-content: center;
-  margin-bottom: 16px;
-  animation: ringPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
-}
-.success-ring {
-  width: 76px; height: 76px;
-  border-radius: 50%;
-  border: 2px solid var(--green);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 6px rgba(0,192,106,0.1), 0 0 28px rgba(0,192,106,0.15);
-  background: radial-gradient(circle, rgba(0,192,106,0.1), transparent 70%);
-}
-.success-header {
-  text-align: center;
-  margin-bottom: 20px;
-  animation: fadeUp 0.5s 0.1s ease both;
-}
-.success-header h2 { font-size: 1.5rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.success-header p  { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; }
-
-/* Voucher box */
-.voucher-box {
-  background: var(--bg-card);
-  border: 2px dashed var(--accent);
-  border-radius: 18px;
-  padding: 22px 20px;
-  text-align: center;
-  box-shadow: 0 0 0 4px var(--accent-glow), var(--shadow-lg);
-  margin-bottom: 14px;
-  position: relative;
-  overflow: hidden;
-  animation: vPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
-  transition: background 0.3s, border-color 0.3s;
-}
-.voucher-box::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, var(--accent-glow), transparent 55%);
-  pointer-events: none;
-}
-.voucher-label {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-.voucher-code {
-  font-size: clamp(2rem, 9vw, 2.6rem);
-  font-weight: 800;
-  color: var(--accent);
-  letter-spacing: 0.22em;
-  line-height: 1;
-  margin-bottom: 16px;
-  font-variant-numeric: tabular-nums;
-}
-.copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  background: transparent;
-  color: var(--text-soft);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.15s;
-}
-.copy-btn:hover  { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
-.copy-btn:active { transform: scale(0.95); }
-.copy-success {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  margin-top: 8px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--green);
-  animation: fadeIn 0.2s ease both;
-}
-
-/* Plan chips */
-.voucher-chips {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
-  animation: fadeUp 0.5s 0.3s ease both;
-}
-.chip {
-  background: var(--bg-card2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 8px;
-  text-align: center;
-  transition: background 0.3s, border-color 0.3s;
-}
-.chip-label { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 3px; }
-.chip-value { font-size: 0.8rem; font-weight: 600; color: var(--text); }
-.chip-value.green  { color: var(--green); }
-.chip-value.accent { color: var(--accent); }
-
-/* Connect guide */
-.connect-guide {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  box-shadow: var(--shadow);
-  animation: fadeUp 0.5s 0.38s ease both;
-  transition: background 0.3s, border-color 0.3s;
-}
-.connect-guide h3 { font-size: 0.875rem; font-weight: 600; color: var(--text-soft); margin-bottom: 10px; }
-.connect-guide ol { color: var(--text-muted); font-size: 0.78rem; line-height: 2; }
-.connect-guide strong { color: var(--text-soft); }
-
-/* ============================================================
-   BUTTONS
-============================================================ */
-.btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 16px;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 14px;
-  cursor: pointer;
-  border: none;
-  transition: filter 0.2s, transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-}
-.btn:active:not(:disabled) { transform: scale(0.96); }
-.btn:disabled { opacity: 0.42; cursor: not-allowed; }
-
-.btn-blue {
-  background: linear-gradient(135deg, #1A6FE8, #1459BB);
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(26,111,232,0.32);
-  animation: pulse 2.4s ease-in-out infinite;
-}
-.btn-blue:hover:not(:disabled) { filter: brightness(1.08); animation: none; }
-
-.btn-blue-static {
-  background: linear-gradient(135deg, #1A6FE8, #1459BB);
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(26,111,232,0.32);
-}
-.btn-blue-static:hover:not(:disabled) { filter: brightness(1.08); }
-
-.btn-green {
-  background: linear-gradient(135deg, #00C06A, #009952);
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(0,192,106,0.32);
-}
-.btn-green:hover:not(:disabled) { filter: brightness(1.08); }
-
-.btn-wa {
-  background: linear-gradient(135deg, #25D366, #128C7E);
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(37,211,102,0.28);
-}
-.btn-wa:hover { filter: brightness(1.07); }
-
-.btn-outline {
-  background: transparent;
-  color: var(--text-soft);
-  border: 1.5px solid var(--border);
-  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.15s;
-}
-.btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
-
-.btn-gap { margin-top: 8px; }
-
-.trust-line {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  margin-top: 12px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-.hint-text {
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 10px;
-}
-
-/* ============================================================
-   SPINNER
-============================================================ */
-.spinner {
-  display: inline-block;
-  width: 18px; height: 18px;
-  border: 2.5px solid rgba(255,255,255,0.25);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-  flex-shrink: 0;
-}
-
-/* ============================================================
-   DIVIDER
-============================================================ */
-.divider-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 10px 0;
-}
-.divider-line { flex: 1; height: 1px; background: var(--border); }
-.divider-text { font-size: 0.75rem; color: var(--text-muted); }
-
-/* ============================================================
-   FOOTER
-============================================================ */
-footer {
-  text-align: center;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  padding: 12px 16px 20px;
-}
-
-/* ============================================================
-   SECTION ANIMATION HELPER
-============================================================ */
-.anim-1 { animation: fadeUp 0.5s 0.05s ease both; }
-.anim-2 { animation: fadeUp 0.5s 0.14s ease both; }
-.anim-3 { animation: fadeUp 0.5s 0.24s ease both; }
-.anim-4 { animation: fadeUp 0.5s 0.34s ease both; }
-.anim-5 { animation: fadeUp 0.5s 0.44s ease both; }
-
 </style>
 </head>
-
-<!-- Apply saved theme before paint — prevents flash -->
-<script>
-  if(localStorage.getItem('zn_theme')==='dark'){
-    document.documentElement.style.setProperty('--ready','1');
-    document.addEventListener('DOMContentLoaded',function(){
-      document.body.classList.add('dark');
-      var t=document.getElementById('darkToggle');
-      if(t)t.classList.add('on');
-    });
-  }
-</script>
-
 <body>
-<div class="page-bg">
 
-<!-- ============================================================
-     TOP BAR
-============================================================ -->
-<div class="topbar">
-  <div class="logo">
-    <div class="logo-icon">
-      <svg width="17" height="17" viewBox="0 0 34 34" fill="none">
-        <path d="M7 8h20L8 26h19" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="27" cy="27" r="4" fill="#00C06A"/>
-      </svg>
+<nav>
+  <div class="wrap nav">
+    <a class="brand" href="#top">Z<span>-</span>NETWORK</a>
+    <div class="links">
+      <a href="#company">Company</a>
+      <a href="#live">Live Data</a>
+      <a href="#technology">Technology</a>
+      <a href="#invest-model">Investment</a>
+      <a href="#roadmap">Roadmap</a>
+      <a class="navcta" href="#investors">Investor Relations</a>
     </div>
-    <span class="logo-text">Z-Network</span>
+    <button class="hamburger" id="navHam" onclick="toggleMobileNav()" aria-label="Menu"><span></span><span></span><span></span></button>
   </div>
-
-  <div class="topbar-right">
-    <div class="progress-dots" id="progressDots">
-      <div class="pdot" id="pd1"></div>
-      <div class="pdot" id="pd2"></div>
-      <div class="pdot" id="pd3"></div>
-      <div class="pdot" id="pd4"></div>
-    </div>
-
-    <div class="toggle-wrap">
-      <!-- Sun icon -->
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="5"/>
-        <path stroke-linecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-      </svg>
-      <div class="toggle-track" id="darkToggle" onclick="toggleDark()" title="Toggle dark mode">
-        <div class="toggle-thumb"></div>
-      </div>
-      <!-- Moon icon -->
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-      </svg>
-    </div>
+</nav>
+<div class="mobilemenu" id="mobileMenu">
+  <div class="wrap">
+    <a href="#company">Company</a>
+    <a href="#live">Live Data</a>
+    <a href="#technology">Technology</a>
+    <a href="#invest-model">Investment</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#team">Team</a>
+    <a href="#faq">FAQ</a>
+    <a href="#investors">Investor Relations</a>
   </div>
 </div>
 
+<main id="top">
 
-<!-- ============================================================
-     STEP 1 — LANDING  (Buy Internet + Enter Voucher)
-============================================================ -->
-<div class="step active" id="step-landing">
-  <div class="landing-wrap">
+<section class="hero"><div class="wrap">
+  <div class="eyebrow">Connectivity Infrastructure · Lafia, Nasarawa State</div>
+  <h1>Building the infrastructure for connected communities.</h1>
+  <p class="lead">Z-Network designs, deploys and operates Starlink-backed wireless networks for off-campus student housing and residential communities — starting in Lafia, and built as a model we can repeat compound by compound.</p>
+  <div class="buttons"><a class="btn primary" href="#company">Explore Z-Network</a><a class="btn secondary" href="#investors">Investor Relations</a></div>
 
-    <!-- ── SECTION 1: BUY INTERNET (primary, visually dominant) ── -->
-    <div class="buy-section">
+  <div class="glance">
+    <div><div class="gk">Model</div><p>Recurring hotspot subscriptions — Daily to Monthly vouchers — sold over Starlink-backed hubs, with WhatsApp-based customer service and automated billing.</p></div>
+    <div><div class="gk">Stage</div><p>Live and revenue-generating. One hub operating, a second hub in deployment, expanding across additional student lodge compounds.</p></div>
+    <div><div class="gk">The ask</div><p>Capital for access-point and hub deployment, structured as a direct revenue share with investors — not equity dilution.</p></div>
+  </div>
+</div></section>
 
-      <!-- Logo mark -->
-      <div class="buy-logo">
-        <svg width="36" height="36" viewBox="0 0 34 34" fill="none">
-          <path d="M7 8h20L8 26h19" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="27" cy="27" r="4" fill="#00C06A"/>
-        </svg>
-      </div>
+<section id="live"><div class="wrap">
+  <div class="kicker">Live · Network status</div>
+  <div class="live-head">
+    <h2 style="margin:8px 0 0">Straight from our own dashboard.</h2>
+  </div>
+  <p class="live-source">The figures below are read directly from the Supabase database that runs Z-Network's live operations — the same system behind our voucher sales, customer accounts and access-point monitoring. No projections, no rounding up.</p>
 
-      <h2>Buy Internet<br/><span>Z-Network</span></h2>
-      <p>Get connected in seconds.<br/>Choose a plan and pay securely.</p>
-
-      <!-- Mini trust row -->
-      <div class="trust-micro">
-        <div class="trust-micro-item">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          Secure Payment
-        </div>
-        <div class="trust-micro-item">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-          Instant Voucher
-        </div>
-        <div class="trust-micro-item">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <circle cx="12" cy="8" r="4"/>
-            <path stroke-linecap="round" d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-          </svg>
-          No Registration
-        </div>
-      </div>
-
-      <!-- Primary CTA -->
-   <button type="button" class="btn btn-blue" onclick="goTo('step-plans')">
-  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
-  </svg>
-  View Plans
-</button>
-      <p class="hint-text" style="margin-top:10px;">Plans from ₦350 &nbsp;·&nbsp; No hidden fees</p>
-
-    </div><!-- /buy-section -->
-
-
-    <!-- ── DIVIDER ── -->
-    <div class="landing-divider">
-      <div class="landing-divider-line"></div>
-      <span class="landing-divider-text">Already have a voucher?</span>
-      <div class="landing-divider-line"></div>
+  <div class="live-head" style="margin-bottom:20px;">
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <div class="live-meta">
+      <span id="liveUpdated">Connecting…</span>
+      <button class="refresh-btn" id="refreshBtn" onclick="znRefreshLive()" aria-label="Refresh live data">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </button>
     </div>
-
-
-    <!-- ── SECTION 2: ENTER VOUCHER / LOGIN (secondary) ── -->
-    <div class="login-section">
-
-      <div class="login-section-header">
-        <h3>🔑 Enter Your Voucher Code</h3>
-        <p>Enter your code below to connect instantly</p>
-      </div>
-
-
-      <div class="login-hint">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10"/>
-          <path stroke-linecap="round" d="M12 16v-4M12 8h.01"/>
-        </svg>
-        Code is printed on your voucher or sent via WhatsApp
-      </div>
-
-    </div><!-- /login-section -->
-
-  </div><!-- /landing-wrap -->
-</div>
-
-
-<!-- ============================================================
-     STEP 2 — PLAN SELECTION (6 plans, 3×2 grid)
-============================================================ -->
-<div class="step" id="step-plans">
-
-  <div class="plans-header">
-    <h2>Choose Your Plan</h2>
-    <p>Pick the bundle that works for you</p>
   </div>
 
-<div class="plan-grid">
-
-  <div class="plan-card" data-plan="Daily Plan" data-plankey="31fd47b9-fa74-4da3-a390-9e450ca3923c" data-amount="350" data-validity="24 Hours" onclick="selectPlan(this)">
-    <div class="popular-badge">
-      <div class="popular-badge-inner">
-        <div class="popular-badge-text">★ POPULAR</div>
-      </div>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Access Points</div>
+      <span class="kpi-num skeleton-text" id="statAPs">···</span>
+      <div class="kpi-sub" id="statAPsSub">loading…</div>
     </div>
-    <div class="plan-check">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" style="color:var(--accent)">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
+    <div class="kpi">
+      <div class="kpi-label">Customers Onboarded</div>
+      <span class="kpi-num skeleton-text" id="statCustomers">···</span>
+      <div class="kpi-sub">all-time</div>
     </div>
-    <div class="plan-icon" style="background:rgba(26,111,232,0.12); margin-top:8px;">
-      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10"/>
-        <path stroke-linecap="round" d="M12 6v6l4 2"/>
-      </svg>
+    <div class="kpi">
+      <div class="kpi-label">Currently Active</div>
+      <span class="kpi-num skeleton-text" id="statActive">···</span>
+      <div class="kpi-sub">valid subscription right now</div>
     </div>
-    <div class="plan-name">Daily Plan</div>
-    <div class="plan-price">₦350</div>
-    <div class="plan-details">⏱ 24 Hours<br/>⚡ Unlimited<br/>📱 2 Device</div>
+    <div class="kpi">
+      <div class="kpi-label">Vouchers Sold</div>
+      <span class="kpi-num skeleton-text" id="statSold">···</span>
+      <div class="kpi-sub">all-time sessions</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Revenue — This Month</div>
+      <span class="kpi-num skeleton-text" id="statRevenue">···</span>
+      <div class="kpi-sub">month to date</div>
+    </div>
   </div>
 
-  <div class="plan-card" data-plan="2-Day Plan" data-plankey="cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae" data-amount="500" data-validity="48 Hours" onclick="selectPlan(this)">
-    <div class="plan-check">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" style="color:var(--accent)">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
-    </div>
-    <div class="plan-icon" style="background:rgba(26,111,232,0.12); margin-top:8px;">
-      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-    <div class="plan-name">2-Day Plan</div>
-    <div class="plan-price">₦500</div>
-    <div class="plan-details">⏱ 48 Hours<br/>⚡ Unlimited<br/>📱 2 Device</div>
+  <div class="trend-card">
+    <div class="trend-title">Daily revenue — last 14 days</div>
+    <div class="trend-sub">Computed from voucher sales, grouped by day</div>
+    <div class="trend-wrap"><canvas id="trendCanvas"></canvas></div>
+  </div>
+</div></section>
+
+<section id="company"><div class="wrap">
+  <div class="kicker">01 · Company</div>
+  <h2>Connectivity is infrastructure.</h2>
+  <p class="intro">Reliable internet access has become essential infrastructure for education, commerce, communication and modern work. Yet many communities — student housing in particular — remain poorly served by conventional connectivity infrastructure, despite dense, consistent demand.</p>
+  <p class="intro">Z-Network's first network serves off-campus lodge compounds near a university in Lafia, Nasarawa State. Rather than laying fixed-line infrastructure, we anchor each hub to a Starlink connection, then distribute it locally over MikroTik-managed wireless access points — bringing a functioning ISP to a compound in days, not months.</p>
+  <div class="quote">"The first network is our proof of execution. The larger opportunity is a repeatable model for connecting communities — one compound, one hub at a time."</div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="kicker">02 · The problem</div>
+  <h2>Large connectivity gaps remain.</h2>
+  <div class="grid3">
+    <div class="card"><h3>Infrastructure</h3><p>Traditional broadband infrastructure requires significant capital, civil works and long deployment timelines that don't fit fast-turnover student housing.</p></div>
+    <div class="card"><h3>Coverage</h3><p>Compounds outside the immediate footprint of major fixed-line networks stay underserved, even where hundreds of paying tenants live within a few hundred metres of each other.</p></div>
+    <div class="card"><h3>Economics</h3><p>Low-density or informally-managed locations rarely attract conventional ISP investment quickly enough to satisfy local demand.</p></div>
+  </div>
+  <div class="quote">The opportunity is not simply selling bandwidth. It is building the infrastructure that delivers it.</div>
+</div></section>
+
+<section id="solution"><div class="wrap">
+  <div class="kicker">03 · Our solution</div>
+  <h2>A practical model for local connectivity.</h2>
+  <p class="intro">Z-Network designs localized connectivity networks around the economics and physical realities of each community, then runs the whole customer lifecycle through software we built ourselves.</p>
+  <div class="grid3">
+    <div class="card"><h3>Upstream connectivity</h3><p>Starlink provides backhaul where fibre is unavailable or impractical, with a defined path to Starlink Business Priority or a dedicated line as compound count grows.</p></div>
+    <div class="card"><h3>Wireless distribution</h3><p>MikroTik-managed access points distribute connectivity across each compound, with hotspot profiles controlling speed per plan tier.</p></div>
+    <div class="card"><h3>Localized operations</h3><p>Local deployment and support reduce the complexity of operating a distributed network across multiple sites.</p></div>
+    <div class="card"><h3>Self-service by WhatsApp</h3><p>Customers renew, get receipts and receive expiry reminders through a WhatsApp bot running on-site — no app to install.</p></div>
+    <div class="card"><h3>Payments & automation</h3><p>An admin dashboard and customer portal connect Paystack payments, voucher stock, renewals and expiry tracking — no manual bookkeeping.</p></div>
+    <div class="card"><h3>Measured expansion</h3><p>Every deployment feeds real usage and revenue data back into the model, informing the economics of the next hub before we build it.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="kicker">04 · Network architecture</div>
+  <h2>From upstream connectivity to the customer's device.</h2>
+  <div class="diagram">
+    <div class="node">Starlink Hub<small>satellite backhaul</small></div>
+    <div class="arrow">→</div>
+    <div class="node">MikroTik Router<small>RouterOS hotspot</small></div>
+    <div class="arrow">→</div>
+    <div class="node">Wireless Access Points<small>per-compound coverage</small></div>
+  </div>
+  <div class="diagram2">
+    <div class="node">Voucher Authentication</div>
+    <div class="node">Paystack Payments</div>
+    <div class="node">WhatsApp Bot & Portal</div>
+    <div class="node">Admin Dashboard</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="kicker">05 · Track record</div>
+  <h2>Real-world operation comes first.</h2>
+  <p class="intro">Z-Network began with a single deployment and a simple objective: prove that reliable internet infrastructure could be deployed, operated and monetized within a local community — before asking anyone to fund the next one.</p>
+  <div class="timeline">
+    <div class="event"><div class="year">Initial deployment</div><strong>First hub goes live</strong><p>Launch with one Starlink kit, one access point and a MikroTik router serving a single compound.</p></div>
+    <div class="event"><div class="year">Early validation</div><strong>First 20 customers</strong><p>Initial community demand validated through paid, renewing access.</p></div>
+    <div class="event"><div class="year">Network expansion</div><strong>Multiple access points</strong><p>Infrastructure expanded within the compound as recurring demand increased.</p></div>
+    <div class="event"><div class="year">Current phase</div><strong>Second hub in deployment</strong><p>A second Starlink hub is being deployed to a new compound, funded in part by existing access-point investors expanding their position.</p></div>
+  </div>
+  <p class="timeline-note">For current customer, revenue and access-point counts, see the live panel above — it reads the same numbers we use to run the business day to day.</p>
+</div></section>
+
+<section id="technology"><div class="wrap">
+  <div class="kicker">06 · Technology</div>
+  <h2>Technology built for operational control.</h2>
+  <div class="grid3">
+    <div class="card"><h3>Hardware layer</h3><p>Starlink kits, MikroTik routers, PoE-switched wireless access points and the cabling and power infrastructure each hub needs to run unattended.</p></div>
+    <div class="card"><h3>Network layer</h3><p>RouterOS hotspot authentication, per-plan bandwidth profiles, and a polling service that pushes commands — renewals, suspensions, profile changes — to every router roughly once a minute.</p></div>
+    <div class="card"><h3>Software layer</h3><p>An admin dashboard and customer portal on Supabase Postgres, a WhatsApp bot for receipts and renewal reminders, PDF sales reporting, and live access-point monitoring — all built in-house.</p></div>
+  </div>
+  <div class="quote">Our objective is not to build technology for its own sake. Technology exists to make distributed connectivity infrastructure easier to operate — and cheaper to scale.</div>
+</div></section>
+
+<section id="invest-model"><div class="wrap">
+  <div class="kicker">07 · Business model</div>
+  <h2>Recurring revenue, sold as time.</h2>
+  <p class="intro">Customers buy fixed-duration access — five plans, from a day to a month — either as a walk-in cash sale or an online renewal. Every voucher sold, and every renewal, is logged automatically.</p>
+  <div class="plans-row">
+    <div class="plan-chip"><div class="pn">Daily</div><div class="pp">₦350</div><div class="pd">24 hrs</div></div>
+    <div class="plan-chip"><div class="pn">2-Day</div><div class="pp">₦500</div><div class="pd">48 hrs</div></div>
+    <div class="plan-chip"><div class="pn">Half-Week</div><div class="pp">₦1,000</div><div class="pd">84 hrs</div></div>
+    <div class="plan-chip"><div class="pn">Weekly</div><div class="pp">₦2,000</div><div class="pd">168 hrs</div></div>
+    <div class="plan-chip"><div class="pn">Monthly</div><div class="pp">₦6,000</div><div class="pd">720 hrs</div></div>
   </div>
 
-  <div class="plan-card" data-plan="Half-Week Plan" data-plankey="6ce23b1a-bdb4-4118-958a-bcd4d637fb96" data-amount="1000" data-validity="3.5 Days" onclick="selectPlan(this)">
-    <div class="plan-check">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" style="color:var(--accent)">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
+  <h3 style="margin-top:56px;font-size:26px;letter-spacing:-.03em;">How capital enters the network</h3>
+  <p class="intro" style="margin-top:8px;">Rather than raising equity for the whole company, Z-Network funds individual pieces of infrastructure directly with investors, through one of two deal structures.</p>
+  <div class="deal-grid">
+    <div class="deal-card">
+      <h3>Access-Point Sponsorship</h3>
+      <div class="deal-price">₦250,000</div>
+      <ul>
+        <li>Funds one wireless access point on an existing hub</li>
+        <li>Investor receives 45% of that AP's revenue, perpetually</li>
+        <li>Z-Network keeps 55% and covers operations, support and maintenance</li>
+        <li>Per-AP revenue is tracked individually in our database for reporting integrity</li>
+      </ul>
+      <span class="deal-tag">Proven structure — already in use</span>
     </div>
-    <div class="plan-icon" style="background:rgba(26,111,232,0.12); margin-top:8px;">
-      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-      </svg>
+    <div class="deal-card">
+      <h3>Hub Deployment</h3>
+      <div class="deal-price">₦1,300,000</div>
+      <ul>
+        <li>Funds a full new Starlink hub: router, smartbox, Starlink kit, cabling and roughly two access points</li>
+        <li>Unlocks an entirely new compound for the network</li>
+        <li>Terms structured per deployment, based on site and projected density</li>
+        <li>Opens the door to further AP Sponsorships once the hub is live</li>
+      </ul>
+      <span class="deal-tag">Growth capital</span>
     </div>
-    <div class="plan-name">Half-Week Plan</div>
-    <div class="plan-price">₦1,000</div>
-    <div class="plan-details">⏱ 3.5 Days<br/>⚡ Unlimited<br/>📱 2 Device</div>
   </div>
 
-  <div class="plan-card" data-plan="Weekly Plan" data-plankey="08dbcc38-34fa-4251-a667-f989d26d625e" data-amount="2000" data-validity="7 Days" onclick="selectPlan(this)">
-    <div class="plan-check">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" style="color:var(--accent)">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
-    </div>
-    <div class="plan-icon" style="background:rgba(26,111,232,0.12); margin-top:8px;">
-      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    </div>
-    <div class="plan-name">Weekly Plan</div>
-    <div class="plan-price">₦2,000</div>
-    <div class="plan-details">⏱ 7 Days<br/>⚡ Unlimited<br/>📱 2 Device</div>
-  </div>
-
-  <div class="plan-card" data-plan="Monthly Plan" data-plankey="925f31d8-6a56-450b-aca0-5b165e336642" data-amount="7500" data-validity="30 Days" onclick="selectPlan(this)">
-    <div class="plan-check">
-      <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20" style="color:var(--accent)">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
-    </div>
-    <div class="plan-icon" style="background:rgba(26,111,232,0.12); margin-top:8px;">
-      <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.5m1.044-3.5A10 10 0 1121.044 11H19a2 2 0 00-2 2v1a2 2 0 01-2 2v4a2 2 0 01-2 2M12 3a9 9 0 100 18 9 9 0 000-18z" />
-      </svg>
-    </div>
-    <div class="plan-name">Monthly Plan</div>
-    <div class="plan-price">₦6,000</div>
-    <div class="plan-details">⏱ 30 Days<br/>⚡ Unlimited<br/>📱 2 Device</div>
-  </div>
-
-</div>
-   <!-- ============================================================
-     STEP 3 — CHECKOUT
-============================================================ -->
-<div class="step" id="step-checkout">
-
-  <div class="checkout-header">
-    <h2>Almost There!</h2>
-    <p>Enter your number to complete purchase</p>
-  </div>
-
-  <div class="plan-summary" id="planSummary">
+  <h3 style="margin-top:56px;font-size:22px;">Model your return</h3>
+  <p class="intro" style="margin-top:6px;font-size:15px;">Adjust the assumptions below. Average revenue per access point is pre-filled from our live data when available — edit it to test your own scenario.</p>
+  <div class="calc">
     <div>
-      <div class="summary-label">Selected Plan</div>
-      <div class="summary-value" id="summaryPlan">—</div>
-      <div class="summary-sub"   id="summaryValidity">—</div>
-    </div>
-    <div style="text-align:right;">
-      <div class="summary-label">Amount</div>
-      <div class="summary-amount" id="summaryAmount">—</div>
-    </div>
-  </div>
-
-  <label class="phone-label">
-    Phone Number <span>(MTN · Airtel · Glo · 9mobile)</span>
-  </label>
-  <div class="phone-wrap">
-    <div class="phone-prefix">
-      <span class="flag">🇳🇬</span>
-      <span class="code">+234</span>
-      <div class="phone-divider"></div>
-    </div>
-    <input class="phone-input" id="phoneInput" type="tel" inputmode="numeric"
-           maxlength="14" placeholder="0801 234 5678"
-           oninput="handlePhone(this)" autocomplete="tel"/>
-  </div>
-
-  <div class="field-msg error" id="phoneError">
-    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-    </svg>
-    Enter a valid 11-digit Nigerian number
-  </div>
-  <div class="field-msg success" id="phoneOk">
-    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-    </svg>
-    Looks good!
-  </div>
-
-  <div style="margin-top:20px;" class="anim-3">
-    <button type="button" class="btn btn-green" id="payBtn" onclick="initiatePayment()" disabled>
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-        <rect x="2" y="5" width="20" height="14" rx="2"/>
-        <path stroke-linecap="round" d="M2 10h20"/>
-      </svg>
-      Pay Now
-    </button>
-    <div class="trust-line">
-      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      Secure payment powered by Paystack
-    </div>
-    <button type="button" class="btn btn-outline btn-gap" onclick="goTo('step-plans')">← Change Plan</button>
-  </div>
-
-</div>
-
-
-<!-- ============================================================
-     STEP 4 — PROCESSING
-============================================================ -->
-<div class="step" id="step-processing">
-  <div class="proc-center">
-
-    <div class="proc-ring-wrap">
-      <svg class="proc-ring-svg" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r="36" fill="none" stroke="var(--border)" stroke-width="4"/>
-        <circle cx="40" cy="40" r="36" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="56 170" stroke-linecap="round"/>
-      </svg>
-      <div class="proc-ring-icon">
-        <svg width="32" height="32" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
-          <rect x="2" y="5" width="20" height="14" rx="2"/>
-          <path stroke-linecap="round" d="M2 10h20"/>
-        </svg>
+      <div class="calc-field">
+        <label>Access points funded <b id="calcAPsLabel">1 access point</b></label>
+        <input type="range" id="calcAPs" min="1" max="10" value="1" step="1">
+      </div>
+      <div class="calc-field">
+        <label>Assumed avg. monthly revenue per AP</label>
+        <input type="text" inputmode="numeric" class="calc-num-input" id="calcAvgRev" value="0">
+        <div class="calc-hint" id="calcAvgRevHint">Waiting on live data — you can edit this manually at any time.</div>
       </div>
     </div>
-
-    <div class="proc-title">Processing Payment</div>
-    <div class="proc-sub">Redirecting to secure payment…<br/>Please do not close this page.</div>
-
-    <div class="card proc-steps">
-      <div class="proc-step" id="ps1">
-        <div class="spinner"></div>
-        <span>Connecting to Paystack…</span>
-      </div>
-      <div class="proc-step dim" id="ps2">
-        <div class="step-dot-idle"></div>
-        <span>Verifying your details</span>
-      </div>
-      <div class="proc-step dim" id="ps3">
-        <div class="step-dot-idle"></div>
-        <span>Generating your voucher</span>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-
-<!-- ============================================================
-     STEP 5 — VOUCHER SUCCESS
-============================================================ -->
-<div class="step" id="step-success">
-
-  <div class="success-ring-wrap">
-    <div class="success-ring">
-      <svg width="36" height="36" fill="none" stroke="#00C06A" stroke-width="2.5" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-      </svg>
+    <div class="calc-out">
+      <div class="calc-row"><span>Capital required</span><span id="calcCapital">₦0</span></div>
+      <div class="calc-row"><span>Your monthly share (45%)</span><span id="calcMonthly">₦0</span></div>
+      <div class="calc-row"><span>Estimated annual return</span><span id="calcAnnual">₦0</span></div>
+      <div class="calc-row"><span>Simple payback period</span><span id="calcPayback">—</span></div>
+      <div class="calc-disclaimer">Illustrative only, based on adjustable assumptions and current network averages where available. Not a guarantee of returns — actual performance depends on access-point uptime, local demand and customer churn. This is a revenue-share arrangement, not a security or equity stake.</div>
     </div>
   </div>
+</div></section>
 
-  <div class="success-header">
-    <h2>Payment Successful 🎉</h2>
-    <p>Your voucher is ready. Use the code below<br/>to connect to the internet.</p>
-  </div>
+<section><div class="wrap">
+  <div class="kicker">08 · Market</div>
+  <h2>A large market with fragmented infrastructure.</h2>
+  <p class="intro">Z-Network's near-term opportunity is not to compete for the entire telecommunications market. It is to identify concentrated communities where demand is dense and predictable, and deploy infrastructure economically — starting with the compound directly in front of us.</p>
+  <table class="table">
+    <tr><th>Target environment</th><th>Connectivity opportunity</th></tr>
+    <tr><td>Off-campus student lodges</td><td>High-density, near-university compounds — our current primary focus</td></tr>
+    <tr><td>Residential estates</td><td>Community-wide internet infrastructure</td></tr>
+    <tr><td>Private compounds</td><td>Shared network infrastructure across multiple households</td></tr>
+    <tr><td>Small businesses</td><td>Reliable internet and network services</td></tr>
+    <tr><td>Institutions</td><td>Managed connectivity deployments</td></tr>
+  </table>
+</div></section>
 
-  <!-- VOUCHER BOX -->
-  <div class="voucher-box">
-    <div class="voucher-label">Your Access Code (PIN)</div>
-    <div class="voucher-code" id="voucherCode">— — — —</div>
-    <button type="button" class="copy-btn" id="copyBtn" onclick="copyVoucher()">
-      <svg id="copyIcon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <rect x="9" y="9" width="13" height="13" rx="2"/>
-        <path stroke-linecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-      </svg>
-      <span id="copyLabel">Copy Code</span>
-    </button>
-    <div class="copy-success" id="copySuccess">
-      <svg width="14" height="14" fill="#00C06A" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-      </svg>
-      Copied to clipboard!
+<section id="team"><div class="wrap">
+  <div class="kicker">09 · Team</div>
+  <h2>A 50/50 technical and capital partnership.</h2>
+  <p class="intro">Z-Network is run by two co-founders with distinct, complementary roles — one builds and operates the network, the other drives funding and growth.</p>
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="team-avatar">SJ</div>
+      <div class="team-role">Technical Co-Founder</div>
+      <h3>Solomon "Jay" Jeremiah</h3>
+      <p>Designed and built Z-Network's entire technical stack — the admin dashboard, customer portal, MikroTik automation and the WhatsApp bot that handles renewals and receipts. Currently shifting focus from code to operations as the network scales: staffing, coverage areas and hub rollout.</p>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">RY</div>
+      <div class="team-role">Co-Founder, Capital & Growth</div>
+      <h3>Richard Yortom</h3>
+      <p>Leads funding and business development, including investor relationships, deployment financing and the partnerships that get each new hub off the ground.</p>
     </div>
   </div>
+</div></section>
 
-  <!-- Plan / Validity / Amount chips -->
-  <div class="voucher-chips">
-    <div class="chip">
-      <div class="chip-label">Plan</div>
-      <div class="chip-value" id="chipPlan">—</div>
-    </div>
-    <div class="chip">
-      <div class="chip-label">Valid for</div>
-      <div class="chip-value green" id="chipValidity">—</div>
-    </div>
-    <div class="chip">
-      <div class="chip-label">Paid</div>
-      <div class="chip-value accent" id="chipAmount">—</div>
-    </div>
+<section id="roadmap"><div class="wrap">
+  <div class="kicker">10 · Expansion</div>
+  <h2>The first network is the beginning, not the destination.</h2>
+  <div class="grid3">
+    <div class="card"><h3>Phase 1 · Community</h3><p>Validate demand, network reliability and operating economics through localized deployment. Complete and generating revenue.</p></div>
+    <div class="card"><h3>Phase 2 · Multi-hub</h3><p>Apply the model to a second Starlink hub and additional compounds near the same university.</p></div>
+    <div class="card"><h3>Phase 3 · Standardized rollout</h3><p>Standardize deployment, operations and centralized management across many communities.</p></div>
   </div>
 
-  <!-- How to connect -->
-  <div class="connect-guide">
-    <h3>📶 How to connect</h3>
-    <ol>
-      <li>Go to <strong>Wi-Fi Settings</strong> on your device</li>
-      <li>Connect to the <strong>Z-Network</strong> hotspot</li>
-      <li>Open your browser — a login page appears</li>
-      <li>Enter the code above as your <strong>PIN / Password</strong></li>
-      <li>Tap <strong>Login</strong> and enjoy browsing!</li>
-    </ol>
-  </div>
-
-  <!-- WhatsApp buttons -->
-  <div class="anim-4">
-    <button type="button" class="btn btn-wa" onclick="sendToWhatsApp()" style="margin-bottom:10px;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-      </svg>
-      Send Voucher to My WhatsApp
-    </button>
-
-    <div class="divider-row">
-      <div class="divider-line"></div>
-      <span class="divider-text">or</span>
-      <div class="divider-line"></div>
+  <div class="roadmap-list">
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Infrastructure</div>
+      <div><h4>Second Starlink hub</h4><p>New hub deployment to bring a second compound onto the network, expanding total access-point capacity.</p></div>
+      <span class="status-pill status-progress">In progress</span>
     </div>
-
-    <button type="button" class="btn btn-outline" onclick="resetAll()" style="margin-top:8px;">Buy Another Plan</button>
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Coverage</div>
+      <div><h4>Compounds 3–10</h4><p>Targeted expansion to additional off-campus lodge compounds using the same deployment playbook.</p></div>
+      <span class="status-pill status-planned">Planned</span>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Uplink</div>
+      <div><h4>Starlink Business Priority / dedicated line</h4><p>Our current three-compound footprint is near the safe ceiling for Starlink Residential. We're evaluating Starlink Business Priority and a Galaxy Backbone dedicated line ahead of further expansion.</p></div>
+      <span class="status-pill status-progress">Evaluating</span>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Product</div>
+      <div><h4>WhatsApp self-registration</h4><p>Phone-number-based signup so new customers can onboard themselves directly over WhatsApp, no admin intervention required.</p></div>
+      <span class="status-pill status-planned">Designed, not yet built</span>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Legal</div>
+      <div><h4>CAC registration</h4><p>Z-Network is registered with the Corporate Affairs Commission, giving investor revenue-share arrangements a proper legal structure to sit on.</p></div>
+      <span class="status-pill status-live">Complete</span>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-tag">Funding</div>
+      <div><h4>SMEDAN registration &amp; grant applications</h4><p>Free SUIN registration, plus active pursuit of non-dilutive funding including a Student Venture Capital Grant application and a Bank of Industry loan for equipment.</p></div>
+      <span class="status-pill status-progress">In progress</span>
+    </div>
   </div>
+</div></section>
 
-  <p style="text-align:center;font-size:0.75rem;color:var(--text-muted);margin-top:14px;">
-    Problem connecting?
-    <span style="color:var(--accent);font-weight:500;cursor:pointer;" onclick="contactSupport()">Contact support on WhatsApp</span>
-  </p>
+<section id="faq"><div class="wrap">
+  <div class="kicker">11 · Questions investors ask</div>
+  <h2>Straight answers before you commit capital.</h2>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary>How does the 45% revenue share actually work?</summary>
+      <p>Every access point you fund is tracked individually in our database. When a customer buys a voucher on that AP, the sale is attributed to it directly — not pooled with the rest of the network — so your 45% is calculated off real, per-AP revenue, not an estimate.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Is this equity, or a loan?</summary>
+      <p>Neither. It's a direct revenue-share tied to a specific piece of infrastructure you fund. You don't own shares in Z-Network, and we don't owe you the principal back on a schedule — your return comes from that AP's ongoing revenue, for as long as it operates.</p>
+    </details>
+    <details class="faq-item">
+      <summary>What happens if an access point underperforms, or the network shuts down?</summary>
+      <p>Revenue share is only paid on revenue actually collected — there's no guaranteed minimum. We're formalizing buyback provisions as part of our investor agreements, so investors have a defined exit path rather than an open-ended commitment. Ask us directly for the current terms before committing capital.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Is Z-Network a registered company?</summary>
+      <p>Yes — Z-Network is CAC registered. We're also completing SMEDAN registration alongside it, so revenue-share agreements sit on a proper legal structure.</p>
+    </details>
+    <details class="faq-item">
+      <summary>What's the biggest operational risk right now?</summary>
+      <p>Uplink capacity. Starlink Residential has a practical ceiling once you're running several compounds off one hub, especially during rain fade. We're evaluating Starlink Business Priority and a Galaxy Backbone dedicated line specifically to remove this constraint before further expansion.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How is my access point protected from being kicked offline or reused?</summary>
+      <p>Every customer session ties back to a permanent voucher code in our system, and access-point uptime is logged automatically, with history you can review. Revenue and infrastructure records for investor-funded APs are kept separate from general operating stock.</p>
+    </details>
+  </div>
+</div></section>
 
-</div>
+<section id="investors"><div class="wrap"><div class="invest">
+  <div class="kicker">12 · Investor relations</div>
+  <h2>The next stage requires infrastructure capital.</h2>
+  <p class="intro">Z-Network is preparing for its next phase of growth: moving beyond its initial deployment and building out a multi-hub network across additional compounds.</p>
+  <p class="intro">Capital at this stage is directed toward productive infrastructure and the systems required to operate it — either through direct AP Sponsorship / Hub Deployment agreements, or alongside non-dilutive funding we're pursuing in parallel (SMEDAN, Bank of Industry, and grant programs for youth-led ventures).</p>
+  <ul>
+    <li>Network equipment</li>
+    <li>Additional access infrastructure</li>
+    <li>Power resilience</li>
+    <li>Upstream connectivity upgrades</li>
+    <li>New compound deployments</li>
+    <li>Customer acquisition</li>
+    <li>Operational capacity &amp; staffing</li>
+    <li>Network monitoring and automation</li>
+  </ul>
+  <p class="intro">We're speaking with strategic capital partners who understand infrastructure, recurring-revenue businesses and the long-term opportunity in African connectivity.</p>
+  <div class="buttons"><a class="btn primary" href="#request">Request Investor Information</a></div>
+</div></div></section>
 
+<section id="request"><div class="wrap">
+  <div class="kicker">13 · Contact</div>
+  <h2>Let's discuss the next network.</h2>
+  <p class="intro">Interested in Z-Network's financial performance, deployment economics or expansion plans? Request investor materials below, or reach us directly.</p>
+  <form action="mailto:investors@z-network.ng" method="post" enctype="text/plain">
+    <div class="formgrid"><input name="name" placeholder="Full name" required><input name="organization" placeholder="Organization"></div>
+    <div class="formgrid"><input name="email" type="email" placeholder="Email address" required><input name="phone" placeholder="Phone"></div>
+    <select name="interest"><option value="">Investment interest</option><option>AP Sponsorship (₦250,000)</option><option>Hub Deployment (₦1,300,000)</option><option>Strategic investment</option><option>Partnership</option><option>General inquiry</option></select>
+    <textarea name="message" placeholder="Tell us briefly what you would like to discuss."></textarea>
+    <button class="btn primary" type="submit">Submit Investor Request</button>
+  </form>
+  <div class="contact-alt">
+    <a class="wa-btn" target="_blank" rel="noopener" href="https://wa.me/2348159694740?text=Hi%20Z-Network%2C%20I%27d%20like%20to%20learn%20more%20about%20investing.">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.5 8.5 0 01-12.36 7.58L3 20l1.02-5.4A8.5 8.5 0 1121 11.5z"/></svg>
+      Chat with us on WhatsApp
+    </a>
+  </div>
+</div></section>
 
-<!-- FOOTER -->
-<footer>© 2025 Z-Network Nigeria &nbsp;·&nbsp; All rights reserved</footer>
+</main>
 
-</div><!-- /page-bg -->
+<footer><div class="wrap footerline">
+  <div><strong style="color:white">Z-Network</strong><br>Connectivity Infrastructure &amp; Internet Services<br>Lafia, Nasarawa State, Nigeria<br><br>CAC registered · © 2026 Z-Network. All rights reserved.</div>
+  <div class="smalllinks"><a href="#company">Company</a><a href="#technology">Technology</a><a href="#investors">Investors</a><a href="#request">Contact</a></div>
+</div></footer>
 
-<!-- ============================================================
-     JAVASCRIPT
-============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-
-/* ── CONFIG — REPLACE THESE 2 LINES ─────────────────── */
-var ADMIN_WA          = '2348159694740';                       // ← your WhatsApp number (234XXXXXXXXXX)
-var PAYSTACK_PUBLIC_KEY = 'pk_live_ad4252161bf61d466256573cb5b5fd8a4d3bb07a' // ← your Paystack payment link
-   var SUPABASE_FUNCTION_URL = 'https://yohndnmwvgcwadkytmix.supabase.co/functions/v1/smart-endpoint';
-
-/* Plan key → txt file mapping */
-var PLAN_KEYS = {
-  'Daily Plan':   'daily',
-  '2-Day Plan':   'twoday',
-  '3½-Day Plan':  'halfweek',
-  'Weekly Plan':  'weekly',
-  'Monthly Plan': 'monthly'
-};
-
-/* ── STATE ───────────────────────────────────────────── */
-var S = {
-  plan: null, plankey: null, amount: null, validity: null,
-  phone: null, voucher: null,
-  current: 'step-landing'
-};
-
-
-/* Auto-formats voucher input as XXXX-XXXX while typing */
-function formatVoucher(input) {
-  var raw = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
-  input.value = raw.length > 4 ? raw.slice(0, 4) + '-' + raw.slice(4) : raw;
+/* ============================================================
+   MOBILE NAV
+============================================================ */
+function toggleMobileNav(){
+  document.getElementById('mobileMenu').classList.toggle('open');
+  document.getElementById('navHam').classList.toggle('open');
 }
-
-/* ── DARK MODE ───────────────────────────────────────── */
-function toggleDark() {
-  var isDark = document.body.classList.toggle('dark');
-  document.getElementById('darkToggle').classList.toggle('on', isDark);
-  localStorage.setItem('zn_theme', isDark ? 'dark' : 'light');
-}
-
-/* ── STEP NAVIGATION ─────────────────────────────────── */
-function goTo(id) {
-
-  document.getElementById(S.current).classList.remove('active');
-  document.getElementById(id).classList.add('active');
-  S.current = id;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  updateProgress(id);
-  // Keep checkout summary in sync whenever we arrive at checkout
-  if (id === 'step-checkout' && S.plan) {
-    document.getElementById('summaryPlan').textContent     = S.plan;
-    document.getElementById('summaryValidity').textContent = 'Valid for ' + S.validity;
-    document.getElementById('summaryAmount').textContent   = '₦' + S.amount.toLocaleString();
-  }
-}
-
-function updateProgress(id) {
-  var map = { 'step-plans': 0, 'step-checkout': 1, 'step-processing': 2, 'step-success': 3 };
-  var idx = (id in map) ? map[id] : -1;
-  var dots = document.getElementById('progressDots');
-  dots.classList.toggle('visible', idx >= 0);
-  var pds = ['pd1','pd2','pd3','pd4'];
-  for (var i = 0; i < pds.length; i++) {
-    var el = document.getElementById(pds[i]);
-    el.className = 'pdot';
-    if (i < idx)  el.classList.add('done');
-    if (i === idx) el.classList.add('active');
-  }
-}
-
-/* ── PLAN SELECTION ──────────────────────────────────── */
-function selectPlan(card) {
-  if (card.classList.contains('plan-disabled')) return;
-
-  // Clear selection from all cards
-  var cards = document.querySelectorAll('.plan-card');
-  for (var i = 0; i < cards.length; i++) {
-    cards[i].classList.remove('selected');
-    cards[i].style.borderColor = 'var(--border)';
-  }
-
-  // Highlight selected card
-  card.classList.add('selected');
-  card.style.borderColor = 'var(--accent)';
-
-  // Store plan state
-  S.plan     = card.getAttribute('data-plan');
-  S.plankey  = card.getAttribute('data-plankey');
-  S.amount   = parseInt(card.getAttribute('data-amount'));
-  S.validity = card.getAttribute('data-validity');
-
-  // Generate a unique anonymous email for Paystack (no phone needed)
-  var txRef  = 'ZN-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000);
-  var txEmail = txRef + '@znetwork.com';
-
-  var handler = PaystackPop.setup({
-    key:      PAYSTACK_PUBLIC_KEY,
-    email:    txEmail,
-    amount:   S.amount * 100,
-    currency: 'NGN',
-    metadata: { plan: S.plan, plankey: S.plankey, validity: S.validity },
-    callback: function(response) {
-      // Redirect to success.html with all required params
-      window.location.href = 'success.html'
-        + '?ref='      + encodeURIComponent(response.reference)
-        + '&plan='     + encodeURIComponent(S.plan)
-        + '&plankey='  + encodeURIComponent(S.plankey)
-        + '&amount='   + encodeURIComponent(S.amount)
-        + '&validity=' + encodeURIComponent(S.validity)
-        + '&phone=';   // empty — not collected in this flow
-    },
-    onClose: function() {
-      card.classList.remove('selected');
-      card.style.borderColor = 'var(--border)';
-    }
+document.querySelectorAll('#mobileMenu a').forEach(function(a){
+  a.addEventListener('click',function(){
+    document.getElementById('mobileMenu').classList.remove('open');
+    document.getElementById('navHam').classList.remove('open');
   });
-  handler.openIframe();
-}
-/* ── PHONE INPUT ─────────────────────────────────────── */
-function handlePhone(input) {
-  var digits = input.value.replace(/\D/g, '').slice(0, 11);
-  var fmt = digits;
-  if (digits.length > 7)      fmt = digits.slice(0,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7);
-  else if (digits.length > 4) fmt = digits.slice(0,4) + ' ' + digits.slice(4);
-  input.value = fmt;
-
-  var raw   = input.value.replace(/\D/g, '');
-  var valid = /^(070|080|081|090|091|071)\d{8}$/.test(raw);
-  var err   = document.getElementById('phoneError');
-  var ok    = document.getElementById('phoneOk');
-  var btn   = document.getElementById('payBtn');
-
-  err.style.display = 'none';
-  ok.style.display  = 'none';
-  input.style.borderColor = '';
-
-  if (!raw.length) {
-    btn.disabled = true;
-  } else if (raw.length >= 11 && !valid) {
-    err.style.display = 'flex';
-    input.style.borderColor = 'rgba(239,68,68,0.5)';
-    btn.disabled = true;
-  } else if (valid) {
-    ok.style.display = 'flex';
-    input.style.borderColor = 'rgba(0,192,106,0.5)';
-    S.phone = raw;
-    btn.disabled = false;
-  } else {
-    btn.disabled = true;
-  }
-}
-
-/* ── PAYMENT ─────────────────────────────────────────── */
-function initiatePayment() {
-  var btn = document.getElementById('payBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div><span>Opening secure payment…</span>';
-
-  // Generate anonymous email — phone is stored in S.phone but not required by Paystack
-  var txRef  = 'ZN-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000);
-  var txEmail = (S.phone ? S.phone : txRef) + '@znetwork.com';
-
-  var handler = PaystackPop.setup({
-    key:      PAYSTACK_PUBLIC_KEY,
-    email:    txEmail,
-    amount:   S.amount * 100,
-    currency: 'NGN',
-    metadata: {
-      plan:     S.plan,
-      plankey:  S.plankey,
-      validity: S.validity
-    },
-    callback: function(response) {
-      window.location.href = 'success.html'
-        + '?ref='      + encodeURIComponent(response.reference)
-        + '&plan='     + encodeURIComponent(S.plan)
-        + '&plankey='  + encodeURIComponent(S.plankey)
-        + '&amount='   + encodeURIComponent(S.amount)
-        + '&validity=' + encodeURIComponent(S.validity)
-        + '&phone=';   // omitted — no longer required
-    },
-    onClose: function() {
-      btn.disabled = false;
-      btn.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path stroke-linecap="round" d="M2 10h20"/></svg>Pay Now';
-    }
-  });
-
-  handler.openIframe();
-}
-
-function animateProcessing() {
-  // No longer needed - using direct payment link
-}
-
-/* ── PAYMENT LINK REDIRECT ───────────────────────────── */
-// Payment is now handled by direct Paystack payment link
-// When user clicks Pay Now, they're redirected to PAYSTACK_LINK
-// After payment, your Paystack link should redirect to success.html with params:
-// ?ref=PAYSTACK_REF&plan=Plan+Name&plankey=daily&phone=080...&amount=350&validity=24+Hours
-
-
-/* ── VOUCHER ─────────────────────────────────────────── */
-function showSuccess(voucher) {
-  S.voucher = voucher;
-  document.getElementById('voucherCode').textContent  = voucher;
-  document.getElementById('chipPlan').textContent     = S.plan;
-  document.getElementById('chipValidity').textContent = S.validity;
-  document.getElementById('chipAmount').textContent   = '₦' + S.amount.toLocaleString();
-  goTo('step-success');
-  prepareAdminMsg();
-}
-
-/* ── COPY VOUCHER ────────────────────────────────────── */
-function copyVoucher() {
-  if (!S.voucher) return;
-  function onCopied() {
-    document.getElementById('copyLabel').textContent = 'Copied!';
-    document.getElementById('copyIcon').innerHTML =
-      '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>';
-    document.getElementById('copySuccess').style.display = 'flex';
-    if (navigator.vibrate) navigator.vibrate([30, 15, 30]);
-    setTimeout(function() {
-      document.getElementById('copyLabel').textContent = 'Copy Code';
-      document.getElementById('copyIcon').innerHTML =
-        '<rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>';
-      document.getElementById('copySuccess').style.display = 'none';
-    }, 2600);
-  }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(S.voucher).then(onCopied).catch(onCopied);
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = S.voucher;
-    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    onCopied();
-  }
-}
-
-/* ── WHATSAPP ────────────────────────────────────────── */
-function sendToWhatsApp() {
-  var intl = S.phone ? ('234' + S.phone.slice(1)) : ADMIN_WA;
-  var msg  = '🌐 *Z-Network Voucher*\n\n'
-           + 'Code: *' + S.voucher + '*\n'
-           + 'Plan: ' + S.plan + '\n'
-           + 'Validity: ' + S.validity + '\n\n'
-           + '📶 Connect and enjoy! 🚀';
-  window.open('https://wa.me/' + intl + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
-}
-
-function prepareAdminMsg() {
-  var msg = '💰 *New Payment Received*\n\n'
-          + 'Plan: ' + S.plan + '\n'
-          + 'Amount: ₦' + S.amount.toLocaleString() + '\n'
-          + 'Expiry: ' + S.validity + '\n'
-          + 'Voucher: ' + S.voucher + '\n'
-          + 'Ref: ZN-' + Date.now();
-  S.adminUrl = 'https://wa.me/' + ADMIN_WA + '?text=' + encodeURIComponent(msg);
-  // Uncomment to auto-send to admin:
-  // window.open(S.adminUrl, '_blank', 'noopener');
-}
-
-function contactSupport() {
-  var msg = 'Hi Z-Network Support,\nI need help connecting.\n'
-          + 'Plan: ' + (S.plan || 'N/A') + '\n'
-          + 'Voucher: ' + (S.voucher || 'N/A');
-  window.open('https://wa.me/' + ADMIN_WA + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
-}
-
-/* ── RESET ───────────────────────────────────────────── */
-function resetAll() {
-  S.plan = S.amount = S.validity = S.voucher = S.adminUrl = null;
-  var cards = document.querySelectorAll('.plan-card');
-  for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
-  var planBtn = document.getElementById('planContinueBtn');
-  if (planBtn) planBtn.disabled = true;
-  var phoneInput = document.getElementById('phoneInput');
-  if (phoneInput) phoneInput.value = '';
-  var phoneError = document.getElementById('phoneError');
-  if (phoneError) phoneError.style.display = 'none';
-  var phoneOk = document.getElementById('phoneOk');
-  if (phoneOk) phoneOk.style.display = 'none';
-  var btn = document.getElementById('payBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path stroke-linecap="round" d="M2 10h20"/></svg>Pay Now';
-  }
-  goTo('step-landing');
-}
-
-/* ── PAYSTACK REDIRECT RETURN ────────────────────────── */
-(function() {
-  var p = new URLSearchParams(window.location.search);
-  var ref = p.get('reference') || p.get('trxref');
-  if (!ref) return;
-  try {
-    var saved = JSON.parse(sessionStorage.getItem('zn_s') || '{}');
-    if (saved.plan) {
-      S.plan = saved.plan;
-      S.amount = saved.amount; S.validity = saved.validity;
-    }
-  } catch(e) {}
-  // TODO: verify `ref` with your backend and call showSuccess(realPin)
-})();
-
-window.addEventListener('beforeunload', function() {
-  sessionStorage.setItem('zn_s', JSON.stringify({
-    plan: S.plan, amount: S.amount, validity: S.validity
-  }));
 });
 
+/* ============================================================
+   LIVE SUPABASE DATA
+   Read-only, same anon key already used client-side in the
+   admin dashboard. Only minimal, non-personal columns are
+   requested here (no names, phone numbers or voucher codes).
+============================================================ */
+var SUPABASE_URL  = 'https://yohndnmwvgcwadkytmix.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvaG5kbm13dmdjd2Fka3l0bWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDEyODgsImV4cCI6MjA5NDYxNzI4OH0.hkUexJ-AS1GpLJL78F7iXDv5PkwuPbShj2fsGVXuEsg';
+var znsb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+var PLANS = {
+  '31fd47b9-fa74-4da3-a390-9e450ca3923c': { name:'Daily',     price:350,  hours:24  },
+  'cfa7e627-5d9f-4824-aae7-a9ed3bcf86ae': { name:'2-Day',     price:500,  hours:48  },
+  '6ce23b1a-bdb4-4118-958a-bcd4d637fb96': { name:'Half-Week', price:1000, hours:84  },
+  '08dbcc38-34fa-4251-a667-f989d26d625e': { name:'Weekly',    price:2000, hours:168 },
+  '925f31d8-6a56-450b-aca0-5b165e336642': { name:'Monthly',   price:6000, hours:720 }
+};
+function planPrice(id){ return PLANS[id] ? PLANS[id].price : 0; }
+
+function fmtMoney(n){ return '₦' + Math.round(n).toLocaleString('en-NG'); }
+
+function animateNumber(el, target, opts){
+  if(!el) return;
+  opts = opts || {};
+  el.classList.remove('skeleton-text');
+  var duration = 700, start = null;
+  var prefix = opts.prefix || '';
+  function step(ts){
+    if(!start) start = ts;
+    var p = Math.min(1, (ts - start) / duration);
+    var eased = 1 - Math.pow(1 - p, 3);
+    var val = target * eased;
+    el.textContent = prefix + Math.round(val).toLocaleString('en-NG');
+    if(p < 1) requestAnimationFrame(step);
+    else el.textContent = prefix + Math.round(target).toLocaleString('en-NG');
+  }
+  requestAnimationFrame(step);
+}
+
+var _trendChart = null;
+function renderTrend(rows){
+  var canvas = document.getElementById('trendCanvas');
+  if(!canvas || !window.Chart) return;
+  var days = [];
+  for(var i = 13; i >= 0; i--){
+    var d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  var byDay = {};
+  days.forEach(function(d){ byDay[d.toDateString()] = 0; });
+  (rows || []).forEach(function(v){
+    var d = new Date(v.used_at); d.setHours(0,0,0,0);
+    var key = d.toDateString();
+    if(byDay[key] !== undefined) byDay[key] += planPrice(v.plan_id);
+  });
+  var labels = days.map(function(d){ return d.toLocaleDateString('en-NG',{day:'2-digit',month:'short'}); });
+  var data = days.map(function(d){ return byDay[d.toDateString()]; });
+
+  var ctx = canvas.getContext('2d');
+  if(_trendChart) _trendChart.destroy();
+  _trendChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ data:data, backgroundColor:'#3d8bfd', borderRadius:4, maxBarThickness:28 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return fmtMoney(c.parsed.y); } } } },
+      scales:{
+        x:{ ticks:{ color:'#7c8aa0', font:{size:10} }, grid:{ display:false } },
+        y:{ ticks:{ color:'#7c8aa0', font:{size:10}, callback:function(v){ return '₦'+v.toLocaleString(); } }, grid:{ color:'#182231' } }
+      }
+    }
+  });
+}
+
+function setRefreshing(on){
+  var btn = document.getElementById('refreshBtn');
+  if(btn) btn.classList.toggle('spinning', !!on);
+}
+
+async function znRefreshLive(){
+  if(!znsb){
+    document.getElementById('liveUpdated').textContent = 'Live data unavailable in this environment';
+    return;
+  }
+  setRefreshing(true);
+
+  var startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+  var since14 = new Date(Date.now() - 14*86400000);
+
+  var results = await Promise.allSettled([
+    znsb.from('customers').select('id',{count:'exact',head:true}),
+    znsb.from('customers').select('id',{count:'exact',head:true}).eq('status','active'),
+    znsb.from('vouchers').select('id',{count:'exact',head:true}).eq('is_used',true),
+    znsb.from('vouchers').select('plan_id,used_at').eq('is_used',true).gte('used_at', startOfMonth.toISOString()),
+    znsb.from('vouchers').select('plan_id,used_at').eq('is_used',true).gte('used_at', since14.toISOString()),
+    znsb.rpc('rpc_get_access_points_status')
+  ]);
+  var rTotalCust = results[0], rActiveCust = results[1], rTotalVouchers = results[2],
+      rMonthRows = results[3], rTrendRows = results[4], rAPs = results[5];
+
+  if(rTotalCust.status === 'fulfilled' && !rTotalCust.value.error){
+    animateNumber(document.getElementById('statCustomers'), rTotalCust.value.count || 0);
+  } else {
+    document.getElementById('statCustomers').textContent = '—';
+  }
+
+  if(rActiveCust.status === 'fulfilled' && !rActiveCust.value.error){
+    animateNumber(document.getElementById('statActive'), rActiveCust.value.count || 0);
+  } else {
+    document.getElementById('statActive').textContent = '—';
+  }
+
+  if(rTotalVouchers.status === 'fulfilled' && !rTotalVouchers.value.error){
+    animateNumber(document.getElementById('statSold'), rTotalVouchers.value.count || 0);
+  } else {
+    document.getElementById('statSold').textContent = '—';
+  }
+
+  var monthRevenue = 0, monthDataOk = false;
+  if(rMonthRows.status === 'fulfilled' && !rMonthRows.value.error){
+    monthDataOk = true;
+    (rMonthRows.value.data || []).forEach(function(v){ monthRevenue += planPrice(v.plan_id); });
+    animateNumber(document.getElementById('statRevenue'), monthRevenue, {prefix:'₦'});
+  } else {
+    document.getElementById('statRevenue').textContent = '—';
+  }
+
+  var apTotal = 0, apOnline = 0, apOk = false;
+  if(rAPs.status === 'fulfilled' && !rAPs.value.error){
+    apOk = true;
+    var apData = rAPs.value.data || [];
+    apTotal = apData.length;
+    apOnline = apData.filter(function(a){ return (a.effective_status || a.status) === 'online'; }).length;
+    animateNumber(document.getElementById('statAPs'), apTotal);
+    document.getElementById('statAPsSub').textContent = apOnline + ' online now';
+  } else {
+    document.getElementById('statAPs').textContent = '—';
+    document.getElementById('statAPsSub').textContent = 'unavailable';
+  }
+
+  if(rTrendRows.status === 'fulfilled' && !rTrendRows.value.error){
+    renderTrend(rTrendRows.value.data || []);
+  }
+
+  var avgInput = document.getElementById('calcAvgRev');
+  if(monthDataOk && apOk && apTotal > 0 && avgInput && !avgInput.dataset.userEdited){
+    avgInput.value = Math.round(monthRevenue / apTotal);
+    document.getElementById('calcAvgRevHint').textContent = 'Pre-filled from this month\'s live network average — edit freely.';
+    runCalc();
+  } else if(avgInput && !avgInput.dataset.userEdited){
+    document.getElementById('calcAvgRevHint').textContent = 'Live average unavailable right now — enter your own assumption.';
+  }
+
+  document.getElementById('liveUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'});
+  setRefreshing(false);
+}
+
+/* ============================================================
+   RETURN CALCULATOR
+============================================================ */
+function runCalc(){
+  var aps = parseInt(document.getElementById('calcAPs').value, 10) || 0;
+  var avgRev = parseFloat(document.getElementById('calcAvgRev').value) || 0;
+  var capital = aps * 250000;
+  var monthlyShare = aps * avgRev * 0.45;
+  var annual = monthlyShare * 12;
+  var payback = monthlyShare > 0 ? (capital / monthlyShare) : 0;
+
+  document.getElementById('calcCapital').textContent = fmtMoney(capital);
+  document.getElementById('calcMonthly').textContent = fmtMoney(monthlyShare);
+  document.getElementById('calcAnnual').textContent = fmtMoney(annual);
+  document.getElementById('calcPayback').textContent = payback > 0 ? (payback.toFixed(1) + ' months') : '—';
+  document.getElementById('calcAPsLabel').textContent = aps + ' access point' + (aps !== 1 ? 's' : '');
+}
+document.getElementById('calcAPs').addEventListener('input', runCalc);
+document.getElementById('calcAvgRev').addEventListener('input', function(){
+  this.dataset.userEdited = '1';
+  runCalc();
+});
+runCalc();
+
+document.addEventListener('DOMContentLoaded', znRefreshLive);
 </script>
 </body>
 </html>
