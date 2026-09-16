@@ -311,9 +311,9 @@ footer{padding:46px 0;color:#8491a1;font-size:13px}
       <div class="kpi-sub">all-time sessions</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Revenue — This Month</div>
+      <div class="kpi-label">Revenue — Best Cycle</div>
       <span class="kpi-num skeleton-text" id="statRevenue">···</span>
-      <div class="kpi-sub">month to date</div>
+      <div class="kpi-sub" id="statRevenueSub">loading…</div>
     </div>
   </div>
 
@@ -671,6 +671,35 @@ function animateNumber(el, target, opts){
   requestAnimationFrame(step);
 }
 
+/* Z-Network's reporting cycle runs the 12th of one month to the 12th of
+   the next (a "12-11" cycle), matching the admin dashboard's Reports tab —
+   not the calendar month. */
+function getCycleForDate(d){
+  var day = d.getDate(), y = d.getFullYear(), m = d.getMonth();
+  var start = day >= 12 ? new Date(y, m, 12) : new Date(y, m-1, 12);
+  var end = new Date(start.getFullYear(), start.getMonth()+1, 12);
+  return { start:start, end:end };
+}
+function findBestCycle(rows){
+  var buckets = {};
+  (rows || []).forEach(function(v){
+    var c = getCycleForDate(new Date(v.used_at));
+    var key = c.start.toISOString();
+    if(!buckets[key]) buckets[key] = { start:c.start, end:c.end, revenue:0 };
+    buckets[key].revenue += planPrice(v.plan_id);
+  });
+  var best = null;
+  Object.keys(buckets).forEach(function(k){
+    if(!best || buckets[k].revenue > best.revenue) best = buckets[k];
+  });
+  return best;
+}
+function fmtCycleRange(c){
+  var opts = { day:'2-digit', month:'short' };
+  var endDisp = new Date(c.end.getTime() - 86400000);
+  return c.start.toLocaleDateString('en-NG', opts) + ' – ' + endDisp.toLocaleDateString('en-NG', opts);
+}
+
 var _trendChart = null;
 function renderTrend(rows){
   var canvas = document.getElementById('trendCanvas');
@@ -718,19 +747,18 @@ async function znRefreshLive(){
   }
   setRefreshing(true);
 
-  var startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
   var since14 = new Date(Date.now() - 14*86400000);
 
   var results = await Promise.allSettled([
     znsb.from('customers').select('id',{count:'exact',head:true}),
     znsb.from('customers').select('id',{count:'exact',head:true}).eq('status','active'),
     znsb.from('vouchers').select('id',{count:'exact',head:true}).eq('is_used',true),
-    znsb.from('vouchers').select('plan_id,used_at').eq('is_used',true).gte('used_at', startOfMonth.toISOString()),
+    znsb.from('vouchers').select('plan_id,used_at').eq('is_used',true),
     znsb.from('vouchers').select('plan_id,used_at').eq('is_used',true).gte('used_at', since14.toISOString()),
     znsb.rpc('rpc_get_access_points_status')
   ]);
   var rTotalCust = results[0], rActiveCust = results[1], rTotalVouchers = results[2],
-      rMonthRows = results[3], rTrendRows = results[4], rAPs = results[5];
+      rAllSalesRows = results[3], rTrendRows = results[4], rAPs = results[5];
 
   if(rTotalCust.status === 'fulfilled' && !rTotalCust.value.error){
     animateNumber(document.getElementById('statCustomers'), rTotalCust.value.count || 0);
@@ -750,13 +778,21 @@ async function znRefreshLive(){
     document.getElementById('statSold').textContent = '—';
   }
 
-  var monthRevenue = 0, monthDataOk = false;
-  if(rMonthRows.status === 'fulfilled' && !rMonthRows.value.error){
-    monthDataOk = true;
-    (rMonthRows.value.data || []).forEach(function(v){ monthRevenue += planPrice(v.plan_id); });
-    animateNumber(document.getElementById('statRevenue'), monthRevenue, {prefix:'₦'});
+  var bestCycleRevenue = 0, bestCycleOk = false, bestCycle = null;
+  if(rAllSalesRows.status === 'fulfilled' && !rAllSalesRows.value.error){
+    bestCycle = findBestCycle(rAllSalesRows.value.data || []);
+    if(bestCycle){
+      bestCycleOk = true;
+      bestCycleRevenue = bestCycle.revenue;
+      animateNumber(document.getElementById('statRevenue'), bestCycleRevenue, {prefix:'₦'});
+      document.getElementById('statRevenueSub').textContent = fmtCycleRange(bestCycle) + ' · best cycle to date';
+    } else {
+      document.getElementById('statRevenue').textContent = '—';
+      document.getElementById('statRevenueSub').textContent = 'no sales recorded yet';
+    }
   } else {
     document.getElementById('statRevenue').textContent = '—';
+    document.getElementById('statRevenueSub').textContent = 'unavailable';
   }
 
   var apTotal = 0, apOnline = 0, apOk = false;
@@ -777,9 +813,9 @@ async function znRefreshLive(){
   }
 
   var avgInput = document.getElementById('calcAvgRev');
-  if(monthDataOk && apOk && apTotal > 0 && avgInput && !avgInput.dataset.userEdited){
-    avgInput.value = Math.round(monthRevenue / apTotal);
-    document.getElementById('calcAvgRevHint').textContent = 'Pre-filled from this month\'s live network average — edit freely.';
+  if(bestCycleOk && apOk && apTotal > 0 && avgInput && !avgInput.dataset.userEdited){
+    avgInput.value = Math.round(bestCycleRevenue / apTotal);
+    document.getElementById('calcAvgRevHint').textContent = 'Pre-filled from our best cycle\'s live network average — edit freely.';
     runCalc();
   } else if(avgInput && !avgInput.dataset.userEdited){
     document.getElementById('calcAvgRevHint').textContent = 'Live average unavailable right now — enter your own assumption.';
