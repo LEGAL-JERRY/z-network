@@ -1559,8 +1559,25 @@ textarea.form-input{height:auto;padding:12px 14px;}
     <div class="modal-header"><span class="modal-title">Add Vouchers</span><button class="modal-close" onclick="closeModal('addVouchersModal')">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
+        <label class="form-label">Mode</label>
+        <select class="form-input" id="addCodesMode" onchange="onAddVouchersModeChange()">
+          <option value="paste">Paste existing codes (already on router)</option>
+          <option value="generate">Generate new codes on router</option>
+        </select>
+      </div>
+      <div class="form-group" id="addCodesPasteWrap">
         <label class="form-label">Paste voucher codes (one per line)</label>
         <textarea class="form-input form-textarea" id="addCodesInput" placeholder="84729361&#10;33948271&#10;77219034"></textarea>
+      </div>
+      <div id="addCodesGenWrap" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Quantity (1–50)</label>
+          <input class="form-input" type="number" id="addCodesQty" min="1" max="50" value="10"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Comment on router user (optional)</label>
+          <input class="form-input" type="text" id="addCodesComment" maxlength="60" placeholder="e.g. Block A batch"/>
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">Plan</label>
@@ -1573,7 +1590,7 @@ textarea.form-input{height:auto;padding:12px 14px;}
         </select>
       </div>
     </div>
-    
+    <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('addVouchersModal')">Cancel</button>
       <button class="btn btn-blue" onclick="submitAddVouchers()">Add Vouchers</button>
     </div>
