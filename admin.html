@@ -2115,9 +2115,55 @@ async function revokeVoucher(id){
 }
 
 function openAddVouchersModal(){openModal('addVouchersModal');document.getElementById('addCodesInput').value='';document.getElementById('addCodesInput').focus();}
+function onAddVouchersModeChange(){
+  var gen=document.getElementById('addCodesMode').value==='generate';
+  document.getElementById('addCodesPasteWrap').style.display=gen?'none':'';
+  document.getElementById('addCodesGenWrap').style.display=gen?'':'none';
+}
+function genCode8(){
+  var a=new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(10000000+(a[0]%90000000));
+}
+async function generateRemoteVouchers(planId){
+  var qty=parseInt(document.getElementById('addCodesQty').value,10);
+  if(!qty||qty<1||qty>50){toast('Quantity must be between 1 and 50','error');return;}
+  var profile=PLAN_ROUTER_PROFILE[planId];
+  if(!profile){toast('No router profile mapped for this plan','error');return;}
+  var custom=document.getElementById('addCodesComment').value.replace(/[^A-Za-z0-9 ._@#-]/g,'').trim().slice(0,60);
+  var tag='znet-voucher '+profile+(custom?' '+custom:'');
+
+  var codes=[],seen={};
+  while(codes.length<qty){var c=genCode8();if(!seen[c]){seen[c]=1;codes.push(c);}}
+
+  var chk=await Promise.all([
+    supabase.from('vouchers').select('code').in('code',codes),
+    supabase.from('customers').select('voucher_code').in('voucher_code',codes)
+  ]);
+  if(chk[0].error||chk[1].error){toast('Collision check failed — nothing created','error');return;}
+  if((chk[0].data||[]).length||(chk[1].data||[]).length){toast('Code collision detected — click again to retry','error');return;}
+
+  // Queue router commands FIRST. If the stock insert fails afterwards we only have
+  // harmless orphan users on the router; the reverse order could sell dead vouchers.
+  var cmds=codes.map(function(code){
+    return{router_id:PRODUCTION_ROUTER_ID,command_type:'create_user',payload:{username:code,param:profile+'|'+tag},status:'pending'};
+  });
+  var r1=await supabase.from('router_commands').insert(cmds);
+  if(r1.error){toast('Failed to queue router commands: '+r1.error.message,'error');return;}
+
+  var rows=codes.map(function(code){return{code:code,plan_id:planId,is_used:false};});
+  var r2=await supabase.from('vouchers').insert(rows);
+  if(r2.error){toast('Router users queued, but stock insert failed: '+r2.error.message,'error');return;}
+
+  toast(qty+' voucher'+(qty!==1?'s':'')+' queued — live on router within 1–2 min','success');
+  closeModal('addVouchersModal');
+  if(currentSection==='vouchers')loadVouchers();
+  if(currentSection==='overview')loadOverview();
+}
 async function submitAddVouchers(){
-  var raw=document.getElementById('addCodesInput').value.trim();
   var planId=document.getElementById('addCodesPlan').value;
+  if(document.getElementById('addCodesMode').value==='generate'){return generateRemoteVouchers(planId);}
+  var raw=document.getElementById('addCodesInput').value.trim();
   if(!raw){toast('Paste at least one code first','error');return;}
   var codes=raw.split('\n').map(function(c){return c.trim();}).filter(Boolean);
   var rows=codes.map(function(c){return{code:c,plan_id:planId,is_used:false};});
@@ -2127,6 +2173,20 @@ async function submitAddVouchers(){
   closeModal('addVouchersModal');
   if(currentSection==='vouchers')loadVouchers();
   if(currentSection==='overview')loadOverview();
+}
+
+   async function setCustomerComment(id){
+  var c=_allCustomers.find(function(x){return x.id===id;});
+  if(!c||!c.voucher_code){toast('No voucher code on file','error');return;}
+  var txt=prompt('Comment for '+c.voucher_code+':',c.name||'');
+  if(txt===null)return;
+  txt=txt.replace(/[^A-Za-z0-9 ._@#-]/g,'').trim().slice(0,60);
+  var{error}=await supabase.from('router_commands').insert({
+    router_id:PRODUCTION_ROUTER_ID,command_type:'set_comment',
+    payload:{username:c.voucher_code,param:txt},status:'pending'
+  });
+  if(error){toast('Failed to queue: '+error.message,'error');return;}
+  toast('Comment queued — applies within ~1 min','success');
 }
 
 var _importData=[];
@@ -2310,7 +2370,7 @@ async function openCustomerDetail(id){
     '<div class="detail-row"><span class="detail-label">Price</span><span class="detail-val">'+(c.price?fmtMoney(c.price):'—')+'</span></div>'+
     '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-val">'+c.status+'</span></div>'+
     '<div class="detail-row"><span class="detail-label">Voucher Code</span><span class="detail-val">'+(c.voucher_code||'—')+'</span></div>'+
-'<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span></div>'+
+    '<div class="detail-row"><span class="detail-label">Expires</span><span class="detail-val countdown mono" data-expiry="'+(c.expiry_date||'')+'">'+getCountdown(c.expiry_date)+'</span></div>'+
     '<div class="detail-row"><span class="detail-label">Source</span><span class="detail-val">'+(c.is_legacy?'Legacy (backfilled)':'New Sale')+'</span></div>'+
     '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-val">'+fmtDate(c.created_at)+'</span></div>'+
     '<div style="margin-top:16px;"><div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px;">Renewal History</div>'+
