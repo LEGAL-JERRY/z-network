@@ -3849,9 +3849,38 @@ async function getRouters(){
 
 async function loadAccessPoints(){
   _apLoaded=true;
-  var{data,error}=await supabase.rpc('rpc_get_access_points_status');
-  if(error){toast('Access point load failed: '+error.message,'error');return;}
-  _allAPs=data||[];
+
+  /* Load live status first */
+  var{data:statusData,error:statusError}=await supabase.rpc('rpc_get_access_points_status');
+
+  if(statusError){
+    console.warn('AP status RPC failed:',statusError.message);
+    statusData=[];
+  }
+
+  /* Load the actual AP records directly */
+  var{data:apData,error:apError}=await supabase
+    .from('access_points')
+    .select('id,name,mac_address,router_id,notes,pos_x,pos_y,waypoints,pinned');
+
+  if(apError){
+    toast('Access point load failed: '+apError.message,'error');
+    return;
+  }
+
+  /* Convert live-status results into a lookup */
+  var statusMap={};
+
+  (statusData||[]).forEach(function(ap){
+    statusMap[ap.id]=ap.effective_status||ap.status||'unknown';
+  });
+
+  /* Merge database AP records with live status */
+  _allAPs=(apData||[]).map(function(ap){
+    return Object.assign({},ap,{
+      effective_status:statusMap[ap.id]||'unknown'
+    });
+  });
   var{data:pinData}=await supabase.from('access_points').select('id,pinned');
   if(pinData){
     var pinMap={};
