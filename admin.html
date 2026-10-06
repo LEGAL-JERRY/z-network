@@ -1227,6 +1227,9 @@ textarea.form-input{height:auto;padding:12px 14px;}
 </div>
 <div class="filters-row" style="margin-top:-6px;">
   <button class="btn btn-outline btn-sm" id="apRectBtn" onclick="toggleShapeDrawMode('rect',this)">▭ Add Rectangle</button>
+   <button class="btn btn-outline btn-sm" id="apDuplicateBtn" onclick="duplicateSelectedShape()">
+  Duplicate Box
+</button>
   <button class="btn btn-outline btn-sm" id="apSquareBtn" onclick="toggleShapeDrawMode('square',this)">▢ Add Square</button>
   <span style="width:1px;background:#1a2036;align-self:stretch;"></span>
   <button class="btn btn-outline btn-sm" onclick="apZoomBy(1.25)">＋ Zoom In</button>
@@ -4151,6 +4154,63 @@ function saveShapePosition(s){
     });
   },250);
 }
+
+   async function duplicateSelectedShape(){
+  if(!_apSelectedShapeId){
+    toast('Select a box first','error');
+    return;
+  }
+
+  var source=_apShapes.find(function(s){
+    return s.id===_apSelectedShapeId;
+  });
+
+  if(!source){
+    toast('Select a box first','error');
+    return;
+  }
+
+  var offset=0.025;
+
+  var newX=Math.min(0.96-source.w,source.x+offset);
+  var newY=Math.min(0.92-source.h,source.y+offset);
+
+  var{data,error}=await supabase
+    .from('map_shapes')
+    .insert({
+      kind:source.kind,
+      x:newX,
+      y:newY,
+      w:source.w,
+      h:source.h,
+      label:source.label||'Compound'
+    })
+    .select()
+    .single();
+
+  if(error){
+    toast('Duplicate failed: '+error.message,'error');
+    return;
+  }
+
+  var copy={
+    id:data.id,
+    kind:data.kind,
+    x:data.x,
+    y:data.y,
+    w:data.w,
+    h:data.h,
+    label:data.label||'Compound'
+  };
+
+  _apShapes.push(copy);
+  _apSelectedShapeId=copy.id;
+
+  renderAPFrame();
+  toast('Box duplicated','success');
+}
+
+   
 async function deleteShape(id){
   _apShapes=_apShapes.filter(function(s){return s.id!==id;});
   _apSelectedShapeId=null;
