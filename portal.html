@@ -61,6 +61,53 @@ input{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14
 .footer{text-align:center;color:var(--muted);font-size:.68rem;padding:8px 0 2px}.loading,.notfound{max-width:420px;margin:auto;text-align:center;padding:70px 20px;color:var(--muted)}
 @media(max-width:760px){body{padding:14px 10px}.hero{padding:22px 18px;border-radius:22px}.section{padding:18px;border-radius:19px}.topup-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.hero-head{gap:12px}.status-pill{font-size:.64rem;padding:7px 9px}.customer-name{font-size:2rem}.topup-grid{gap:8px}.topup{padding:13px 11px}.profile-grid{grid-template-columns:1fr}}
+
+  /* ===== zn redesign (scoped, monochrome) ===== */
+.zn-wrap{max-width:960px;margin:auto}
+.zn-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:6px 0 24px;border-bottom:1px solid #111}
+.zn-id{min-width:0;flex:1}
+.zn-hello{font-size:1.15rem;font-weight:800;letter-spacing:-.03em;color:#111;overflow-wrap:anywhere}
+.zn-compound{font-size:.78rem;color:#6b6b6b;margin-top:4px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
+.zn-compound b{font-weight:600;color:#6b6b6b}
+.zn-voucher{display:flex;align-items:center;gap:8px;flex-shrink:0;border:1px solid #111;border-radius:12px;padding:8px 8px 8px 12px;background:#fff}
+.zn-voucher-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:#6b6b6b;font-weight:700;display:block}
+.zn-voucher-code{font-family:ui-monospace,Menlo,monospace;font-size:.9rem;font-weight:800;color:#111;letter-spacing:.04em}
+.zn-copy{width:34px;height:34px;border:1px solid #111;border-radius:8px;background:#111;color:#fff;display:grid;place-items:center;font-size:.9rem}
+.zn-copy.done{background:#fff;color:#111}
+.zn-main{padding:56px 0 36px}
+.zn-brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.03em;margin-bottom:28px}
+.zn-brand-mark{width:38px;height:38px;border-radius:12px;background:#111;color:#fff;display:grid;place-items:center;font-size:18px}
+.zn-h1{font-size:clamp(2.2rem,6vw,4rem);font-weight:850;letter-spacing:-.06em;line-height:1;color:#111}
+.zn-sub{color:#6b6b6b;font-size:1rem;margin-top:12px}
+.zn-current{margin-top:28px;border:1px solid #111;border-radius:18px;padding:20px;background:#fff}
+.zn-current-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.zn-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:#6b6b6b}
+.zn-plan-name{font-size:1.2rem;font-weight:850;letter-spacing:-.03em;margin-top:4px;color:#111}
+.zn-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;font-size:.7rem;font-weight:800;background:#111;color:#fff;border:1px solid #111;white-space:nowrap}
+.zn-pill.expired,.zn-pill.paused,.zn-pill.blackout{background:#fff;color:#111}
+.zn-pill i{width:6px;height:6px;border-radius:50%;background:currentColor;display:block}
+.zn-count{font-size:clamp(1.7rem,5vw,2.6rem);font-weight:850;letter-spacing:-.05em;margin-top:18px;color:#111}
+.zn-expiry{color:#6b6b6b;font-size:.75rem;margin-top:4px}
+.zn-plans-head{margin:0 0 16px}
+.zn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.zn-plan{border:1px solid #d9d9d9;border-radius:18px;padding:22px 18px;background:#fff;display:flex;flex-direction:column;justify-content:space-between;min-height:168px;transition:border-color .15s}
+.zn-plan:hover{border-color:#111}
+.zn-plan-t{font-size:.8rem;font-weight:800;letter-spacing:.02em;color:#111}
+.zn-plan-p{font-size:1.7rem;font-weight:850;letter-spacing:-.04em;margin:14px 0 18px;color:#111}
+.zn-buy{width:100%;min-height:44px;border:1px solid #111;border-radius:12px;background:#111;color:#fff;font-weight:800;font-size:.8rem}
+.zn-buy:hover{background:#fff;color:#111}
+.zn-buy:disabled{opacity:.5;cursor:not-allowed}
+.zn-info{margin-top:40px;border-top:1px solid #e5e5e5;padding-top:24px}
+.zn-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.zn-info-item{border:1px solid #e5e5e5;border-radius:14px;padding:14px}
+.zn-info-item .v{font-size:.85rem;font-weight:800;color:#111;overflow-wrap:anywhere;margin-top:4px}
+.zn-staff{margin-top:48px;padding-top:20px;border-top:1px solid #e5e5e5;text-align:center}
+.zn-staff-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #d0d0d0;background:#fff;color:#111;border-radius:999px;padding:9px 16px;font-size:.75rem;font-weight:700;margin-top:10px}
+.zn-staff-btn:hover{border-color:#111}
+.zn-foot{text-align:center;color:#8a8a8a;font-size:.7rem;padding:28px 0 6px}
+@media(max-width:760px){.zn-grid{grid-template-columns:repeat(2,1fr)}.zn-info-grid{grid-template-columns:1fr}.zn-main{padding-top:36px}}
+@media(max-width:480px){.zn-head{flex-direction:column}.zn-voucher{width:100%;justify-content:space-between}.zn-plan{padding:16px 14px;min-height:150px}.zn-plan-p{font-size:1.35rem}}
+@media(max-width:340px){.zn-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -123,6 +170,15 @@ async function loadPortal(){
 function renderNotFound(){
   document.getElementById('app').innerHTML='<div class="notfound">This link isn\'t valid. Please contact Z-Network to get your correct link.</div>';
 }
+  function znEsc(s){return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+function znCopyVoucher(){
+  var code=_customer&&_customer.voucher_code;
+  if(!code)return;
+  var btn=document.getElementById('znCopyBtn');
+  function ok(){if(btn){btn.classList.add('done');btn.textContent='✓';setTimeout(function(){btn.classList.remove('done');btn.textContent='⧉';},1400);}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(code).then(ok);}
+  else{var ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();ok();}
+}
 
 async function renderCustomer(){
   var c=_customer;
@@ -132,44 +188,66 @@ async function renderCustomer(){
   _isExpired=isExpired;
   var isBlackout=!isPaused && !!_activeOutage;
   var cls=isPaused?'paused':(isBlackout?'blackout':(isExpired?'expired':'active'));
+  var compound=(c.compound_name||c.compound||'').toString().trim();
   var label=isPaused?'Paused':(isBlackout?'Power Outage':(isExpired?'Expired':'Active'));
 
   document.getElementById('app').innerHTML=
-    '<div class="topbar"><div class="brand"><div class="brand-mark">⌁</div><div><div class="brand-name">Z-Network</div><div class="brand-sub">Customer portal</div></div></div></div>'+
-
-    '<section class="hero">'+
-      '<div class="hero-head">'+
-        '<div><div class="eyebrow">Welcome back</div><div class="customer-name">'+(c.name||'—')+'</div>'+
-        '<div class="customer-id">Customer ID · '+(c.customer_number||'—')+'</div></div>'+
-        '<div class="status-pill '+cls+'"><span class="status-dot"></span>'+label+'</div>'+
+  '<div class="zn-wrap">'+
+    '<header class="zn-head">'+
+      '<div class="zn-id">'+
+        '<div class="zn-hello">Hello, '+(c.name||'—')+'</div>'+
+        '<div class="zn-compound"><b>Compound:</b> '+(compound?znEsc(compound):'Compound unavailable')+'</div>'+
       '</div>'+
-      '<div class="plan-card">'+
-        '<div class="plan-top"><div><div class="plan-label">Current plan</div><div class="plan-name">'+(c.plan_name||'No active plan')+'</div></div></div>'+
-        '<div class="countdown '+cls+'">'+(isPaused?'—':(isBlackout?getBlackoutCredit(_activeOutage.started_at):getCountdown(c.expiry_date)))+'</div>'+
-        '<div class="expiry-label">'+(isPaused?'Your subscription is paused':(isBlackout?'Power is out — time added back so far, credited once restored':(isExpired?'Your plan has expired':'Time remaining on your current subscription')))+'</div>'+
-    '<div class="quick-actions"><button class="btn btn-primary" onclick="document.getElementById(\'topupSection\').scrollIntoView({behavior:\'smooth\'})">View plans</button></div>'+
+      '<div class="zn-voucher"><div><span class="zn-voucher-label">Voucher</span><span class="zn-voucher-code">'+(c.voucher_code||'—')+'</span></div>'+
+        '<button class="zn-copy" id="znCopyBtn" onclick="znCopyVoucher()" aria-label="Copy voucher number">⧉</button></div>'+
+    '</header>'+
+
+    '<section class="zn-main">'+
+      '<div class="zn-brand"><div class="zn-brand-mark">⌁</div>Z-Network</div>'+
+      '<h1 class="zn-h1">Find your connection.</h1>'+
+      '<p class="zn-sub">Choose your internet plan.</p>'+
+      '<div class="zn-current">'+
+        '<div class="zn-current-top"><div><div class="zn-label">Current plan</div><div class="zn-plan-name">'+(c.plan_name||'No active plan')+'</div></div>'+
+        '<div class="zn-pill '+cls+'"><i></i>'+label+'</div></div>'+
+        '<div class="countdown zn-count">'+(isPaused?'—':(isBlackout?getBlackoutCredit(_activeOutage.started_at):getCountdown(c.expiry_date)))+'</div>'+
+        '<div class="zn-expiry">'+(isPaused?'Your subscription is paused':(isBlackout?'Power is out — time added back so far, credited once restored':(isExpired?'Your plan has expired':'Time remaining on your current subscription')))+'</div>'+
       '</div>'+
     '</section>'+
 
-    '<section class="section" id="topupSection">'+
-      '<div class="section-heading"><div><div class="section-title">Available plans</div>'+
-      '<div class="section-subtitle">Pay to renew instantly — no need to contact us</div></div></div>'+
-      '<div class="topup-grid">'+
+    '<section id="topupSection">'+
+      '<div class="zn-plans-head"><div class="zn-label">Available plans</div><div class="zn-expiry">Pay to renew instantly — no need to contact us</div></div>'+
+      '<div class="zn-grid">'+
         plans.map(function(p){
-          return'<div class="topup"><div class="topup-name">'+p.name+'</div><div class="topup-price">₦'+Number(p.amount).toLocaleString('en-NG')+'</div><button class="btn btn-primary" id="buy-'+p.id+'" onclick="buyPlan(\''+p.id+'\',\''+p.name+'\','+p.amount+')">Buy Now</button></div>';
+          return'<div class="zn-plan"><div><div class="zn-plan-t">'+p.name+'</div><div class="zn-plan-p">₦'+Number(p.amount).toLocaleString('en-NG')+'</div></div>'+
+            '<button class="zn-buy" id="buy-'+p.id+'" onclick="buyPlan(\''+p.id+'\',\''+p.name+'\','+p.amount+')">Buy Now</button></div>';
         }).join('')+
       '</div>'+
       '<div id="buyResult" style="margin-top:14px;"></div>'+
     '</section>'+
 
-    '<section class="section"><div class="section-heading"><div><div class="section-title">Customer information</div>'+
-      '<div class="section-subtitle">Your account details</div></div></div>'+
-      '<div class="profile-grid">'+
-        '<div class="profile-item"><div class="profile-label">Name</div><div class="profile-value">'+(c.name||'—')+'</div></div>'+
-        '<div class="profile-item"><div class="profile-label">Customer number</div><div class="profile-value">'+(c.customer_number||'—')+'</div></div>'+
-        '<div class="profile-item"><div class="profile-label">Voucher code</div><div class="profile-value mono">'+(c.voucher_code||'—')+'</div></div>'+
+    '<section class="zn-info"><div class="zn-label">Customer information</div>'+
+      '<div class="zn-info-grid">'+
+        '<div class="zn-info-item"><div class="zn-label">Name</div><div class="v">'+(c.name||'—')+'</div></div>'+
+        '<div class="zn-info-item"><div class="zn-label">Customer number</div><div class="v">'+(c.customer_number||'—')+'</div></div>'+
+        '<div class="zn-info-item"><div class="zn-label">Voucher code</div><div class="v mono">'+(c.voucher_code||'—')+'</div></div>'+
       '</div>'+
     '</section>'+
+
+    '<section class="zn-staff">'+
+      '<div class="zn-label">Staff Access</div>'+
+      '<button class="zn-staff-btn" onclick="showAdminLogin()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>Admin Login</button>'+
+      '<div class="admin-panel" id="adminPanel" style="text-align:left;">'+
+        '<div class="error" id="pinError">Incorrect PIN.</div>'+
+        '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
+        '<button class="btn btn-outline" style="width:100%" onclick="unlockAdmin()">Unlock</button>'+
+        '<div id="adminActions" style="display:none;margin-top:14px;">'+
+          ((isPaused||isExpired)?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
+        '</div>'+
+      '</div>'+
+    '</section>'+
+
+    '<div class="zn-foot">Z-Network · Reliable internet, made simple</div>'+
+  '</div>';
 
     '<div class="footer">Z-Network · Reliable internet, made simple</div>'+
     '<div class="admin-toggle" onclick="showAdminLogin()">Admin? Tap here</div>'+
