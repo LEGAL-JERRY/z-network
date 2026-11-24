@@ -240,10 +240,13 @@ async function renderCustomer(){
         '<div class="error" id="pinError">Incorrect PIN.</div>'+
         '<input type="password" id="pinInput" placeholder="Admin PIN" inputmode="numeric"/>'+
         '<button class="btn btn-outline" style="width:100%" onclick="unlockAdmin()">Unlock</button>'+
-        '<div id="adminActions" style="display:none;margin-top:14px;">'+
-          ((isPaused||isExpired)?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
-        '</div>'+
-      '</div>'+
+     '<div id="adminActions" style="display:none;margin-top:14px;">'+
+      '<div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;">Customer name</div>'+
+      '<input type="text" id="renameInput" maxlength="60" value="'+escAttr(c.name||'')+'" placeholder="Customer name"/>'+
+      '<button class="btn btn-green" style="width:100%;margin-bottom:14px;" id="renameBtn" onclick="doRename()">✎ Save Name</button>'+
+      ((isPaused||isExpired)?'<div id="continuePickerSlot">Loading plans…</div>':'<button class="btn btn-red" style="width:100%" id="pauseBtn" onclick="doPause()">⏸ Pause Subscription</button>')+
+    '</div>'+
+          '</div>'+
     '</section>'+
 
     '<div class="zn-foot">Z-Network · Reliable internet, made simple</div>'+
@@ -300,7 +303,27 @@ async function doPause(){
   showAdminLogin();
   document.getElementById('adminActions').style.display='block';
 }
+function escAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
+async function doRename(){
+  var input=document.getElementById('renameInput');
+  var btn=document.getElementById('renameBtn');
+  var name=(input.value||'').trim();
+  if(!name){alert('Name cannot be empty.');return;}
+  if(name===(_customer.name||''))return;
+  if(!confirm('Change customer name to "'+name+'"?'))return;
+  btn.disabled=true;
+  var{data,error}=await supabase.rpc('rpc_portal_rename',{p_token:TOKEN,p_pin:window._portalPin,p_name:name});
+  btn.disabled=false;
+  if(error||!data||!data.ok){alert('Failed to rename: '+(data&&data.error?data.error:(error?error.message:'unknown error')));return;}
+  await loadPortal();
+  showAdminLogin();
+  document.getElementById('adminActions').style.display='block';
+}
+
+  
 var PLANS_CACHE=null;
 async function renderContinuePicker(){
   var{data}=await supabase.from('plans').select('id,name,amount,duration_hours').order('amount');
