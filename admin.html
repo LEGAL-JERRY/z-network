@@ -836,6 +836,9 @@ textarea.form-input{height:auto;padding:12px 14px;}
       <span class="nav-icon" data-icon="ic-chart"></span> Reports
       <span class="nav-badge" id="navBadgeReports"></span>
     </div>
+    <div class="nav-item" data-section="reconcile" onclick="navigate('reconcile',this)" tabindex="0" role="button">
+  <span class="nav-icon" data-icon="ic-check"></span> Reconcile
+   </div>
     <div class="nav-item" data-section="settings" onclick="navigate('settings',this)" tabindex="0" role="button">
       <span class="nav-icon" data-icon="ic-gear"></span> Settings
     </div>
@@ -1171,6 +1174,43 @@ textarea.form-input{height:auto;padding:12px 14px;}
 
     <div id="reportsListBody"><div class="spinner"></div></div>
   </section>
+
+   <section class="section" id="section-reconcile">
+  <div class="section-head"><div>
+    <div class="section-title">Reconcile</div>
+    <div class="section-sub">Vet sales against your bank statement before adding them to the books</div>
+  </div></div>
+
+  <div class="card" style="padding:18px;margin-bottom:16px;">
+    <div class="filters-row">
+      <select class="filter-select" id="rcType" onchange="reconFillPeriods()">
+        <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+      </select>
+      <select class="filter-select" id="rcPeriod" style="min-width:220px;"></select>
+      <input type="file" id="rcFile" accept=".csv" style="display:none" onchange="reconLoadCSV(this)"/>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('rcFile').click()"><span data-icon="ic-import" style="width:14px;height:14px;"></span>Bank Statement CSV</button>
+    </div>
+    <div class="filters-row">
+      <select class="filter-select" id="rcColDate" title="Date column"></select>
+      <select class="filter-select" id="rcColAmt" title="Credit/Amount column"></select>
+      <select class="filter-select" id="rcColDesc" title="Description column"></select>
+    </div>
+    <div class="filters-row">
+      <input class="filter-input" type="number" id="rcTolAmt" value="0" min="0" placeholder="Amount tolerance ₦" title="Amount tolerance ₦ (for gateway fees)" style="max-width:190px;"/>
+      <input class="filter-input" type="number" id="rcTolHrs" value="12" min="1" placeholder="Time tolerance hrs" title="Time tolerance (hours)" style="max-width:190px;"/>
+      <label style="font-size:0.8rem;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rcIncCash"/> Include cash sales</label>
+      <button class="btn btn-blue btn-sm" onclick="runRecon()">Run Reconciliation</button>
+    </div>
+    <div id="rcFileInfo" style="font-size:0.75rem;color:var(--text-muted);">No statement loaded.</div>
+  </div>
+
+  <div id="rcResults"></div>
+
+  <div class="card" style="padding:18px;margin-top:20px;">
+    <div class="stock-title">Vetted Periods</div>
+    <div id="rcHistory"><div class="spinner"></div></div>
+  </div>
+</section>
 
    <!-- BLACKOUTS -->
   <section class="section" id="section-blackouts">
@@ -1876,7 +1916,7 @@ var SECTION_TITLES={
   voucherhub:'Voucher Sale / New Customer',customers:'Customers',blackouts:'Blackouts',
   accesspoints:'Access Points',livecustomers:'Live Customers',bandwidth:'Live Bandwidth',
   overview:'Overview',vouchers:'Vouchers',expiry:'Expiry Watch',
-  reports:'Reports',settings:'Settings'
+  reports:'Reports', reconcile:'Reconcile', settings:'Settings' 
 };
 function navigate(id,el){
   document.getElementById('section-'+currentSection).classList.remove('active');
@@ -1898,6 +1938,7 @@ function navigate(id,el){
   else if(id==='bandwidth')loadBandwidth();
   else if(id==='expiry')loadExpiryData();
   else if(id==='reports')loadReportsSection();
+  else if(id==='reconcile')initReconcile();
   else if(id==='settings')initSettings();
   if(id==='livecustomers'){
     if(!_liveTimer)_liveTimer=setInterval(function(){if(currentSection==='livecustomers')loadLiveCustomers();},60000);
@@ -2825,6 +2866,148 @@ async function loadCashSalePlans(){
   }).join('');
 }
 
+
+   /* ══════════ RECONCILE ══════════ */
+var _rcBank=[],_rcPeriods=[],_rcLast=null,_rcHeaders=[],_rcRaw=[];
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+function initReconcile(){reconFillPeriods();loadReconHistory();}
+
+function reconFillPeriods(){
+  var t=document.getElementById('rcType').value,p=[];
+  if(t==='daily')p=getRecentDays(31);
+  else if(t==='weekly'){var all=[];getRecentCycles(3).forEach(function(c){all=all.concat(getWeeksInCycle(c));});
+    p=all.filter(function(w){return w.start<=new Date();}).sort(function(a,b){return b.start-a.start;});}
+  else p=getRecentCycles(6);
+  _rcPeriods=p;
+  document.getElementById('rcPeriod').innerHTML=p.map(function(x,i){return'<option value="'+i+'">'+periodLabel(t,x)+'</option>';}).join('');
+}
+
+function reconParseDate(s){
+  if(!s)return null;s=String(s).trim();
+  var m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:[ T,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?/i);
+  if(m){var y=+m[3];if(y<100)y+=2000;var hh=+(m[4]||0);if(m[7]){if(/pm/i.test(m[7])&&hh<12)hh+=12;if(/am/i.test(m[7])&&hh===12)hh=0;}
+    return new Date(y,+m[2]-1,+m[1],hh,+(m[5]||0),+(m[6]||0));}
+  var d=new Date(s);return isNaN(d)?null:d;
+}
+function reconParseAmt(v){var n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;}
+
+function reconLoadCSV(input){
+  if(!input.files.length)return;
+  Papa.parse(input.files[0],{header:true,skipEmptyLines:true,complete:function(r){
+    _rcRaw=r.data;_rcHeaders=r.meta.fields||[];
+    var opts=_rcHeaders.map(function(h){return'<option value="'+esc(h)+'">'+esc(h)+'</option>';}).join('');
+    ['rcColDate','rcColAmt','rcColDesc'].forEach(function(id){document.getElementById(id).innerHTML=opts;});
+    function pick(re){return _rcHeaders.find(function(h){return re.test(h);})||_rcHeaders[0];}
+    document.getElementById('rcColDate').value=pick(/date|time/i);
+    document.getElementById('rcColAmt').value=pick(/credit|deposit|\bcr\b|amount/i);
+    document.getElementById('rcColDesc').value=pick(/desc|narrat|detail|remark|particular/i);
+    document.getElementById('rcFileInfo').textContent=_rcRaw.length+' rows loaded from '+input.files[0].name+' — confirm the 3 column pickers above, then Run.';
+  }});
+}
+
+async function runRecon(){
+  if(!_rcRaw.length){toast('Load a bank statement CSV first','error');return;}
+  var t=document.getElementById('rcType').value;
+  var per=_rcPeriods[+document.getElementById('rcPeriod').value];
+  if(!per){toast('Pick a period','error');return;}
+  var cD=rcColDate.value,cA=rcColAmt.value,cX=rcColDesc.value;
+  var tolAmt=+rcTolAmt.value||0,tolMs=(+rcTolHrs.value||12)*3600000,incCash=rcIncCash.checked;
+  var t0=performance.now();
+
+  var q=await supabase.from('vouchers').select('code,plan_id,used_at,sold_by,transaction_reference')
+    .eq('is_used',true).gte('used_at',per.start.toISOString()).lt('used_at',per.end.toISOString()).order('used_at');
+  if(q.error){toast('Load failed: '+q.error.message,'error');return;}
+  var sales=(q.data||[]).filter(function(v){return incCash||v.sold_by!=='cash';}).map(function(v){
+    return{v:v,price:getPlanPrice(v.plan_id),time:new Date(v.used_at).getTime(),hit:null};});
+
+  var lo=per.start.getTime()-tolMs,hi=per.end.getTime()+tolMs;
+  var credits=[];
+  _rcRaw.forEach(function(r,i){
+    var d=reconParseDate(r[cD]),a=reconParseAmt(r[cA]);
+    if(!d||a<=0)return;
+    if(d.getTime()<lo||d.getTime()>=hi)return;
+    credits.push({i:i,time:d.getTime(),amt:a,desc:String(r[cX]||''),hit:null});
+  });
+
+  // pass 1: reference in description
+  sales.forEach(function(s){
+    var ref=s.v.transaction_reference;if(!ref||String(ref).length<6)return;
+    var c=credits.find(function(c){return !c.hit&&c.desc.indexOf(ref)>=0&&Math.abs(c.amt-s.price)<=Math.max(tolAmt,s.price*0.05);});
+    if(c){c.hit=s;s.hit=c;s.how='ref';}
+  });
+  // pass 2: amount + closest time
+  sales.forEach(function(s){
+    if(s.hit)return;
+    var best=null,bd=Infinity;
+    credits.forEach(function(c){
+      if(c.hit||Math.abs(c.amt-s.price)>tolAmt)return;
+      var d=Math.abs(c.time-s.time);if(d<=tolMs&&d<bd){bd=d;best=c;}
+    });
+    if(best){best.hit=s;s.hit=best;s.how='amount+time';}
+  });
+
+  var matched=sales.filter(function(s){return s.hit;});
+  var unSales=sales.filter(function(s){return !s.hit;});
+  var unBank=credits.filter(function(c){return !c.hit;});
+  var salesTotal=sales.reduce(function(a,s){return a+s.price;},0);
+  var matchedBank=matched.reduce(function(a,s){return a+s.hit.amt;},0);
+  var bankTotal=credits.reduce(function(a,c){return a+c.amt;},0);
+  var variance=salesTotal-matchedBank;
+  _rcLast={type:t,per:per,salesCount:sales.length,salesTotal:salesTotal,bankTotal:bankTotal,matched:matched.length,variance:variance};
+  var ms=Math.round(performance.now()-t0);
+
+  function rows(list,fn,empty){return list.length?list.map(fn).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px;">'+empty+'</td></tr>';}
+  document.getElementById('rcResults').innerHTML=
+    '<div class="summary-grid">'+
+      sumCard('Sales ('+sales.length+')',fmtMoney(salesTotal),'accent',incCash?'online + cash':'online only')+
+      sumCard('Matched',matched.length+'/'+sales.length,matched.length===sales.length?'green':'amber',sales.length?Math.round(matched.length/sales.length*100)+'% match rate':'—')+
+      sumCard('Bank Credits',fmtMoney(bankTotal),'',credits.length+' rows in window')+
+      sumCard('Variance',fmtMoney(variance),variance===0?'green':'red','sales − matched bank ('+ms+'ms)')+
+    '</div>'+
+    '<div class="card stock-card"><div class="stock-title">⚠ Sales with NO bank credit ('+unSales.length+')</div><div class="table-scroll"><table class="v-table"><thead><tr><th>Code</th><th>Plan</th><th>Amount</th><th>Sold</th><th>Channel</th></tr></thead><tbody>'+
+      rows(unSales,function(s){return'<tr><td>'+esc(s.v.code)+'</td><td>'+getPlanName(s.v.plan_id)+'</td><td>'+fmtMoney(s.price)+'</td><td>'+fmtDate(s.v.used_at)+'</td><td>'+esc(s.v.sold_by||'online')+'</td></tr>';},'All sales matched ✔')+
+    '</tbody></table></div></div>'+
+    '<div class="card stock-card"><div class="stock-title">⚠ Bank credits with NO sale ('+unBank.length+')</div><div class="table-scroll"><table class="v-table"><thead><tr><th>Row</th><th>Amount</th><th>Date</th><th colspan="2">Description</th></tr></thead><tbody>'+
+      rows(unBank,function(c){return'<tr><td>'+(c.i+2)+'</td><td>'+fmtMoney(c.amt)+'</td><td>'+fmtDate(new Date(c.time))+'</td><td colspan="2" style="white-space:normal;">'+esc(c.desc)+'</td></tr>';},'No orphan credits ✔')+
+    '</tbody></table></div></div>'+
+    '<div class="card stock-card"><div class="stock-title">✔ Matched ('+matched.length+')</div><div class="table-scroll"><table class="v-table"><thead><tr><th>Code</th><th>Plan</th><th>Sale</th><th>Bank</th><th>Matched by</th></tr></thead><tbody>'+
+      rows(matched,function(s){return'<tr><td>'+esc(s.v.code)+'</td><td>'+getPlanName(s.v.plan_id)+'</td><td>'+fmtMoney(s.price)+'</td><td>'+fmtMoney(s.hit.amt)+'</td><td>'+s.how+'</td></tr>';},'—')+
+    '</tbody></table></div></div>'+
+    '<div style="display:flex;justify-content:flex-end;"><button class="btn btn-green" onclick="approveRecon()"><span data-icon="ic-check" style="width:15px;height:15px;"></span>Approve &amp; Mark Vetted</button></div>';
+  injectIcons(document.getElementById('rcResults'));
+}
+
+async function approveRecon(){
+  if(!_rcLast)return;
+  var L=_rcLast,clean=L.variance===0;
+  var note='';
+  if(!clean){note=prompt('Variance of '+fmtMoney(L.variance)+'. Reason / note (required):','');if(!note){toast('A note is required to approve with variance','error');return;}}
+  else if(!(await showConfirm('Mark Vetted','Lock '+periodLabel(L.type,L.per)+' as reconciled?','ic-check')))return;
+  var r=await supabase.from('reconciliations').upsert({
+    period_type:L.type,period_start:L.per.start.toISOString(),period_end:L.per.end.toISOString(),
+    sales_count:L.salesCount,sales_total:L.salesTotal,bank_total:L.bankTotal,matched_count:L.matched,
+    variance:L.variance,status:clean?'vetted':'vetted_with_variance',note:note||null
+  },{onConflict:'period_type,period_start'});
+  if(r.error){toast('Save failed: '+r.error.message,'error');return;}
+  toast('Period marked vetted','success');loadReconHistory();
+}
+
+async function loadReconHistory(){
+  var el=document.getElementById('rcHistory');
+  var r=await supabase.from('reconciliations').select('*').order('period_start',{ascending:false}).limit(40);
+  if(r.error){el.innerHTML='<div style="color:var(--red);font-size:0.82rem;">'+esc(r.error.message)+'</div>';return;}
+  if(!r.data.length){el.innerHTML='<div style="color:var(--text-muted);padding:14px;">Nothing vetted yet.</div>';return;}
+  el.innerHTML=r.data.map(function(x){
+    var ok=x.status==='vetted';
+    return'<div class="activity-item"><div class="activity-dot" style="background:'+(ok?'var(--green)':'var(--amber)')+'"></div>'+
+      '<div class="activity-info"><div class="activity-plan">'+x.period_type+' · '+periodLabel(x.period_type,{start:new Date(x.period_start),end:new Date(x.period_end)})+'</div>'+
+      '<div class="activity-meta">'+x.matched_count+'/'+x.sales_count+' matched'+(x.note?' · '+esc(x.note):'')+'</div></div>'+
+      '<div class="activity-right"><div class="activity-amount">'+fmtMoney(x.sales_total)+'</div><div class="activity-time">'+(ok?'clean':'variance '+fmtMoney(x.variance))+'</div></div></div>';
+  }).join('');
+}
+
+   
 function selectCashPlan(id){
   _cashSelectedPlan=id;
   document.querySelectorAll('.plan-card').forEach(function(c){c.classList.remove('selected');});
